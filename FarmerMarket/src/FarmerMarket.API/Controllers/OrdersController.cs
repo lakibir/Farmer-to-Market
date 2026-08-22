@@ -68,10 +68,10 @@ public class OrdersController(IMediator mediator) : ControllerBase
 
     [HttpPut("{id:guid}/deliver")]
     [Authorize(Roles = "buyer,admin")]
-    public async Task<IActionResult> DeliverOrder(Guid id, CancellationToken ct)
+    public async Task<IActionResult> DeliverOrder(Guid id, [FromBody] DeliverOrderDto? proof, CancellationToken ct)
     {
         var buyerId = User.GetUserId();
-        var result = await mediator.Send(new DeliverOrderCommand(id, buyerId), ct);
+        var result = await mediator.Send(new DeliverOrderCommand(id, buyerId, proof), ct);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 
         return Ok(new { message = "Delivery confirmed! Escrow funds released to farmer and driver." });
@@ -81,7 +81,7 @@ public class OrdersController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> DisputeOrder(Guid id, [FromBody] DisputeOrderDto dto, CancellationToken ct)
     {
         var userId = User.GetUserId();
-        var result = await mediator.Send(new DisputeOrderCommand(id, userId, dto.Reason), ct);
+        var result = await mediator.Send(new DisputeOrderCommand(id, userId, dto), ct);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 
         return Ok(new { message = "Dispute registered. Platform admin will review the claim." });

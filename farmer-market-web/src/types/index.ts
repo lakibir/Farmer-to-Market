@@ -10,6 +10,15 @@ export interface User {
   role: UserRole;
   region: string;
   verified: boolean;
+  vehicleType?: string;
+  refrigerationType?: string;
+  vehicleCapacityKg?: number;
+  kycDocumentType?: string;
+  kycDocumentNumber?: string;
+  kycStatus?: 'Verified' | 'Pending' | 'Rejected';
+  repeatBuyerCount?: number;
+  onTimeDeliveryRate?: number;
+  walletBalanceEtb?: number;
   createdAt: string;
 }
 
@@ -32,8 +41,19 @@ export interface Listing {
   photos: string[];
   availableFrom: string;
   status: ListingStatus;
+  grade?: string; // "Grade 1", "Grade 2", "Export Grade"
+  ripeness?: string; // "Ready Today", "Semi-Ripe", "Green / Storable"
+  isOrganic?: boolean;
+  isAdvanceHarvest?: boolean;
+  expectedHarvestDate?: string;
+  voiceNoteUrl?: string;
+  voiceNoteTranscript?: string;
+  marketBenchmarkPrice?: number;
+  moderationStatus?: 'Approved' | 'PendingReview' | 'Flagged';
   farmerRating: number;
   reviewCount: number;
+  repeatBuyerCount?: number;
+  onTimeDeliveryRate?: number;
   createdAt: string;
 }
 
@@ -60,12 +80,24 @@ export interface Order {
   farmerCut: number;
   driverCut: number;
   platformCut: number;
+  driverSubsidyEtb?: number;
   status: OrderStatus;
   escrowHeld: boolean;
   paymentRef?: string;
   pickupPhoto?: string;
+  deliveryPhoto?: string;
+  deliveryGpsLat?: number;
+  deliveryGpsLng?: number;
+  deliveredAt?: string;
   deliveryAddress?: string;
   deliveryNotes?: string;
+  disputeReason?: string;
+  disputePhoto?: string;
+  requestedRefundPercent?: number;
+  disputeStatus?: string; // "None", "PendingReview", "ResolvedReleaseFarmer", "ResolvedRefundBuyer", "ResolvedPartialSplit"
+  disputeResolutionNotes?: string;
+  isRecurring?: boolean;
+  recurringFrequency?: string; // "Weekly", "Bi-Weekly"
   confirmedAt?: string;
   createdAt: string;
 }
@@ -82,6 +114,7 @@ export interface DriverSummary {
   totalEarnedEtb: number;
   pendingEtb: number;
   deliveredTripsCount: number;
+  ruralBonusEtb?: number;
 }
 
 export interface PlatformStats {
@@ -95,6 +128,8 @@ export interface PlatformStats {
   totalPlatformCommissionEtb: number;
   activeEscrowHeldEtb: number;
   disputedOrdersCount: number;
+  totalMetricTonsMoved?: number;
+  middlemanMarginSavedEtb?: number;
 }
 
 export interface CartItem {
@@ -111,4 +146,91 @@ export interface NotificationItem {
   messageAm: string;
   read: boolean;
   sentAt: string;
+}
+
+export interface PriceBenchmark {
+  cropName: string;
+  cropNameAm: string;
+  marketName: string;
+  minPriceEtb: number;
+  avgPriceEtb: number;
+  maxPriceEtb: number;
+  trend: 'Up' | 'Down' | 'Stable';
+  lastUpdated: string;
+}
+
+export interface StandingOrder {
+  id: string;
+  listingId: string;
+  productName: string;
+  productNameAm?: string;
+  farmerName: string;
+  qtyKg: number;
+  pricePerKg: number;
+  frequency: 'Weekly' | 'Bi-Weekly' | 'Monthly';
+  nextDeliveryDate: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface AnomalyAlert {
+  id: string;
+  severity: 'High' | 'Medium' | 'Low';
+  type: 'DuplicateProofPhoto' | 'PriceManipulation' | 'UnusualVolume' | 'FakeAccount';
+  title: string;
+  description: string;
+  entityType: string;
+  entityId: string;
+  detectedAt: string;
+}
+
+export interface KycVerificationItem {
+  userId: string;
+  userName: string;
+  userRole: string;
+  phone: string;
+  region: string;
+  documentType: string;
+  documentNumber: string;
+  status: 'Pending' | 'Verified' | 'Rejected';
+  submittedAt: string;
+}
+
+export interface RegionalAnalytics {
+  region: string;
+  smallholdersCount: number;
+  volumeMetricTons: number;
+  totalGmvEtb: number;
+  topCrop: string;
+}
+
+export interface RouteStop {
+  stopNumber: number;
+  type: 'pickup' | 'dropoff';
+  locationName: string;
+  contactName: string;
+  phone: string;
+  cargoDetails: string;
+  weightKg: number;
+  completed: boolean;
+}
+
+export interface OptimizedRoute {
+  id: string;
+  title: string;
+  totalDistanceKm: number;
+  estimatedHours: number;
+  totalWeightKg: number;
+  driverCommissionEtb: number;
+  ruralSubsidyEtb: number;
+  stops: RouteStop[];
+}
+
+export interface OfflineAction {
+  id: string;
+  type: 'pickup' | 'delivery';
+  orderId: string;
+  timestamp: string;
+  data: any;
+  synced: boolean;
 }

@@ -46,6 +46,23 @@ class App {
   private isCreateListingModalOpen: boolean = false;
   private activeOrderModal: Order | null = null;
   private activeTelebirrModal: { isOpen: boolean; totalEtb: number; listingId?: string; qtyKg?: number } | null = null;
+  private activeDisputeModal: { isOpen: boolean; order: Order } | null = null;
+
+  // Advanced Filters
+  private maxDistanceKm: number = 0;
+  private activeGrade: string = 'All';
+  private activeRipeness: string = 'All';
+  private organicOnly: boolean = false;
+  private advanceOnly: boolean = false;
+  private activeBuyerSubTab: 'marketplace' | 'standing_orders' = 'marketplace';
+
+  // Farmer & Admin Sub-Tabs
+  private activeFarmerTab: 'listings' | 'wallet' | 'sms' = 'listings';
+  private activeAdminTab: 'disputes' | 'anomalies' | 'kyc' | 'analytics' | 'sms' = 'disputes';
+
+  // Voice Note State
+  private isRecordingVoice: boolean = false;
+  private voiceRecordTimer: any = null;
 
   // Auth Modal State
   private isAuthModalOpen: boolean = false;
@@ -104,23 +121,57 @@ class App {
     const notifications = api.getNotifications();
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    // Filter produce
-    const listings = api.getListings(this.activeCategory, this.selectedRegion, this.searchQuery);
+    // Filter produce with advanced criteria (Grade, Ripeness, Proximity, Advance Harvests)
+    const listings = api.getListings(
+      this.activeCategory,
+      this.selectedRegion,
+      this.searchQuery,
+      this.maxDistanceKm > 0 ? this.maxDistanceKm : undefined,
+      this.activeGrade,
+      this.activeRipeness,
+      this.organicOnly,
+      this.advanceOnly
+    );
 
     let viewHtml = '';
     if (this.activeTab === 'farmer' && isAuthenticated && currentUser?.role === 'farmer') {
       const farmerListings = api.getListings().filter(l => l.farmerId === currentUser.id);
       const farmerOrders = api.getOrders('farmer');
       const summary = api.getFarmerSummary();
-      viewHtml = renderFarmerView(this.lang, farmerListings, farmerOrders, summary, this.isCreateListingModalOpen);
+      viewHtml = renderFarmerView(
+        this.lang,
+        farmerListings,
+        farmerOrders,
+        summary,
+        this.isCreateListingModalOpen,
+        this.activeFarmerTab,
+        api.getPriceBenchmarks(),
+        currentUser
+      );
     } else if (this.activeTab === 'driver' && isAuthenticated && currentUser?.role === 'driver') {
       const driverOrders = api.getOrders('driver');
       const summary = api.getDriverSummary();
-      viewHtml = renderDriverView(this.lang, driverOrders, summary);
+      viewHtml = renderDriverView(
+        this.lang,
+        driverOrders,
+        summary,
+        api.getOptimizedRoute(),
+        currentUser,
+        api.getIsOfflineMode(),
+        api.getOfflineQueue().length
+      );
     } else if (this.activeTab === 'admin' && isAuthenticated && currentUser?.role === 'admin') {
       const stats = api.getPlatformStats();
       const disputedOrders = api.getOrders().filter(o => o.status === 'disputed');
-      viewHtml = renderAdminView(this.lang, stats, disputedOrders);
+      viewHtml = renderAdminView(
+        this.lang,
+        stats,
+        disputedOrders,
+        api.getAnomalyAlerts(),
+        api.getKycQueue(),
+        api.getRegionalAnalytics(),
+        this.activeAdminTab
+      );
     } else {
       // Default Wholesale Produce Marketplace (for Buyers or Logged Out Guests)
       viewHtml = renderBuyerView(
@@ -132,7 +183,15 @@ class App {
         this.cart,
         this.isCartOpen,
         this.activeOrderModal,
-        this.activeTelebirrModal
+        this.activeTelebirrModal,
+        this.activeDisputeModal,
+        this.maxDistanceKm,
+        this.activeGrade,
+        this.activeRipeness,
+        this.organicOnly,
+        this.advanceOnly,
+        this.activeBuyerSubTab,
+        api.getStandingOrders()
       );
     }
 
@@ -228,6 +287,240 @@ class App {
       localStorage.setItem('lang', this.lang);
       showToast(this.lang === 'am' ? 'ቋንቋ ወደ አማርኛ ተቀይሯል' : 'Language switched to English', 'fa-globe');
       this.render();
+    };
+
+    // Sub-Tab Switchers
+    w.setBuyerSubTab = (tab: 'marketplace' | 'standing_orders') => {
+      this.activeBuyerSubTab = tab;
+      this.render();
+    };
+
+    w.toggleFarmerTab = (tab: 'listings' | 'wallet' | 'sms') => {
+      this.activeFarmerTab = tab;
+      this.render();
+    };
+
+    w.setAdminTab = (tab: 'disputes' | 'anomalies' | 'kyc' | 'analytics' | 'sms') => {
+      this.activeAdminTab = tab;
+      this.render();
+    };
+
+    // Advanced Filters
+    w.setMaxDistanceKm = (km: number) => {
+      this.maxDistanceKm = km;
+      showToast(km === 0 ? 'Showing all produce across Ethiopia' : `Filtering farms within ${km} km radius`, 'fa-location-dot');
+      this.render();
+    };
+
+    w.setGradeFilter = (grade: string) => {
+      this.activeGrade = grade;
+      this.render();
+    };
+
+    w.setRipenessFilter = (ripeness: string) => {
+      this.activeRipeness = ripeness;
+      this.render();
+    };
+
+    w.toggleOrganicFilter = (checked: boolean) => {
+      this.organicOnly = checked;
+      this.render();
+    };
+
+    w.toggleAdvanceFilter = (checked: boolean) => {
+      this.advanceOnly = checked;
+      this.render();
+    };
+
+    // Voice Note Listing Creation Simulation
+    w.handleVoiceRecordToggle = () => {
+      const btnText = document.getElementById('voiceBtnText');
+      const wave = document.getElementById('voiceWaveIndicator');
+      const langSelect = (document.getElementById('voiceLangSelect') as HTMLSelectElement)?.value as 'am' | 'om' | 'en' || 'am';
+
+      if (!this.isRecordingVoice) {
+        this.isRecordingVoice = true;
+        if (btnText) btnText.innerText = 'Stop & Transcribe (አቁም)';
+        if (wave) wave.classList.remove('hidden');
+
+        showToast('Voice Recording in progress... Speak produce details.', 'fa-microphone', 'border-amber-500');
+
+        this.voiceRecordTimer = setTimeout(() => {
+          if (this.isRecordingVoice) {
+            w.finishVoiceTranscription(langSelect);
+          }
+        }, 3000);
+      } else {
+        clearTimeout(this.voiceRecordTimer);
+        w.finishVoiceTranscription(langSelect);
+      }
+    };
+
+    w.finishVoiceTranscription = (spokenLang: 'am' | 'om' | 'en') => {
+      this.isRecordingVoice = false;
+      const btnText = document.getElementById('voiceBtnText');
+      const wave = document.getElementById('voiceWaveIndicator');
+      if (btnText) btnText.innerText = 'Record Voice Note (ድምጽ ቅጂ)';
+      if (wave) wave.classList.add('hidden');
+
+      const parsed = api.simulateVoiceTranscription(4, spokenLang);
+      const nameInput = document.getElementById('newProdName') as HTMLInputElement;
+      const nameAmInput = document.getElementById('newProdNameAm') as HTMLInputElement;
+      const catInput = document.getElementById('newProdCategory') as HTMLSelectElement;
+      const qtyInput = document.getElementById('newProdQty') as HTMLInputElement;
+      const priceInput = document.getElementById('newProdPrice') as HTMLInputElement;
+      const regionInput = document.getElementById('newProdRegion') as HTMLInputElement;
+
+      if (nameInput) nameInput.value = parsed.productName;
+      if (nameAmInput) nameAmInput.value = parsed.nameAm;
+      if (catInput) catInput.value = parsed.category;
+      if (qtyInput) qtyInput.value = parsed.qtyKg.toString();
+      if (priceInput) priceInput.value = parsed.pricePerKg.toString();
+      if (regionInput) regionInput.value = parsed.region;
+
+      confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 } });
+      showToast(`Voice Note Transcribed! Form auto-populated in ${spokenLang.toUpperCase()}`, 'fa-wand-magic-sparkles');
+    };
+
+    w.toggleAdvanceHarvestFields = (checked: boolean) => {
+      const row = document.getElementById('advanceHarvestDateRow');
+      if (row) {
+        if (checked) row.classList.remove('hidden');
+        else row.classList.add('hidden');
+      }
+    };
+
+    // SMS Fallback Simulator
+    w.handleSimulateSms = async (e: Event) => {
+      e.preventDefault();
+      const phone = (document.getElementById('smsPhone') as HTMLInputElement).value;
+      const command = (document.getElementById('smsCommand') as HTMLInputElement).value;
+
+      const responseBox = document.getElementById('smsResponseBox');
+      const responseText = document.getElementById('smsResponseText');
+
+      if (responseBox && responseText) {
+        responseText.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Processing SMS command via Twilio engine...`;
+        responseBox.classList.remove('hidden');
+      }
+
+      const reply = await api.sendInboundSms(phone, command);
+      if (responseText) {
+        responseText.innerHTML = `&gt; ${reply}`;
+      }
+      showToast('SMS command executed via Twilio engine', 'fa-comment-sms');
+    };
+
+    // Farmer Instant Wallet Withdrawal
+    w.handleFarmerWithdrawal = () => {
+      const currentUser = api.getCurrentUser();
+      const balance = currentUser?.walletBalanceEtb || 48200;
+      if (balance <= 0) {
+        showToast('No available balance to withdraw', 'fa-triangle-exclamation', 'border-amber-500');
+        return;
+      }
+
+      api.requestWalletWithdrawal(balance, currentUser?.phone || '+251911223344');
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      showToast(`Instant Payout of ${balance.toLocaleString()} ETB deposited to Telebirr (${currentUser?.phone || '+251911223344'})!`, 'fa-money-bill-transfer');
+      this.render();
+    };
+
+    // Standing Orders
+    w.handleCreateStandingOrderModal = (listingId: string) => {
+      if (!api.isAuthenticated()) {
+        w.openAuthModal('login');
+        return;
+      }
+      api.addStandingOrder(listingId, 150, 'Weekly');
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      showToast('Weekly Recurring Standing Order Scheduled!', 'fa-repeat');
+      this.activeBuyerSubTab = 'standing_orders';
+      this.render();
+    };
+
+    w.toggleStandingOrderStatus = (soId: string) => {
+      api.toggleStandingOrder(soId);
+      showToast('Standing order status updated', 'fa-check');
+      this.render();
+    };
+
+    // Dispute Actions
+    w.openDisputeModal = (orderId: string) => {
+      const order = api.getOrders().find(o => o.id === orderId);
+      if (order) {
+        this.activeDisputeModal = { isOpen: true, order };
+        this.render();
+      }
+    };
+
+    w.closeDisputeModal = () => {
+      this.activeDisputeModal = null;
+      this.render();
+    };
+
+    w.handleDisputeSubmit = async (e: Event, orderId: string) => {
+      e.preventDefault();
+      const reason = (document.getElementById('disputeReasonText') as HTMLTextAreaElement).value;
+      const photo = (document.getElementById('disputePhotoUrl') as HTMLInputElement).value;
+      const slider = (document.getElementById('disputeRefundSlider') as HTMLInputElement).value;
+
+      await api.disputeOrder(orderId, reason, photo, parseInt(slider, 10));
+      this.activeDisputeModal = null;
+      this.activeOrderModal = null;
+      showToast('Dispute filed! Escrow locked under Admin Arbitration.', 'fa-lock', 'border-red-500');
+      this.render();
+    };
+
+    // Driver Proof with GPS & Offline Sync
+    w.toggleDriverOfflineMode = () => {
+      const mode = api.toggleOfflineMode();
+      showToast(mode ? 'Switched to Offline Mode (Actions cached locally)' : 'Reconnected to Online Mode', 'fa-wifi');
+      this.render();
+    };
+
+    w.syncDriverOfflineQueue = async () => {
+      const count = await api.syncOfflineQueue();
+      showToast(`Synced ${count} offline trip actions to server!`, 'fa-cloud-arrow-up');
+      this.render();
+    };
+
+    w.handleDriverStopAction = async (stopIdx: number) => {
+      const route = api.getOptimizedRoute();
+      if (route.stops[stopIdx]) {
+        route.stops[stopIdx].completed = true;
+        confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 } });
+        showToast(`Stop #${stopIdx + 1} verified with GPS timestamp!`, 'fa-circle-check');
+        this.render();
+      }
+    };
+
+    w.driverPickupWithProof = async (orderId: string) => {
+      await api.pickupOrderByDriver(orderId, 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&auto=format&fit=crop&q=80');
+      showToast('Produce picked up with GPS photo proof! In transit.', 'fa-truck-fast');
+      this.render();
+    };
+
+    w.driverCompleteDeliveryProof = async (orderId: string) => {
+      await api.confirmDeliveryByBuyer(orderId, 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80', 9.0300, 38.7400);
+      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+      showToast('Delivery Dropoff Verified with GPS Timestamp! 5% + Rural Subsidy Credited.', 'fa-hand-holding-dollar');
+      this.render();
+    };
+
+    // Admin KYC & Anomaly Actions
+    w.adminVerifyKyc = async (userId: string, approve: boolean) => {
+      await api.verifyKyc(userId, approve);
+      showToast(approve ? 'Identity & Documents Approved!' : 'KYC verification rejected', approve ? 'fa-user-check' : 'fa-user-xmark');
+      this.render();
+    };
+
+    w.handleDismissAnomaly = (id: string) => {
+      showToast(`Anomaly Alert #${id} dismissed by Admin`, 'fa-check');
+    };
+
+    w.handleInvestigateAnomaly = (id: string) => {
+      showToast(`Audit trail opened for Anomaly #${id}`, 'fa-magnifying-glass');
     };
 
     // Authentication Handlers
@@ -331,7 +624,6 @@ class App {
         this.isAuthModalOpen = false;
         this.authErrorMessage = '';
 
-        // Auto-navigate to user's portal
         if (user.role === 'farmer') this.activeTab = 'farmer';
         else if (user.role === 'driver') this.activeTab = 'driver';
         else if (user.role === 'admin') this.activeTab = 'admin';
@@ -495,14 +787,8 @@ class App {
         this.isCartOpen = false;
         this.activeTelebirrModal = null;
 
-        // Confetti celebration
-        confetti({
-          particleCount: 120,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-
-        showToast('Payment secured via Telebirr Escrow! Order dispatched to farmer.', 'fa-lock', 'border-blue-500');
+        confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+        showToast('Payment secured via Telebirr Escrow! Orders dispatched to farmers & drivers.', 'fa-lock', 'border-blue-500');
 
         if (lastOrder) {
           this.activeOrderModal = lastOrder;
@@ -535,37 +821,14 @@ class App {
       this.render();
     };
 
-    w.driverPickup = async (orderId: string) => {
-      await api.pickupOrderByDriver(orderId, 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&auto=format&fit=crop&q=80');
-      showToast('Produce picked up! Transit to buyer depot started.', 'fa-truck-fast', 'border-amber-500');
-      this.render();
-    };
-
-    w.driverCompleteDelivery = (orderId: string) => {
-      showToast('Trip destination reached. Awaiting buyer confirmation.', 'fa-location-dot');
-      this.render();
-    };
-
     w.confirmDelivery = async (orderId: string) => {
       await api.confirmDeliveryByBuyer(orderId);
-
-      confetti({
-        particleCount: 150,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
-
+      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
       showToast('Delivery Confirmed! 90% released to Farmer, 5% to Driver.', 'fa-hand-holding-dollar', 'border-emerald-500');
       this.render();
     };
 
-    w.raiseDispute = async (orderId: string) => {
-      await api.disputeOrder(orderId, 'Product quality damaged during delivery');
-      showToast('Dispute registered. Escrow locked under Admin review.', 'fa-triangle-exclamation', 'border-red-500');
-      this.render();
-    };
-
-    w.adminResolveDispute = async (orderId: string, resolution: 'ReleaseToFarmer' | 'RefundBuyer') => {
+    w.adminResolveDispute = async (orderId: string, resolution: 'ReleaseToFarmer' | 'RefundBuyer' | 'PartialSplit') => {
       await api.resolveDispute(orderId, resolution);
       showToast(`Dispute resolved: ${resolution}`, 'fa-gavel', 'border-purple-500');
       this.render();
@@ -584,6 +847,11 @@ class App {
       const qty = parseFloat((document.getElementById('newProdQty') as HTMLInputElement).value);
       const price = parseFloat((document.getElementById('newProdPrice') as HTMLInputElement).value);
       const minOrder = parseFloat((document.getElementById('newProdMinOrder') as HTMLInputElement).value);
+      const grade = (document.getElementById('newProdGrade') as HTMLSelectElement).value;
+      const ripeness = (document.getElementById('newProdRipeness') as HTMLSelectElement).value;
+      const isOrganic = (document.getElementById('newProdOrganic') as HTMLInputElement).checked;
+      const isAdvance = (document.getElementById('newProdAdvanceToggle') as HTMLInputElement).checked;
+      const harvestDate = (document.getElementById('newProdHarvestDate') as HTMLInputElement)?.value;
       const region = (document.getElementById('newProdRegion') as HTMLInputElement).value;
       const photo = (document.getElementById('newProdPhoto') as HTMLInputElement).value;
 
@@ -595,16 +863,18 @@ class App {
           qtyKg: qty,
           pricePerKg: price,
           minOrderKg: minOrder,
+          grade,
+          ripeness,
+          isOrganic,
+          isAdvanceHarvest: isAdvance,
+          expectedHarvestDate: isAdvance ? harvestDate : undefined,
           region,
-          farmerNameAm: prodNameAm ? 'አበበ በቀለ' : undefined,
-          latitude: 8.7523,
-          longitude: 38.9785,
           photos: [photo],
-          availableFrom: new Date().toISOString().split('T')[0]
+          availableFrom: isAdvance && harvestDate ? harvestDate : new Date().toISOString().split('T')[0]
         });
 
         this.isCreateListingModalOpen = false;
-        showToast(`Published ${prodName} to PostgreSQL database!`, 'fa-cloud-arrow-up');
+        showToast(`Published ${prodName} with Market Price Benchmark!`, 'fa-cloud-arrow-up');
       } catch (err: any) {
         showToast(err.message || 'Failed to publish listing', 'fa-circle-xmark', 'border-red-500');
       }

@@ -142,3 +142,4 @@ C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\tests\FarmerMarket.T
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\tests\FarmerMarket.Tests\obj\Debug\net10.0\FarmerMarket.Tests.pdb
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\tests\FarmerMarket.Tests\obj\Debug\net10.0\FarmerMarket.Tests.genruntimeconfig.cache
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\tests\FarmerMarket.Tests\obj\Debug\net10.0\ref\FarmerMarket.Tests.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\tests\FarmerMarket.Tests\obj\Debug\net10.0\FarmerMarket.Tests.sourcelink.json

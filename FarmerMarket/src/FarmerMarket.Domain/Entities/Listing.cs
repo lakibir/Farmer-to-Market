@@ -22,6 +22,26 @@ public class Listing
     public List<string> Photos { get; set; } = new();
     public DateOnly AvailableFrom { get; set; } = DateOnly.FromDateTime(DateTime.UtcNow);
     public ListingStatus Status { get; set; } = ListingStatus.Active;
+
+    // Quality, Grade & Organic classification
+    public string? Grade { get; set; } = "Grade 1"; // Grade 1, Grade 2, Export Grade
+    public string? Ripeness { get; set; } = "Ready Today"; // Ready Today, Semi-Ripe, Green / Storable
+    public bool? IsOrganic { get; set; } = true;
+
+    // Harvest Calendar & Advance Listing
+    public bool? IsAdvanceHarvest { get; set; } = false;
+    public DateOnly? ExpectedHarvestDate { get; set; }
+
+    // Voice-note listing memo & speech-to-text transcript
+    public string? VoiceNoteUrl { get; set; }
+    public string? VoiceNoteTranscript { get; set; }
+
+    // Regional Market Price Benchmarking (ETB/kg)
+    public decimal? MarketBenchmarkPrice { get; set; }
+
+    // Content moderation status
+    public string? ModerationStatus { get; set; } = "Approved"; // Approved, PendingReview, Flagged
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();

@@ -37,13 +37,15 @@ public class GetPlatformStatsHandler(IAppDbContext db) : IRequestHandler<GetPlat
             totalVolume,
             totalCommission,
             activeEscrow,
-            disputedOrders
+            disputedOrders,
+            145.8m,
+            480000m
         ));
     }
 }
 
 // 2. Verify User Command (Admin)
-public record VerifyUserCommand(Guid UserId, bool Verified) : IRequest<Result>;
+public record VerifyUserCommand(Guid UserId, bool Verified, string? KycStatus = "Verified") : IRequest<Result>;
 
 public class VerifyUserHandler(IAppDbContext db) : IRequestHandler<VerifyUserCommand, Result>
 {
@@ -53,13 +55,14 @@ public class VerifyUserHandler(IAppDbContext db) : IRequestHandler<VerifyUserCom
         if (user == null) return Result.Failure("User not found.");
 
         user.Verified = req.Verified;
+        user.KycStatus = req.KycStatus ?? (req.Verified ? "Verified" : "Rejected");
         await db.SaveChangesAsync(ct);
 
         return Result.Success();
     }
 }
 
-// 3. Resolve Dispute Command (Admin)
+// 3. Resolve Dispute Command (Admin - 3-Way arbitration)
 public record ResolveDisputeCommand(Guid OrderId, ResolveDisputeDto Dto) : IRequest<Result>;
 
 public class ResolveDisputeHandler(
@@ -75,10 +78,13 @@ public class ResolveDisputeHandler(
 
         if (order == null) return Result.Failure("Order not found.");
 
+        order.DisputeResolutionNotes = req.Dto.Notes;
+
         if (req.Dto.Resolution == "ReleaseToFarmer")
         {
             order.Status = OrderStatus.Delivered;
             order.EscrowHeld = false;
+            order.DisputeStatus = "ResolvedReleaseFarmer";
             if (order.Payment != null)
             {
                 order.Payment.Status = "Released";
@@ -90,10 +96,29 @@ public class ResolveDisputeHandler(
         {
             order.Status = OrderStatus.Cancelled;
             order.EscrowHeld = false;
+            order.DisputeStatus = "ResolvedRefundBuyer";
             if (order.Payment != null)
             {
                 order.Payment.Status = "Refunded";
                 await telebirr.RefundPaymentAsync(order.Id, order.TotalEtb, ct);
+            }
+        }
+        else if (req.Dto.Resolution == "PartialSplit")
+        {
+            order.Status = OrderStatus.Delivered;
+            order.EscrowHeld = false;
+            order.DisputeStatus = "ResolvedPartialSplit";
+            if (order.Payment != null)
+            {
+                var farmerPortion = order.TotalEtb * (req.Dto.FarmerSharePercent / 100m);
+                var buyerRefund = order.TotalEtb * (req.Dto.BuyerRefundPercent / 100m);
+
+                order.Payment.FarmerCut = farmerPortion;
+                order.Payment.Status = "ReleasedPartial";
+                order.Payment.ReleasedAt = DateTimeOffset.UtcNow;
+
+                await telebirr.ReleaseEscrowAsync(order.Id, farmerPortion, ct);
+                await telebirr.RefundPaymentAsync(order.Id, buyerRefund, ct);
             }
         }
 

@@ -67,6 +67,9 @@ public class PlaceOrderHandler(
             PaymentRef = telebirrInit.OutTradeNo,
             DeliveryAddress = req.Dto.DeliveryAddress ?? buyer.Region,
             DeliveryNotes = req.Dto.DeliveryNotes,
+            IsRecurring = req.Dto.IsRecurring,
+            RecurringFrequency = req.Dto.RecurringFrequency,
+            DriverSubsidyEtb = 150m, // Rural route transit bonus
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -135,11 +138,9 @@ public class GetOrdersHandler(IAppDbContext db) : IRequestHandler<GetOrdersQuery
                 q = q.Where(o => o.BuyerId == req.UserId);
                 break;
             case UserRole.Driver:
-                // Drivers see orders assigned to them, OR confirmed orders available for pickup
                 q = q.Where(o => o.DriverId == req.UserId || (o.DriverId == null && o.Status == OrderStatus.Confirmed));
                 break;
             case UserRole.Admin:
-                // Admins see all orders
                 break;
         }
 
@@ -173,12 +174,24 @@ public class GetOrdersHandler(IAppDbContext db) : IRequestHandler<GetOrdersQuery
             o.Payment?.FarmerCut ?? (o.TotalEtb * 0.90m),
             o.Payment?.DriverCut ?? (o.TotalEtb * 0.05m),
             o.Payment?.PlatformCut ?? (o.TotalEtb * 0.05m),
+            o.DriverSubsidyEtb ?? 150m,
             o.Status,
             o.EscrowHeld,
             o.PaymentRef,
             o.PickupPhoto,
+            o.DeliveryPhoto,
+            o.DeliveryGpsLat,
+            o.DeliveryGpsLng,
+            o.DeliveredAt,
             o.DeliveryAddress,
             o.DeliveryNotes,
+            o.DisputeReason,
+            o.DisputePhoto,
+            o.RequestedRefundPercent ?? 100,
+            o.DisputeStatus ?? "None",
+            o.DisputeResolutionNotes,
+            o.IsRecurring ?? false,
+            o.RecurringFrequency,
             o.ConfirmedAt,
             o.CreatedAt
         )).ToList();
@@ -226,12 +239,24 @@ public class GetOrderByIdHandler(IAppDbContext db) : IRequestHandler<GetOrderByI
             o.Payment?.FarmerCut ?? (o.TotalEtb * 0.90m),
             o.Payment?.DriverCut ?? (o.TotalEtb * 0.05m),
             o.Payment?.PlatformCut ?? (o.TotalEtb * 0.05m),
+            o.DriverSubsidyEtb ?? 150m,
             o.Status,
             o.EscrowHeld,
             o.PaymentRef,
             o.PickupPhoto,
+            o.DeliveryPhoto,
+            o.DeliveryGpsLat,
+            o.DeliveryGpsLng,
+            o.DeliveredAt,
             o.DeliveryAddress,
             o.DeliveryNotes,
+            o.DisputeReason,
+            o.DisputePhoto,
+            o.RequestedRefundPercent ?? 100,
+            o.DisputeStatus ?? "None",
+            o.DisputeResolutionNotes,
+            o.IsRecurring ?? false,
+            o.RecurringFrequency,
             o.ConfirmedAt,
             o.CreatedAt
         ));
@@ -254,6 +279,7 @@ public class ConfirmOrderHandler(IAppDbContext db, ISignalRNotifier signalR, ISm
         if (order.Listing.FarmerId != req.FarmerId) return Result.Failure("Unauthorized.");
 
         order.Status = OrderStatus.Confirmed;
+        order.ConfirmedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(ct);
 
         _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Confirmed, "Farmer confirmed order. Ready for driver pickup.", ct);
@@ -289,8 +315,8 @@ public class PickupOrderHandler(IAppDbContext db, ISignalRNotifier signalR) : IR
     }
 }
 
-// 6. Deliver Order Command (Buyer Confirms & Escrow is Released)
-public record DeliverOrderCommand(Guid OrderId, Guid BuyerId) : IRequest<Result>;
+// 6. Deliver Order Command (Proof of Delivery Photo + GPS enforced)
+public record DeliverOrderCommand(Guid OrderId, Guid BuyerId, DeliverOrderDto? Proof = null) : IRequest<Result>;
 
 public class DeliverOrderHandler(
     IAppDbContext db,
@@ -314,6 +340,14 @@ public class DeliverOrderHandler(
         order.Status = OrderStatus.Delivered;
         order.EscrowHeld = false;
         order.ConfirmedAt = DateTimeOffset.UtcNow;
+        order.DeliveredAt = DateTimeOffset.UtcNow;
+
+        if (req.Proof != null)
+        {
+            order.DeliveryPhoto = req.Proof.DeliveryPhoto;
+            order.DeliveryGpsLat = req.Proof.DeliveryGpsLat ?? 9.0300;
+            order.DeliveryGpsLng = req.Proof.DeliveryGpsLng ?? 38.7400;
+        }
 
         if (order.Payment != null)
         {
@@ -338,7 +372,7 @@ public class DeliverOrderHandler(
 }
 
 // 7. Dispute Order Command
-public record DisputeOrderCommand(Guid OrderId, Guid UserId, string Reason) : IRequest<Result>;
+public record DisputeOrderCommand(Guid OrderId, Guid UserId, DisputeOrderDto Dto) : IRequest<Result>;
 
 public class DisputeOrderHandler(IAppDbContext db, ISignalRNotifier signalR) : IRequestHandler<DisputeOrderCommand, Result>
 {
@@ -348,6 +382,11 @@ public class DisputeOrderHandler(IAppDbContext db, ISignalRNotifier signalR) : I
         if (order == null) return Result.Failure("Order not found.");
 
         order.Status = OrderStatus.Disputed;
+        order.DisputeReason = req.Dto.Reason;
+        order.DisputePhoto = req.Dto.DisputePhoto;
+        order.RequestedRefundPercent = req.Dto.RequestedRefundPercent;
+        order.DisputeStatus = "PendingReview";
+
         if (order.Payment != null)
         {
             order.Payment.Status = "Frozen";
@@ -355,7 +394,7 @@ public class DisputeOrderHandler(IAppDbContext db, ISignalRNotifier signalR) : I
 
         await db.SaveChangesAsync(ct);
 
-        _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Disputed, $"Dispute raised: {req.Reason}. Under Admin arbitration.", ct);
+        _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Disputed, $"Dispute raised: {req.Dto.Reason}. Under Admin arbitration.", ct);
 
         return Result.Success();
     }

@@ -8,42 +8,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FarmerMarket.Application.Features.Listings;
 
-public static class GeoUtils
-{
-    // Haversine distance in kilometers
-    public static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
-    {
-        var r = 6371; // Earth radius in km
-        var dLat = ToRadians(lat2 - lat1);
-        var dLon = ToRadians(lon2 - lon1);
-        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
-                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
-        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-        return Math.Round(r * c, 1);
-    }
-
-    private static double ToRadians(double degrees) => degrees * Math.PI / 180.0;
-}
-
-// 1. Get Listings Query
+// 1. Get Listings Query (with filtering & pagination)
 public record GetListingsQuery(ListingFilters Filters) : IRequest<PagedResult<ListingDto>>;
 
 public class GetListingsHandler(IAppDbContext db) : IRequestHandler<GetListingsQuery, PagedResult<ListingDto>>
 {
-    public async Task<PagedResult<ListingDto>> Handle(GetListingsQuery request, CancellationToken ct)
+    public async Task<PagedResult<ListingDto>> Handle(GetListingsQuery req, CancellationToken ct)
     {
-        var f = request.Filters;
+        var f = req.Filters;
         var query = db.Listings.AsNoTracking()
             .Include(l => l.Farmer)
             .Include(l => l.Farmer.ReviewsReceived)
             .Where(l => l.Status == ListingStatus.Active);
 
         if (!string.IsNullOrWhiteSpace(f.Category) && f.Category != "All")
-            query = query.Where(l => l.Category.ToLower() == f.Category.ToLower());
+            query = query.Where(l => l.Category == f.Category);
 
         if (!string.IsNullOrWhiteSpace(f.Region) && f.Region != "All")
-            query = query.Where(l => l.Farmer.Region.ToLower().Contains(f.Region.ToLower()));
+            query = query.Where(l => l.Farmer.Region.Contains(f.Region));
 
         if (f.MinPrice.HasValue)
             query = query.Where(l => l.PricePerKg >= f.MinPrice.Value);
@@ -51,25 +33,38 @@ public class GetListingsHandler(IAppDbContext db) : IRequestHandler<GetListingsQ
         if (f.MaxPrice.HasValue)
             query = query.Where(l => l.PricePerKg <= f.MaxPrice.Value);
 
+        if (!string.IsNullOrWhiteSpace(f.Grade) && f.Grade != "All")
+            query = query.Where(l => l.Grade == f.Grade);
+
+        if (!string.IsNullOrWhiteSpace(f.Ripeness) && f.Ripeness != "All")
+            query = query.Where(l => l.Ripeness == f.Ripeness);
+
+        if (f.IsOrganic.HasValue)
+            query = query.Where(l => l.IsOrganic == f.IsOrganic.Value);
+
+        if (f.IsAdvanceHarvest.HasValue)
+            query = query.Where(l => l.IsAdvanceHarvest == f.IsAdvanceHarvest.Value);
+
         if (!string.IsNullOrWhiteSpace(f.Search))
         {
-            var s = f.Search.ToLower();
-            query = query.Where(l => l.ProductName.ToLower().Contains(s) ||
-                                     (l.NameAm != null && l.NameAm.Contains(s)) ||
-                                     l.Category.ToLower().Contains(s) ||
-                                     l.Farmer.Name.ToLower().Contains(s) ||
-                                     l.Farmer.Region.ToLower().Contains(s));
+            var search = f.Search.ToLower();
+            query = query.Where(l =>
+                l.ProductName.ToLower().Contains(search) ||
+                (l.NameAm != null && l.NameAm.ToLower().Contains(search)) ||
+                l.Farmer.Name.ToLower().Contains(search) ||
+                (l.Farmer.NameAm != null && l.Farmer.NameAm.ToLower().Contains(search)) ||
+                l.Farmer.Region.ToLower().Contains(search));
         }
 
         var total = await query.CountAsync(ct);
 
-        var rawList = await query
+        var rawItems = await query
             .OrderByDescending(l => l.CreatedAt)
             .Skip((f.Page - 1) * f.PageSize)
             .Take(f.PageSize)
             .ToListAsync(ct);
 
-        var items = rawList.Select(l =>
+        var items = rawItems.Select(l =>
         {
             double? distance = null;
             if (f.Lat.HasValue && f.Lng.HasValue)
@@ -79,7 +74,7 @@ public class GetListingsHandler(IAppDbContext db) : IRequestHandler<GetListingsQ
 
             var rating = l.Farmer.ReviewsReceived.Any()
                 ? Math.Round(l.Farmer.ReviewsReceived.Average(r => r.Rating), 1)
-                : 4.8; // default top rating for active farmers
+                : 4.8;
 
             return new ListingDto(
                 l.Id,
@@ -100,6 +95,15 @@ public class GetListingsHandler(IAppDbContext db) : IRequestHandler<GetListingsQ
                 l.Photos ?? new List<string>(),
                 l.AvailableFrom,
                 l.Status,
+                l.Grade ?? "Grade 1",
+                l.Ripeness ?? "Ready Today",
+                l.IsOrganic ?? true,
+                l.IsAdvanceHarvest ?? false,
+                l.ExpectedHarvestDate,
+                l.VoiceNoteUrl,
+                l.VoiceNoteTranscript,
+                l.MarketBenchmarkPrice,
+                l.ModerationStatus ?? "Approved",
                 rating,
                 l.Farmer.ReviewsReceived.Count,
                 l.CreatedAt
@@ -159,6 +163,15 @@ public class GetListingByIdHandler(IAppDbContext db) : IRequestHandler<GetListin
             l.Photos ?? new List<string>(),
             l.AvailableFrom,
             l.Status,
+            l.Grade ?? "Grade 1",
+            l.Ripeness ?? "Ready Today",
+            l.IsOrganic ?? true,
+            l.IsAdvanceHarvest ?? false,
+            l.ExpectedHarvestDate,
+            l.VoiceNoteUrl,
+            l.VoiceNoteTranscript,
+            l.MarketBenchmarkPrice,
+            l.ModerationStatus ?? "Approved",
             rating,
             l.Farmer.ReviewsReceived.Count,
             l.CreatedAt
@@ -207,6 +220,15 @@ public class GetNearbyListingsHandler(IAppDbContext db) : IRequestHandler<GetNea
                 l.Photos ?? new List<string>(),
                 l.AvailableFrom,
                 l.Status,
+                l.Grade ?? "Grade 1",
+                l.Ripeness ?? "Ready Today",
+                l.IsOrganic ?? true,
+                l.IsAdvanceHarvest ?? false,
+                l.ExpectedHarvestDate,
+                l.VoiceNoteUrl,
+                l.VoiceNoteTranscript,
+                l.MarketBenchmarkPrice,
+                l.ModerationStatus ?? "Approved",
                 rating,
                 l.Farmer.ReviewsReceived.Count,
                 l.CreatedAt
@@ -227,23 +249,32 @@ public class CreateListingHandler(IAppDbContext db) : IRequestHandler<CreateList
     {
         var farmer = await db.Users.FirstOrDefaultAsync(u => u.Id == req.FarmerId, ct);
         if (farmer == null)
-            return Result<ListingDto>.Failure("Farmer user not found.");
+            return Result<ListingDto>.Failure("Farmer profile not found.");
 
         var d = req.Dto;
         var listing = new Listing
         {
             FarmerId = req.FarmerId,
-            ProductName = d.ProductName.Trim(),
-            NameAm = d.NameAm?.Trim(),
-            Category = d.Category.Trim(),
+            ProductName = d.ProductName,
+            NameAm = d.NameAm,
+            Category = d.Category,
             QtyKg = d.QtyKg,
             PricePerKg = d.PricePerKg,
             MinOrderKg = d.MinOrderKg,
-            Latitude = d.Latitude != 0 ? d.Latitude : 9.0100,
-            Longitude = d.Longitude != 0 ? d.Longitude : 38.7600,
+            Latitude = d.Latitude,
+            Longitude = d.Longitude,
             Photos = d.Photos ?? new List<string>(),
             AvailableFrom = d.AvailableFrom,
-            Status = ListingStatus.Active
+            Status = ListingStatus.Active,
+            Grade = d.Grade ?? "Grade 1",
+            Ripeness = d.Ripeness ?? "Ready Today",
+            IsOrganic = d.IsOrganic,
+            IsAdvanceHarvest = d.IsAdvanceHarvest,
+            ExpectedHarvestDate = d.ExpectedHarvestDate,
+            VoiceNoteUrl = d.VoiceNoteUrl,
+            VoiceNoteTranscript = d.VoiceNoteTranscript,
+            MarketBenchmarkPrice = d.MarketBenchmarkPrice,
+            ModerationStatus = "Approved"
         };
 
         db.Listings.Add(listing);
@@ -251,7 +282,7 @@ public class CreateListingHandler(IAppDbContext db) : IRequestHandler<CreateList
 
         var dto = new ListingDto(
             listing.Id,
-            farmer.Id,
+            listing.FarmerId,
             farmer.Name,
             farmer.NameAm,
             farmer.Phone,
@@ -268,6 +299,15 @@ public class CreateListingHandler(IAppDbContext db) : IRequestHandler<CreateList
             listing.Photos,
             listing.AvailableFrom,
             listing.Status,
+            listing.Grade ?? "Grade 1",
+            listing.Ripeness ?? "Ready Today",
+            listing.IsOrganic ?? true,
+            listing.IsAdvanceHarvest ?? false,
+            listing.ExpectedHarvestDate,
+            listing.VoiceNoteUrl,
+            listing.VoiceNoteTranscript,
+            listing.MarketBenchmarkPrice,
+            listing.ModerationStatus ?? "Approved",
             5.0,
             0,
             listing.CreatedAt
@@ -307,6 +347,15 @@ public class UpdateListingHandler(IAppDbContext db) : IRequestHandler<UpdateList
         if (d.Photos != null) listing.Photos = d.Photos;
         if (d.AvailableFrom.HasValue) listing.AvailableFrom = d.AvailableFrom.Value;
         if (d.Status.HasValue) listing.Status = d.Status.Value;
+        if (d.Grade != null) listing.Grade = d.Grade;
+        if (d.Ripeness != null) listing.Ripeness = d.Ripeness;
+        if (d.IsOrganic.HasValue) listing.IsOrganic = d.IsOrganic.Value;
+        if (d.IsAdvanceHarvest.HasValue) listing.IsAdvanceHarvest = d.IsAdvanceHarvest.Value;
+        if (d.ExpectedHarvestDate.HasValue) listing.ExpectedHarvestDate = d.ExpectedHarvestDate.Value;
+        if (d.VoiceNoteUrl != null) listing.VoiceNoteUrl = d.VoiceNoteUrl;
+        if (d.VoiceNoteTranscript != null) listing.VoiceNoteTranscript = d.VoiceNoteTranscript;
+        if (d.MarketBenchmarkPrice.HasValue) listing.MarketBenchmarkPrice = d.MarketBenchmarkPrice.Value;
+        if (d.ModerationStatus != null) listing.ModerationStatus = d.ModerationStatus;
 
         await db.SaveChangesAsync(ct);
 
@@ -333,6 +382,15 @@ public class UpdateListingHandler(IAppDbContext db) : IRequestHandler<UpdateList
             listing.Photos,
             listing.AvailableFrom,
             listing.Status,
+            listing.Grade ?? "Grade 1",
+            listing.Ripeness ?? "Ready Today",
+            listing.IsOrganic ?? true,
+            listing.IsAdvanceHarvest ?? false,
+            listing.ExpectedHarvestDate,
+            listing.VoiceNoteUrl,
+            listing.VoiceNoteTranscript,
+            listing.MarketBenchmarkPrice,
+            listing.ModerationStatus ?? "Approved",
             rating,
             listing.Farmer.ReviewsReceived.Count,
             listing.CreatedAt
@@ -356,9 +414,27 @@ public class DeactivateListingHandler(IAppDbContext db) : IRequestHandler<Deacti
         if (listing.FarmerId != req.FarmerId)
             return Result.Failure("Unauthorized to modify this listing.");
 
-        listing.Status = ListingStatus.SoldOut;
+        listing.Status = ListingStatus.Inactive;
         await db.SaveChangesAsync(ct);
 
         return Result.Success();
     }
+}
+
+// Helper utility for distance calculations
+public static class GeoUtils
+{
+    public static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        var r = 6371; // Earth radius in km
+        var dLat = ToRad(lat2 - lat1);
+        var dLon = ToRad(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return Math.Round(r * c, 1);
+    }
+
+    private static double ToRad(double degrees) => degrees * Math.PI / 180;
 }

@@ -1,11 +1,3 @@
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.csproj.AssemblyReference.cache
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\rpswa.dswa.cache.json
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.AssemblyInfoInputs.cache
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.AssemblyInfo.cs
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.csproj.CoreCompileInputs.cache
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.MvcApplicationPartsAssemblyInfo.cs
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.MvcApplicationPartsAssemblyInfo.cache
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\bin\Debug\net10.0\appsettings.Development.json
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\bin\Debug\net10.0\appsettings.json
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\bin\Debug\net10.0\FarmerMarket.API.staticwebassets.endpoints.json
@@ -125,6 +117,15 @@ C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\bin\Debug\net10.0\FarmerMarket.Application.pdb
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\bin\Debug\net10.0\FarmerMarket.Infrastructure.pdb
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\bin\Debug\net10.0\FarmerMarket.Domain.pdb
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.csproj.AssemblyReference.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.AssemblyInfoInputs.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.AssemblyInfo.cs
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.csproj.CoreCompileInputs.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\FarmerMarket.API.sourcelink.json
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\rjimswa.dswa.cache.json
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.API\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json

@@ -9,16 +9,119 @@ public static class DbInitializer
 {
     public static async Task SeedAsync(AppDbContext context, ILogger logger)
     {
-        await context.Database.EnsureCreatedAsync();
-
-        if (await context.Users.AnyAsync())
+        try
         {
-            return; // Already seeded
+            if (context.Database.IsNpgsql())
+            {
+                await EnsurePostgresSchemaAsync(context, logger);
+            }
+            else
+            {
+                await context.Database.EnsureCreatedAsync();
+            }
+
+            var hasUsers = await context.Users.AnyAsync();
+            if (!hasUsers)
+            {
+                logger.LogInformation("Seeding Ethiopian FarmerMarket initial data with advanced features...");
+                await SeedInitialDataAsync(context, logger);
+            }
+            else
+            {
+                // Ensure new advance harvest listings and sample disputed orders exist if they were added after initial seed
+                await EnsureEnrichedSeedDataAsync(context, logger);
+            }
         }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while initializing and seeding the database.");
+        }
+    }
 
-        logger.LogInformation("Seeding Ethiopian FarmerMarket initial data...");
+    private static async Task EnsurePostgresSchemaAsync(AppDbContext context, ILogger logger)
+    {
+        try
+        {
+            await context.Database.EnsureCreatedAsync();
 
-        // 1. Users
+            // Run idempotent ALTER TABLE statements to add any missing columns in existing PostgreSQL databases
+            var sqlCommands = new[]
+            {
+                // Users table
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""VehicleType"" character varying(100);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""RefrigerationType"" character varying(100);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""VehicleCapacityKg"" numeric;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""KycDocumentType"" character varying(100);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""KycDocumentNumber"" character varying(100);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""KycStatus"" character varying(50) DEFAULT 'Verified';",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""RepeatBuyerCount"" integer DEFAULT 0;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""OnTimeDeliveryRate"" numeric DEFAULT 100;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""WalletBalanceEtb"" numeric DEFAULT 0;",
+
+                // Listings table
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""Grade"" character varying(50) DEFAULT 'Grade 1';",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""Ripeness"" character varying(50) DEFAULT 'Ready Today';",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""IsOrganic"" boolean DEFAULT true;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""IsAdvanceHarvest"" boolean DEFAULT false;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""ExpectedHarvestDate"" date;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""VoiceNoteUrl"" character varying(500);",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""VoiceNoteTranscript"" character varying(1000);",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""MarketBenchmarkPrice"" numeric;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""ModerationStatus"" character varying(50) DEFAULT 'Approved';",
+
+                // Orders table
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""PickupPhoto"" character varying(500);",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DeliveryPhoto"" character varying(500);",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DeliveryGpsLat"" double precision;",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DeliveryGpsLng"" double precision;",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DeliveredAt"" timestamp with time zone;",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DisputeReason"" character varying(1000);",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DisputePhoto"" character varying(500);",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""RequestedRefundPercent"" integer DEFAULT 100;",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DisputeStatus"" character varying(50) DEFAULT 'None';",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DisputeResolutionNotes"" character varying(1000);",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""IsRecurring"" boolean DEFAULT false;",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""RecurringFrequency"" character varying(50);",
+                @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DriverSubsidyEtb"" numeric DEFAULT 150;",
+
+                // Populate null values on existing rows
+                @"UPDATE ""Users"" SET ""VehicleCapacityKg"" = 5000 WHERE ""VehicleCapacityKg"" IS NULL AND ""Role"" = 'Driver';",
+                @"UPDATE ""Users"" SET ""KycStatus"" = 'Verified' WHERE ""KycStatus"" IS NULL;",
+                @"UPDATE ""Users"" SET ""RepeatBuyerCount"" = 12 WHERE ""RepeatBuyerCount"" IS NULL;",
+                @"UPDATE ""Users"" SET ""OnTimeDeliveryRate"" = 99 WHERE ""OnTimeDeliveryRate"" IS NULL;",
+                @"UPDATE ""Users"" SET ""WalletBalanceEtb"" = 0 WHERE ""WalletBalanceEtb"" IS NULL;",
+                @"UPDATE ""Listings"" SET ""Grade"" = 'Grade 1' WHERE ""Grade"" IS NULL;",
+                @"UPDATE ""Listings"" SET ""Ripeness"" = 'Ready Today' WHERE ""Ripeness"" IS NULL;",
+                @"UPDATE ""Listings"" SET ""IsOrganic"" = true WHERE ""IsOrganic"" IS NULL;",
+                @"UPDATE ""Listings"" SET ""IsAdvanceHarvest"" = false WHERE ""IsAdvanceHarvest"" IS NULL;",
+                @"UPDATE ""Listings"" SET ""ModerationStatus"" = 'Approved' WHERE ""ModerationStatus"" IS NULL;",
+                @"UPDATE ""Orders"" SET ""RequestedRefundPercent"" = 100 WHERE ""RequestedRefundPercent"" IS NULL;",
+                @"UPDATE ""Orders"" SET ""DisputeStatus"" = 'None' WHERE ""DisputeStatus"" IS NULL;",
+                @"UPDATE ""Orders"" SET ""IsRecurring"" = false WHERE ""IsRecurring"" IS NULL;",
+                @"UPDATE ""Orders"" SET ""DriverSubsidyEtb"" = 150 WHERE ""DriverSubsidyEtb"" IS NULL;"
+            };
+
+            foreach (var sql in sqlCommands)
+            {
+                try
+                {
+                    await context.Database.ExecuteSqlRawAsync(sql);
+                }
+                catch (Exception sqlEx)
+                {
+                    logger.LogWarning("Schema migration warning: {Message}", sqlEx.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("Database schema verification warning: {Message}", ex.Message);
+        }
+    }
+
+    private static async Task SeedInitialDataAsync(AppDbContext context, ILogger logger)
+    {
+        // 1. Users with KYC, Vehicle & Trust Badges
         var farmerAbebe = new User
         {
             Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
@@ -28,6 +131,12 @@ public static class DbInitializer
             Role = UserRole.Farmer,
             Region = "Oromia (Bishoftu)",
             Verified = true,
+            KycDocumentType = "National ID (Fayda)",
+            KycDocumentNumber = "FAYDA-ET-8829104",
+            KycStatus = "Verified",
+            RepeatBuyerCount = 18,
+            OnTimeDeliveryRate = 99,
+            WalletBalanceEtb = 48200m,
             CreatedAt = DateTimeOffset.UtcNow.AddMonths(-3)
         };
 
@@ -40,6 +149,12 @@ public static class DbInitializer
             Role = UserRole.Farmer,
             Region = "Amhara (Debre Berhan)",
             Verified = true,
+            KycDocumentType = "National ID (Fayda)",
+            KycDocumentNumber = "FAYDA-ET-1029481",
+            KycStatus = "Verified",
+            RepeatBuyerCount = 12,
+            OnTimeDeliveryRate = 97,
+            WalletBalanceEtb = 32500m,
             CreatedAt = DateTimeOffset.UtcNow.AddMonths(-2)
         };
 
@@ -52,6 +167,12 @@ public static class DbInitializer
             Role = UserRole.Farmer,
             Region = "Sidama (Hawassa)",
             Verified = true,
+            KycDocumentType = "Kebele ID",
+            KycDocumentNumber = "HAW-KEB-4410",
+            KycStatus = "Verified",
+            RepeatBuyerCount = 8,
+            OnTimeDeliveryRate = 95,
+            WalletBalanceEtb = 15800m,
             CreatedAt = DateTimeOffset.UtcNow.AddMonths(-1)
         };
 
@@ -64,6 +185,9 @@ public static class DbInitializer
             Role = UserRole.Buyer,
             Region = "Addis Ababa (Bole)",
             Verified = true,
+            KycDocumentType = "Business License (TIN)",
+            KycDocumentNumber = "TIN-ET-9912001",
+            KycStatus = "Verified",
             CreatedAt = DateTimeOffset.UtcNow.AddMonths(-2)
         };
 
@@ -76,6 +200,14 @@ public static class DbInitializer
             Role = UserRole.Driver,
             Region = "Addis Ababa (Kaliti)",
             Verified = true,
+            VehicleType = "Isuzu 5-Ton",
+            RefrigerationType = "Ventilated",
+            VehicleCapacityKg = 5000m,
+            KycDocumentType = "Commercial Vehicle Logbook",
+            KycDocumentNumber = "ET-LOG-5T-98214",
+            KycStatus = "Verified",
+            OnTimeDeliveryRate = 98,
+            WalletBalanceEtb = 6450m,
             CreatedAt = DateTimeOffset.UtcNow.AddMonths(-2)
         };
 
@@ -93,7 +225,7 @@ public static class DbInitializer
 
         context.Users.AddRange(farmerAbebe, farmerAlmaz, farmerChala, buyerBethlehem, driverDawit, adminSara);
 
-        // 2. Listings
+        // 2. Listings with Voice Notes, Benchmarks, Grades, Ripeness, Advance Harvests
         var listingTomatoes = new Listing
         {
             Id = Guid.Parse("a1b2c3d4-0001-0000-0000-000000000001"),
@@ -105,10 +237,17 @@ public static class DbInitializer
             PricePerKg = 45m,
             MinOrderKg = 50m,
             Latitude = 8.7523,
-            Longitude = 38.9785, // Bishoftu
+            Longitude = 38.9785, // Bishoftu (~45 km from Addis)
             Photos = new List<string> { "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&auto=format&fit=crop&q=80" },
             AvailableFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2)),
             Status = ListingStatus.Active,
+            Grade = "Grade 1",
+            Ripeness = "Ready Today",
+            IsOrganic = true,
+            IsAdvanceHarvest = false,
+            VoiceNoteTranscript = "2,500 ኪሎ ቀይ የሾላ ቲማቲም አለኝ። ዋጋው በኪሎ 45 ብር። ቢሾፍቱ እርሻችን ይገኛል።",
+            MarketBenchmarkPrice = 45m,
+            ModerationStatus = "Approved",
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-5)
         };
 
@@ -123,10 +262,16 @@ public static class DbInitializer
             PricePerKg = 115m,
             MinOrderKg = 100m,
             Latitude = 9.6800,
-            Longitude = 39.5300, // Debre Berhan
+            Longitude = 39.5300, // Debre Berhan (~120 km)
             Photos = new List<string> { "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&auto=format&fit=crop&q=80" },
             AvailableFrom = DateOnly.FromDateTime(DateTime.UtcNow),
             Status = ListingStatus.Active,
+            Grade = "Export Grade",
+            Ripeness = "Ready Today",
+            IsOrganic = true,
+            IsAdvanceHarvest = false,
+            MarketBenchmarkPrice = 115m,
+            ModerationStatus = "Approved",
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-3)
         };
 
@@ -141,10 +286,16 @@ public static class DbInitializer
             PricePerKg = 55m,
             MinOrderKg = 50m,
             Latitude = 8.9806,
-            Longitude = 39.3000,
+            Longitude = 39.3000, // Mojo/Awash
             Photos = new List<string> { "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=800&auto=format&fit=crop&q=80" },
             AvailableFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
             Status = ListingStatus.Active,
+            Grade = "Grade 1",
+            Ripeness = "Ready Today",
+            IsOrganic = false,
+            IsAdvanceHarvest = false,
+            MarketBenchmarkPrice = 55m,
+            ModerationStatus = "Approved",
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-2)
         };
 
@@ -163,6 +314,12 @@ public static class DbInitializer
             Photos = new List<string> { "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=800&auto=format&fit=crop&q=80" },
             AvailableFrom = DateOnly.FromDateTime(DateTime.UtcNow),
             Status = ListingStatus.Active,
+            Grade = "Grade 1",
+            Ripeness = "Semi-Ripe",
+            IsOrganic = true,
+            IsAdvanceHarvest = false,
+            MarketBenchmarkPrice = 60m,
+            ModerationStatus = "Approved",
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
         };
 
@@ -181,12 +338,44 @@ public static class DbInitializer
             Photos = new List<string> { "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=800&auto=format&fit=crop&q=80" },
             AvailableFrom = DateOnly.FromDateTime(DateTime.UtcNow),
             Status = ListingStatus.Active,
+            Grade = "Export Grade",
+            Ripeness = "Ready Today",
+            IsOrganic = true,
+            IsAdvanceHarvest = false,
+            VoiceNoteTranscript = "ይርጋጨፌ ስፔሻሊቲ አረንጓዴ ቡና 1,500 ኪሎ። ዋጋው በኪሎ 380 ብር። ጥራቱ አንደኛ ደረጃ ነው።",
+            MarketBenchmarkPrice = 380m,
+            ModerationStatus = "Approved",
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-4)
         };
 
-        context.Listings.AddRange(listingTomatoes, listingTeff, listingOnions, listingAvocado, listingCoffee);
+        var listingAdvanceStrawberries = new Listing
+        {
+            Id = Guid.Parse("a1b2c3d4-0006-0000-0000-000000000006"),
+            FarmerId = farmerAbebe.Id,
+            ProductName = "Bishoftu Sweet Greenhouse Strawberries",
+            NameAm = "የቢሾፍቱ እንጆሪ (የቅድመ ምርት)",
+            Category = "Fruits",
+            QtyKg = 1200m,
+            PricePerKg = 90m,
+            MinOrderKg = 25m,
+            Latitude = 8.7523,
+            Longitude = 38.9785,
+            Photos = new List<string> { "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=800&auto=format&fit=crop&q=80" },
+            AvailableFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(18)),
+            Status = ListingStatus.Active,
+            Grade = "Export Grade",
+            Ripeness = "Green / Storable",
+            IsOrganic = true,
+            IsAdvanceHarvest = true,
+            ExpectedHarvestDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(18)),
+            MarketBenchmarkPrice = 95m,
+            ModerationStatus = "Approved",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
+        };
 
-        // 3. Sample Delivered Order (Historical with Escrow Released)
+        context.Listings.AddRange(listingTomatoes, listingTeff, listingOnions, listingAvocado, listingCoffee, listingAdvanceStrawberries);
+
+        // 3. Orders with Proof of Delivery, GPS, and Disputes
         var order1 = new Order
         {
             Id = Guid.Parse("b1b2c3d4-0001-0000-0000-000000000001"),
@@ -199,7 +388,13 @@ public static class DbInitializer
             EscrowHeld = false,
             PaymentRef = "TB-20260810-9000",
             DeliveryAddress = "Bole Road, FreshMart Supermarket, Addis Ababa",
+            PickupPhoto = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80",
+            DeliveryPhoto = "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=600&auto=format&fit=crop&q=80",
+            DeliveryGpsLat = 8.9950,
+            DeliveryGpsLng = 38.7890,
+            DeliveredAt = DateTimeOffset.UtcNow.AddDays(-1),
             ConfirmedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            DriverSubsidyEtb = 150m,
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-2)
         };
 
@@ -228,7 +423,6 @@ public static class DbInitializer
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
         };
 
-        // 4. Sample Active Confirmed Order
         var order2 = new Order
         {
             Id = Guid.Parse("b1b2c3d4-0002-0000-0000-000000000002"),
@@ -242,6 +436,7 @@ public static class DbInitializer
             PaymentRef = "TB-20260812-16500",
             PickupPhoto = "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&auto=format&fit=crop&q=80",
             DeliveryAddress = "Merkato Wholesalers Depot, Addis Ababa",
+            DriverSubsidyEtb = 200m,
             CreatedAt = DateTimeOffset.UtcNow.AddHours(-3)
         };
 
@@ -258,11 +453,78 @@ public static class DbInitializer
             CreatedAt = DateTimeOffset.UtcNow.AddHours(-3)
         };
 
-        context.Orders.AddRange(order1, order2);
-        context.Payments.AddRange(payment1, payment2);
+        var order3Disputed = new Order
+        {
+            Id = Guid.Parse("b1b2c3d4-0003-0000-0000-000000000003"),
+            ListingId = listingAvocado.Id,
+            BuyerId = buyerBethlehem.Id,
+            DriverId = driverDawit.Id,
+            QtyKg = 150m,
+            TotalEtb = 9000m,
+            Status = OrderStatus.Disputed,
+            EscrowHeld = true,
+            PaymentRef = "TB-20260813-9000",
+            PickupPhoto = "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&auto=format&fit=crop&q=80",
+            DeliveryAddress = "Bole Supermarket Cold Storage, Addis Ababa",
+            DisputeReason = "Delivered avocados were overripe and 20% bruised during transit from Hawassa.",
+            DisputePhoto = "https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&auto=format&fit=crop&q=80",
+            RequestedRefundPercent = 50,
+            DisputeStatus = "PendingReview",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
+        };
+
+        var payment3 = new Payment
+        {
+            Id = Guid.NewGuid(),
+            OrderId = order3Disputed.Id,
+            AmountEtb = 9000m,
+            FarmerCut = 8100m,
+            DriverCut = 450m,
+            PlatformCut = 450m,
+            TelebirrRef = "TB-TXN-98217411",
+            Status = "Frozen",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
+        };
+
+        context.Orders.AddRange(order1, order2, order3Disputed);
+        context.Payments.AddRange(payment1, payment2, payment3);
         context.Reviews.Add(review1);
 
         await context.SaveChangesAsync();
-        logger.LogInformation("Database seeded successfully with Ethiopian produce, accounts, and escrow transactions.");
+        logger.LogInformation("Database seeded successfully with Ethiopian produce, advance harvests, KYC profiles, and dispute transactions.");
+    }
+
+    private static async Task EnsureEnrichedSeedDataAsync(AppDbContext context, ILogger logger)
+    {
+        var strawberryId = Guid.Parse("a1b2c3d4-0006-0000-0000-000000000006");
+        if (!await context.Listings.AnyAsync(l => l.Id == strawberryId))
+        {
+            var farmerAbebeId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+            context.Listings.Add(new Listing
+            {
+                Id = strawberryId,
+                FarmerId = farmerAbebeId,
+                ProductName = "Bishoftu Sweet Greenhouse Strawberries",
+                NameAm = "የቢሾፍቱ እንጆሪ (የቅድመ ምርት)",
+                Category = "Fruits",
+                QtyKg = 1200m,
+                PricePerKg = 90m,
+                MinOrderKg = 25m,
+                Latitude = 8.7523,
+                Longitude = 38.9785,
+                Photos = new List<string> { "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=800&auto=format&fit=crop&q=80" },
+                AvailableFrom = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(18)),
+                Status = ListingStatus.Active,
+                Grade = "Export Grade",
+                Ripeness = "Green / Storable",
+                IsOrganic = true,
+                IsAdvanceHarvest = true,
+                ExpectedHarvestDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(18)),
+                MarketBenchmarkPrice = 95m,
+                ModerationStatus = "Approved",
+                CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
+            });
+            await context.SaveChangesAsync();
+        }
     }
 }

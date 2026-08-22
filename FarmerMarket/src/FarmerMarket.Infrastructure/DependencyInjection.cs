@@ -11,12 +11,17 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default");
+        var connectionString = configuration.GetConnectionString("Default") 
+            ?? configuration.GetConnectionString("TmsDatabase")
+            ?? configuration["DATABASE_URL"];
 
         if (!string.IsNullOrWhiteSpace(connectionString) && !connectionString.Contains("Host=db"))
         {
             services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(connectionString));
+                options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(2), null);
+                }));
         }
         else
         {

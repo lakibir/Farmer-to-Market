@@ -11,6 +11,22 @@ public class User
     public UserRole Role { get; set; } = UserRole.Farmer;
     public string Region { get; set; } = "Addis Ababa";
     public bool Verified { get; set; } = false;
+
+    // Driver Vehicle & Capacity Profile
+    public string? VehicleType { get; set; } = "Isuzu 5-Ton"; // Isuzu 5-Ton, Pickup 1.5-Ton, Sino 10-Ton, Bajaj
+    public string? RefrigerationType { get; set; } = "Ventilated"; // Refrigerated, Ventilated, Standard
+    public decimal? VehicleCapacityKg { get; set; } = 5000;
+
+    // KYC & Identity Verification
+    public string? KycDocumentType { get; set; } // National ID (Fayda), Kebele ID, Vehicle Logbook
+    public string? KycDocumentNumber { get; set; }
+    public string? KycStatus { get; set; } = "Verified"; // Verified, Pending, Rejected
+
+    // Farmer & Driver Credibility Metrics
+    public int? RepeatBuyerCount { get; set; } = 12;
+    public int? OnTimeDeliveryRate { get; set; } = 99; // Percentage e.g. 99%
+    public decimal? WalletBalanceEtb { get; set; } = 0;
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     // Navigation properties

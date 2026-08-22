@@ -21,11 +21,30 @@ public class ListingsController(IMediator mediator) : ControllerBase
         [FromQuery] double? lat,
         [FromQuery] double? lng,
         [FromQuery] double? maxDistanceKm,
+        [FromQuery] string? grade,
+        [FromQuery] string? ripeness,
+        [FromQuery] bool? isOrganic,
+        [FromQuery] bool? isAdvanceHarvest,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
     {
-        var filters = new ListingFilters(category, region, minPrice, maxPrice, search, lat, lng, maxDistanceKm, page, pageSize);
+        var filters = new ListingFilters(
+            Category: category,
+            Region: region,
+            MinPrice: minPrice,
+            MaxPrice: maxPrice,
+            Search: search,
+            Lat: lat,
+            Lng: lng,
+            MaxDistanceKm: maxDistanceKm,
+            Grade: grade,
+            Ripeness: ripeness,
+            IsOrganic: isOrganic,
+            IsAdvanceHarvest: isAdvanceHarvest,
+            Page: page,
+            PageSize: pageSize
+        );
         var result = await mediator.Send(new GetListingsQuery(filters), ct);
         return Ok(result);
     }

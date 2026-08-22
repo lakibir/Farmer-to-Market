@@ -8,6 +8,7 @@ C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.App
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.AssemblyInfoInputs.cache
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.AssemblyInfo.cs
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.csproj.CoreCompileInputs.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.sourcelink.json
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMa.9AB755C4.Up2Date
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.dll
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\refint\FarmerMarket.Application.dll

@@ -1,54 +1,134 @@
 import { Language, translations } from '../i18n/translations';
-import { Listing, Order, PaymentSummary } from '../types';
+import { Listing, Order, PaymentSummary, PriceBenchmark, User } from '../types';
+import { api } from '../services/api';
 
 export function renderFarmerView(
   lang: Language,
   listings: Listing[],
   orders: Order[],
   summary: PaymentSummary,
-  isCreateModalOpen: boolean
+  isCreateModalOpen: boolean,
+  activeFarmerTab: 'listings' | 'wallet' | 'sms' = 'listings',
+  benchmarks: PriceBenchmark[] = api.getPriceBenchmarks(),
+  currentUser: User | null = api.getCurrentUser()
 ): string {
   const t = translations[lang];
 
   return `
     <div class="space-y-8 pb-20">
       
-      <!-- Top Header & Post Button -->
+      <!-- Top Header & Farmer Info with Trust Badges -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-1">
-            <i class="fa-solid fa-seedling"></i> Farmer Control Center · Oromia (Bishoftu)
+          <div class="flex flex-wrap items-center gap-2 mb-1.5">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold">
+              <i class="fa-solid fa-seedling text-emerald-700"></i> ${currentUser?.region || 'Oromia (Bishoftu)'}
+            </span>
+            <span class="trust-badge text-emerald-800 bg-emerald-50 border-emerald-200">
+              <i class="fa-solid fa-id-card"></i> ${t.verifiedFayda} (${currentUser?.kycDocumentNumber || 'FAYDA-8829104'})
+            </span>
+            <span class="trust-badge text-blue-800 bg-blue-50 border-blue-200">
+              <i class="fa-solid fa-users"></i> ${currentUser?.repeatBuyerCount || 18} ${t.repeatBuyers}
+            </span>
+            <span class="trust-badge text-purple-800 bg-purple-50 border-purple-200">
+              <i class="fa-solid fa-clock-rotate-left"></i> ${currentUser?.onTimeDeliveryRate || 99}% ${t.onTimeRate}
+            </span>
           </div>
+
           <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
             ${t.farmerPortalTitle}
           </h1>
         </div>
 
-        <button onclick="window.toggleCreateListingModal()" class="btn-primary text-sm py-2.5 px-5 shadow-md">
-          <i class="fa-solid fa-plus-circle"></i>
-          <span class="${lang === 'am' ? 'lang-am' : ''}">${t.postNewListing}</span>
+        <div class="flex items-center gap-3">
+          <button onclick="window.toggleFarmerTab('sms')" class="btn-secondary text-xs py-2.5 px-4 cursor-pointer">
+            <i class="fa-solid fa-comment-sms text-emerald-600"></i>
+            <span class="${lang === 'am' ? 'lang-am' : ''}">${t.navSmsConsole}</span>
+          </button>
+
+          <button onclick="window.toggleFarmerTab('wallet')" class="btn-secondary text-xs py-2.5 px-4 cursor-pointer">
+            <i class="fa-solid fa-wallet text-amber-600"></i>
+            <span class="${lang === 'am' ? 'lang-am' : ''}">${t.navWallet}</span>
+          </button>
+
+          <button onclick="window.toggleCreateListingModal()" class="btn-primary text-xs sm:text-sm py-2.5 px-5 shadow-md cursor-pointer">
+            <i class="fa-solid fa-plus-circle"></i>
+            <span class="${lang === 'am' ? 'lang-am' : ''}">${t.postNewListing}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Farmer Portal Navigation Pills -->
+      <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+        <button onclick="window.toggleFarmerTab('listings')" class="cat-pill ${activeFarmerTab === 'listings' ? 'active' : ''}">
+          <i class="fa-solid fa-box-open"></i>
+          <span>${lang === 'am' ? 'ምርቶች እና ትዕዛዞች' : 'Produce & Orders'}</span>
+        </button>
+        <button onclick="window.toggleFarmerTab('wallet')" class="cat-pill ${activeFarmerTab === 'wallet' ? 'active' : ''}">
+          <i class="fa-solid fa-wallet"></i>
+          <span>${t.walletTitle}</span>
+        </button>
+        <button onclick="window.toggleFarmerTab('sms')" class="cat-pill ${activeFarmerTab === 'sms' ? 'active' : ''}">
+          <i class="fa-solid fa-tower-broadcast"></i>
+          <span>${t.smsConsoleTitle}</span>
         </button>
       </div>
+
+      ${activeFarmerTab === 'wallet' ? renderFarmerWalletSection(lang, summary, orders, currentUser) :
+      activeFarmerTab === 'sms' ? renderFarmerSmsSection(lang) : `
+
+      <!-- Price Benchmark Advisory Banner -->
+      <section class="p-5 rounded-2xl bg-gradient-to-r from-emerald-900 to-slate-900 text-white shadow-lg space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-sm">
+              <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-sm text-white ${lang === 'am' ? 'lang-am' : ''}">${t.priceBenchmarkTitle}</h3>
+              <p class="text-[11px] text-emerald-200 font-medium">${t.benchmarkDesc}</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold bg-white/10 text-emerald-300 px-2.5 py-1 rounded-full border border-white/10">
+            <i class="fa-solid fa-clock mr-1"></i> Live Merkato & Sholla Feeds
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-1">
+          ${benchmarks.map(b => `
+            <div class="p-3 rounded-xl bg-white/10 border border-white/10 space-y-1">
+              <div class="text-[11px] font-bold text-slate-300 truncate">${lang === 'am' ? b.cropNameAm : b.cropName}</div>
+              <div class="text-base font-black text-white">${b.avgPriceEtb} <span class="text-[10px] font-bold text-emerald-300">ETB/kg</span></div>
+              <div class="flex items-center justify-between text-[10px] text-slate-400">
+                <span>Range: ${b.minPriceEtb}-${b.maxPriceEtb}</span>
+                <span class="${b.trend === 'Up' ? 'text-emerald-400' : b.trend === 'Down' ? 'text-amber-300' : 'text-slate-300'} font-bold">
+                  <i class="fa-solid fa-arrow-trend-${b.trend === 'Up' ? 'up' : b.trend === 'Down' ? 'down' : 'flat'}"></i>
+                </span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </section>
 
       <!-- Earnings Dashboard (90% Net Cut) -->
       <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         <div class="glass-card p-5 border-l-4 border-emerald-600 space-y-1">
           <div class="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>${t.earningsToday}</span>
-            <span class="telebirr-pill text-[10px] py-0.5 px-2">Telebirr</span>
+            <span>${t.walletBalance}</span>
+            <span class="telebirr-pill text-[10px] py-0.5 px-2">Telebirr Payout</span>
           </div>
           <div class="text-2xl sm:text-3xl font-black text-slate-900">
-            ${(summary.totalEarnedEtb * 0.4).toLocaleString()} <span class="text-sm font-bold text-emerald-700">ETB</span>
+            ${(currentUser?.walletBalanceEtb || 48200).toLocaleString()} <span class="text-sm font-bold text-emerald-700">ETB</span>
           </div>
           <p class="text-[11px] text-emerald-700 font-semibold">
-            <i class="fa-solid fa-circle-check"></i> ${t.depositedToWallet}
+            <i class="fa-solid fa-circle-check"></i> 90% direct deposit upon delivery
           </p>
         </div>
 
         <div class="glass-card p-5 border-l-4 border-amber-500 space-y-1">
           <div class="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>Pending Escrow Release</span>
+            <span>${t.pendingEscrow}</span>
             <span class="escrow-badge text-[10px]">Held in Escrow</span>
           </div>
           <div class="text-2xl sm:text-3xl font-black text-slate-900">
@@ -68,7 +148,7 @@ export function renderFarmerView(
             ${summary.completedOrdersCount + summary.pendingOrdersCount} <span class="text-sm font-bold text-slate-500">Orders</span>
           </div>
           <p class="text-[11px] text-blue-700 font-semibold">
-            <i class="fa-solid fa-bolt"></i> 90% direct cut per order
+            <i class="fa-solid fa-bolt"></i> Zero broker middleman take
           </p>
         </div>
 
@@ -105,6 +185,11 @@ export function renderFarmerView(
                     <span class="escrow-badge text-[10px]">
                       <i class="fa-solid fa-shield-check text-amber-600"></i> ${(o.farmerCut).toLocaleString()} ETB (90% Payout)
                     </span>
+                    ${o.isRecurring ? `
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                        <i class="fa-solid fa-repeat mr-1"></i> Standing Order (${o.recurringFrequency || 'Weekly'})
+                      </span>
+                    ` : ''}
                   </div>
 
                   <p class="text-xs text-slate-600">
@@ -118,7 +203,7 @@ export function renderFarmerView(
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                   ${o.status === 'pending' ? `
                     <button onclick="window.confirmFarmerOrder('${o.id}')" 
-                      class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm">
+                      class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer">
                       <i class="fa-solid fa-check"></i>
                       <span class="${lang === 'am' ? 'lang-am' : ''}">${t.confirmOrderAction}</span>
                     </button>
@@ -129,7 +214,7 @@ export function renderFarmerView(
                     </div>
                   `}
                   
-                  <button onclick="window.viewOrder('${o.id}')" class="btn-secondary text-xs py-2 px-3">
+                  <button onclick="window.viewOrder('${o.id}')" class="btn-secondary text-xs py-2 px-3 cursor-pointer">
                     <i class="fa-solid fa-eye"></i>
                   </button>
                 </div>
@@ -140,7 +225,7 @@ export function renderFarmerView(
         `}
       </section>
 
-      <!-- My Active Produce Listings -->
+      <!-- My Active Produce Listings & Advance Harvests -->
       <section class="space-y-4">
         <h2 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
           <i class="fa-solid fa-box-open text-emerald-600 mr-2"></i> ${t.myActiveListings}
@@ -149,20 +234,48 @@ export function renderFarmerView(
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           ${listings.map(l => `
             <div class="glass-card overflow-hidden">
-              <div class="h-40 w-full relative">
+              <div class="h-44 w-full relative">
                 <img src="${l.photos[0]}" class="w-full h-full object-cover" />
+                
+                <div class="absolute top-3 left-3 flex flex-col gap-1">
+                  ${l.isAdvanceHarvest ? `
+                    <span class="advance-pill shadow-xs">
+                      <i class="fa-solid fa-calendar-days text-emerald-700"></i> Advance Harvest
+                    </span>
+                  ` : ''}
+                  ${l.isOrganic ? `
+                    <span class="bg-emerald-800/90 backdrop-blur-md text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs">
+                      Organic
+                    </span>
+                  ` : ''}
+                </div>
+
                 <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-700 text-white shadow-xs">
                   ${l.status.toUpperCase()}
                 </span>
               </div>
               <div class="p-4 space-y-2">
+                <div class="flex items-center justify-between text-xs text-slate-500 font-semibold">
+                  <span class="text-amber-600 font-bold"><i class="fa-solid fa-certificate mr-1"></i> ${l.grade || 'Grade 1'}</span>
+                  <span>${l.ripeness || 'Ready Today'}</span>
+                </div>
+
                 <h3 class="font-bold text-slate-900 text-base ${lang === 'am' ? 'lang-am' : ''}">
                   ${lang === 'am' && l.nameAm ? l.nameAm : l.productName}
                 </h3>
-                <div class="flex items-center justify-between text-xs text-slate-600">
+
+                ${l.voiceNoteTranscript ? `
+                  <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-900 flex items-start gap-2">
+                    <i class="fa-solid fa-microphone text-emerald-700 mt-0.5"></i>
+                    <span class="italic truncate">"${l.voiceNoteTranscript}"</span>
+                  </div>
+                ` : ''}
+
+                <div class="flex items-center justify-between text-xs text-slate-600 pt-1">
                   <span>Price: <strong class="text-emerald-800 font-extrabold text-sm">${l.pricePerKg} ETB</strong>/kg</span>
                   <span>Stock: <strong class="font-bold text-slate-800">${l.qtyKg.toLocaleString()} kg</strong></span>
                 </div>
+                
                 <div class="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
                   <span>Min order: ${l.minOrderKg} kg</span>
                   <span><i class="fa-solid fa-calendar mr-1"></i> ${l.availableFrom}</span>
@@ -172,86 +285,315 @@ export function renderFarmerView(
           `).join('')}
         </div>
       </section>
+      `}
 
-      <!-- Post New Produce Listing Modal -->
-      ${isCreateModalOpen ? `
-        <div class="modal-backdrop" onclick="if(event.target === this) window.toggleCreateListingModal()">
-          <div class="modal-content p-6 sm:p-8 space-y-6">
-            
-            <div class="flex items-center justify-between pb-4 border-b border-slate-200">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg">
-                  <i class="fa-solid fa-plus"></i>
-                </div>
-                <div>
-                  <h3 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">${t.postNewListing}</h3>
-                  <p class="text-xs text-slate-500 font-medium">Publish produce directly to wholesale buyers</p>
-                </div>
-              </div>
-              <button onclick="window.toggleCreateListingModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
+      <!-- Post New Produce Listing Modal (Voice Note + Advance Harvest + Benchmarking) -->
+      ${isCreateModalOpen ? renderCreateListingModal(lang, benchmarks) : ''}
 
-            <form onsubmit="window.handleCreateListing(event)" class="space-y-4 text-xs font-semibold text-slate-700">
-              
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block mb-1">${t.productNameEn}</label>
-                  <input type="text" id="newProdName" required placeholder="e.g. Red Onions" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label class="block mb-1">${t.productNameAm}</label>
-                  <input type="text" id="newProdNameAm" placeholder="ለምሳሌ: ቀይ ሽንኩርት" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none lang-am" />
-                </div>
-              </div>
+    </div>
+  `;
+}
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label class="block mb-1">${t.categoryLabel}</label>
-                  <select id="newProdCategory" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    <option value="Vegetables">Vegetables / አትክልት</option>
-                    <option value="Grains">Grains / እህል</option>
-                    <option value="Fruits">Fruits / ፍራፍሬ</option>
-                    <option value="Coffee">Coffee / ቡና</option>
-                    <option value="Spices">Spices / ቅመማ ቅመም</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block mb-1">${t.qtyKgLabel}</label>
-                  <input type="number" id="newProdQty" required min="10" value="1000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label class="block mb-1">${t.priceKgLabel}</label>
-                  <input type="number" id="newProdPrice" required min="1" value="50" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-                </div>
-              </div>
+function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orders: Order[], user: User | null): string {
+  const t = translations[lang];
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="block mb-1">${t.minOrderLabel}</label>
-                  <input type="number" id="newProdMinOrder" required min="1" value="50" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-                </div>
-                <div>
-                  <label class="block mb-1">${t.farmLocationLabel}</label>
-                  <input type="text" id="newProdRegion" value="Oromia (Bishoftu)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-                </div>
-              </div>
+  return `
+    <div class="space-y-6">
+      
+      <!-- Telebirr Balance Card -->
+      <div class="p-6 sm:p-8 rounded-3xl bg-gradient-to-tr from-blue-900 via-blue-800 to-sky-700 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div class="space-y-2">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-xs font-bold text-sky-200">
+            <i class="fa-solid fa-bolt text-amber-300"></i> Telebirr Direct Settlement Engine
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black text-white">
+            ${(user?.walletBalanceEtb || 48200).toLocaleString()} <span class="text-lg font-bold text-sky-200">ETB</span>
+          </h2>
+          <p class="text-xs text-sky-100 max-w-md">
+            Linked Telebirr Account: <strong class="text-white">${user?.phone || '+251 911 223 344'}</strong> · 90% direct produce value deposited immediately after buyer delivery approval.
+          </p>
+        </div>
 
-              <div>
-                <label class="block mb-1">Produce Photo URL</label>
-                <input type="text" id="newProdPhoto" value="https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=800&auto=format&fit=crop&q=80" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-              </div>
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <button onclick="window.handleFarmerWithdrawal()" class="btn-primary bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 px-6 rounded-xl shadow-lg w-full sm:w-auto cursor-pointer">
+            <i class="fa-solid fa-money-bill-transfer mr-1 text-slate-950"></i> ${t.requestWithdrawal}
+          </button>
+        </div>
+      </div>
 
-              <button type="submit" class="btn-primary w-full py-3 text-sm mt-4">
-                <i class="fa-solid fa-cloud-arrow-up"></i> ${t.publishListingBtn}
-              </button>
-            </form>
+      <!-- Payout Log History -->
+      <div class="glass-card p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+            <i class="fa-solid fa-receipt text-emerald-600 mr-1.5"></i> ${t.payoutHistory}
+          </h3>
+          <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+            100% Verified Telebirr Payouts
+          </span>
+        </div>
 
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 font-bold">
+                <th class="py-2.5">Order & Produce</th>
+                <th class="py-2.5">Quantity</th>
+                <th class="py-2.5">Gross Order</th>
+                <th class="py-2.5 text-emerald-800">Net Farmer Payout (90%)</th>
+                <th class="py-2.5">Telebirr Ref</th>
+                <th class="py-2.5">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-700 font-medium">
+              ${orders.map(o => `
+                <tr>
+                  <td class="py-3 font-bold text-slate-900">
+                    <div>${o.productName}</div>
+                    <span class="text-[10px] text-slate-400">Order #${o.id.slice(0, 8).toUpperCase()}</span>
+                  </td>
+                  <td class="py-3 font-semibold">${o.qtyKg} kg</td>
+                  <td class="py-3 font-semibold">${o.totalEtb.toLocaleString()} ETB</td>
+                  <td class="py-3 font-black text-emerald-700 text-sm">${o.farmerCut.toLocaleString()} ETB</td>
+                  <td class="py-3 font-mono text-[11px] text-slate-500">${o.paymentRef || 'TB-TXN-' + o.id.slice(0, 8)}</td>
+                  <td class="py-3">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${o.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                      ${o.status === 'delivered' ? 'Paid to Telebirr' : 'Held in Escrow'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+function renderFarmerSmsSection(lang: Language): string {
+  const t = translations[lang];
+
+  return `
+    <div class="glass-card p-6 sm:p-8 space-y-6 max-w-3xl mx-auto">
+      
+      <div class="flex items-center gap-3 pb-4 border-b border-slate-200">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl font-bold">
+          <i class="fa-solid fa-comment-sms"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">${t.smsConsoleTitle}</h2>
+          <p class="text-xs text-slate-500">${t.smsConsoleDesc}</p>
+        </div>
+      </div>
+
+      <!-- Quick Command Reference -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-900"><i class="fa-solid fa-tag text-emerald-600 mr-1"></i> List Produce:</div>
+          <code class="text-[11px] text-emerald-800 bg-white p-1 rounded border border-slate-200 block">LIST Tomato 1000 45 Bishoftu</code>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-900"><i class="fa-solid fa-check text-blue-600 mr-1"></i> Confirm Order:</div>
+          <code class="text-[11px] text-blue-800 bg-white p-1 rounded border border-slate-200 block">CONFIRM 0001</code>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-900"><i class="fa-solid fa-chart-line text-purple-600 mr-1"></i> Check Market Prices:</div>
+          <code class="text-[11px] text-purple-800 bg-white p-1 rounded border border-slate-200 block">PRICES</code>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+          <div class="font-bold text-slate-900"><i class="fa-solid fa-wallet text-amber-600 mr-1"></i> Check Balance:</div>
+          <code class="text-[11px] text-amber-800 bg-white p-1 rounded border border-slate-200 block">WALLET</code>
+        </div>
+      </div>
+
+      <!-- Interactive SMS Simulator -->
+      <form onsubmit="window.handleSimulateSms(event)" class="space-y-4 pt-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Smallholder Mobile Phone Number</label>
+          <input type="text" id="smsPhone" value="+251911223344" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">${t.smsSimulateInbound}</label>
+          <div class="flex items-center gap-2">
+            <input type="text" id="smsCommand" required placeholder="${t.smsCommandPlaceholder}" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+            <button type="submit" class="btn-primary text-xs py-2.5 px-5 cursor-pointer">
+              <i class="fa-solid fa-paper-plane"></i> Send SMS
+            </button>
           </div>
         </div>
-      ` : ''}
+      </form>
 
+      <!-- SMS Response Terminal -->
+      <div id="smsResponseBox" class="hidden p-4 rounded-2xl bg-slate-900 text-emerald-300 font-mono text-xs space-y-1 border border-slate-800">
+        <div class="text-[10px] text-slate-400 font-sans font-bold flex items-center justify-between border-b border-slate-800 pb-1">
+          <span><i class="fa-solid fa-tower-cell mr-1 text-emerald-400"></i> Inbound Twilio Webhook Output</span>
+          <span class="text-emerald-400 font-bold">200 OK</span>
+        </div>
+        <div id="smsResponseText" class="pt-1 leading-relaxed"></div>
+      </div>
+
+    </div>
+  `;
+}
+
+function renderCreateListingModal(lang: Language, benchmarks: PriceBenchmark[]): string {
+  const t = translations[lang];
+
+  return `
+    <div class="modal-backdrop" onclick="if(event.target === this) window.toggleCreateListingModal()">
+      <div class="modal-content p-6 sm:p-8 space-y-6 max-w-2xl">
+        
+        <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-lg">
+              <i class="fa-solid fa-plus"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">${t.postNewListing}</h3>
+              <p class="text-xs text-slate-500 font-medium">Publish produce with Voice Note & Market Price Benchmarking</p>
+            </div>
+          </div>
+          <button onclick="window.toggleCreateListingModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Voice-Note Quick Form Filler Module -->
+        <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs">
+                <i class="fa-solid fa-microphone"></i>
+              </div>
+              <span class="text-xs font-black text-emerald-950 ${lang === 'am' ? 'lang-am' : ''}">${t.voiceNoteTitle}</span>
+            </div>
+            <select id="voiceLangSelect" class="bg-white border border-emerald-300 text-emerald-900 text-[11px] font-bold py-1 px-2.5 rounded-lg">
+              <option value="am">አማርኛ (Amharic)</option>
+              <option value="om">Afaan Oromoo</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+
+          <p class="text-[11px] text-emerald-800 leading-relaxed">${t.voiceNoteDesc}</p>
+
+          <div class="flex items-center gap-3 pt-1">
+            <button type="button" id="voiceRecordBtn" onclick="window.handleVoiceRecordToggle()" class="btn-primary text-xs py-2 px-4 shadow-sm cursor-pointer">
+              <i class="fa-solid fa-microphone mr-1 text-red-300"></i> <span id="voiceBtnText">${t.recordVoiceBtn}</span>
+            </button>
+            <div id="voiceWaveIndicator" class="hidden flex items-center gap-1">
+              <div class="voice-wave-bar"></div>
+              <div class="voice-wave-bar"></div>
+              <div class="voice-wave-bar"></div>
+              <div class="voice-wave-bar"></div>
+              <div class="voice-wave-bar"></div>
+              <span class="text-[11px] font-bold text-emerald-700 ml-1">Recording (00:04)...</span>
+            </div>
+          </div>
+        </div>
+
+        <form onsubmit="window.handleCreateListing(event)" class="space-y-4 text-xs font-semibold text-slate-700">
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block mb-1">${t.productNameEn}</label>
+              <input type="text" id="newProdName" required placeholder="e.g. Fresh Sholla Red Tomatoes" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block mb-1">${t.productNameAm}</label>
+              <input type="text" id="newProdNameAm" placeholder="ለምሳሌ: የሾላ ቀይ ቲማቲም" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none lang-am" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block mb-1">${t.categoryLabel}</label>
+              <select id="newProdCategory" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                <option value="Vegetables">Vegetables / አትክልት</option>
+                <option value="Grains">Grains / እህል</option>
+                <option value="Fruits">Fruits / ፍራፍሬ</option>
+                <option value="Coffee">Coffee / ቡና</option>
+                <option value="Spices">Spices / ቅመማ ቅመም</option>
+              </select>
+            </div>
+            <div>
+              <label class="block mb-1">${t.qtyKgLabel}</label>
+              <input type="number" id="newProdQty" required min="10" value="1000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block mb-1">${t.priceKgLabel}</label>
+              <input type="number" id="newProdPrice" required min="1" value="45" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+            </div>
+          </div>
+
+          <!-- Quality, Grade & Ripeness -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block mb-1">${t.gradeLabel}</label>
+              <select id="newProdGrade" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                <option value="Grade 1">Grade 1 (Premium Farm)</option>
+                <option value="Export Grade">Export Grade (ECX/Verified)</option>
+                <option value="Grade 2">Grade 2 (Commercial Standard)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block mb-1">${t.ripenessLabel}</label>
+              <select id="newProdRipeness" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                <option value="Ready Today">Ready Today (Fresh Harvest)</option>
+                <option value="Semi-Ripe">Semi-Ripe (Storable 5-7 days)</option>
+                <option value="Green / Storable">Green / Storable (Long Transit)</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2 pt-6">
+              <input type="checkbox" id="newProdOrganic" checked class="w-4 h-4 text-emerald-600 rounded" />
+              <label for="newProdOrganic" class="text-xs font-bold text-slate-800">Certified Organic Claim</label>
+            </div>
+          </div>
+
+          <!-- Harvest Calendar & Advance Listing -->
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="newProdAdvanceToggle" onchange="window.toggleAdvanceHarvestFields(this.checked)" class="w-4 h-4 text-emerald-600 rounded" />
+                <label for="newProdAdvanceToggle" class="text-xs font-black text-slate-900">${t.advanceHarvestToggle}</label>
+              </div>
+              <span class="text-[11px] font-bold text-emerald-700">Pre-commit buyer orders</span>
+            </div>
+
+            <div id="advanceHarvestDateRow" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block mb-1">${t.expectedHarvestLabel}</label>
+                <input type="date" id="newProdHarvestDate" value="${new Date(Date.now() + 18 * 86400000).toISOString().split('T')[0]}" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+              </div>
+              <div class="text-[11px] text-slate-500 flex items-center">
+                Buyers can reserve stock in advance, eliminating harvest spoilage risk.
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block mb-1">${t.minOrderLabel}</label>
+              <input type="number" id="newProdMinOrder" required min="1" value="50" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block mb-1">${t.farmLocationLabel}</label>
+              <input type="text" id="newProdRegion" value="Oromia (Bishoftu)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block mb-1">Produce Photo URL</label>
+            <input type="text" id="newProdPhoto" value="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&auto=format&fit=crop&q=80" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+          </div>
+
+          <button type="submit" class="btn-primary w-full py-3.5 text-sm mt-4 cursor-pointer">
+            <i class="fa-solid fa-cloud-arrow-up"></i> ${t.publishListingBtn}
+          </button>
+        </form>
+
+      </div>
     </div>
   `;
 }

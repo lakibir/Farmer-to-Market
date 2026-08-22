@@ -25,12 +25,24 @@ public record OrderDto(
     decimal FarmerCut,
     decimal DriverCut,
     decimal PlatformCut,
+    decimal DriverSubsidyEtb,
     OrderStatus Status,
     bool EscrowHeld,
     string? PaymentRef,
     string? PickupPhoto,
+    string? DeliveryPhoto,
+    double? DeliveryGpsLat,
+    double? DeliveryGpsLng,
+    DateTimeOffset? DeliveredAt,
     string? DeliveryAddress,
     string? DeliveryNotes,
+    string? DisputeReason,
+    string? DisputePhoto,
+    int RequestedRefundPercent,
+    string DisputeStatus,
+    string? DisputeResolutionNotes,
+    bool IsRecurring,
+    string? RecurringFrequency,
     DateTimeOffset? ConfirmedAt,
     DateTimeOffset CreatedAt
 );
@@ -39,7 +51,9 @@ public record PlaceOrderDto(
     Guid ListingId,
     decimal QtyKg,
     string? DeliveryAddress = null,
-    string? DeliveryNotes = null
+    string? DeliveryNotes = null,
+    bool IsRecurring = false,
+    string? RecurringFrequency = null
 );
 
 public record PlaceOrderResultDto(
@@ -53,6 +67,29 @@ public record PickupOrderDto(
     string? PickupPhoto
 );
 
+public record DeliverOrderDto(
+    string? DeliveryPhoto,
+    double? DeliveryGpsLat,
+    double? DeliveryGpsLng
+);
+
 public record DisputeOrderDto(
-    string Reason
+    string Reason,
+    string? DisputePhoto = null,
+    int RequestedRefundPercent = 100
+);
+
+public record StandingOrderDto(
+    Guid Id,
+    Guid ListingId,
+    string ProductName,
+    string? ProductNameAm,
+    Guid FarmerId,
+    string FarmerName,
+    decimal QtyKg,
+    decimal PricePerKg,
+    string Frequency, // "Weekly", "Bi-Weekly", "Monthly"
+    string NextDeliveryDate,
+    bool Active,
+    DateTimeOffset CreatedAt
 );
