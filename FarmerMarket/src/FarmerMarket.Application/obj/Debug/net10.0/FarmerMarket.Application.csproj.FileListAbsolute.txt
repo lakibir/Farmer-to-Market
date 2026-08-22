@@ -1,0 +1,15 @@
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\bin\Debug\net10.0\FarmerMarket.Application.deps.json
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\bin\Debug\net10.0\FarmerMarket.Application.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\bin\Debug\net10.0\FarmerMarket.Application.pdb
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\bin\Debug\net10.0\FarmerMarket.Domain.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\bin\Debug\net10.0\FarmerMarket.Domain.pdb
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.csproj.AssemblyReference.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.AssemblyInfoInputs.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.AssemblyInfo.cs
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.csproj.CoreCompileInputs.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMa.9AB755C4.Up2Date
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\refint\FarmerMarket.Application.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\FarmerMarket.Application.pdb
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Application\obj\Debug\net10.0\ref\FarmerMarket.Application.dll

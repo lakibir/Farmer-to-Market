@@ -1,0 +1,11 @@
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\bin\Debug\net10.0\FarmerMarket.Domain.deps.json
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\bin\Debug\net10.0\FarmerMarket.Domain.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\bin\Debug\net10.0\FarmerMarket.Domain.pdb
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\FarmerMarket.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\FarmerMarket.Domain.AssemblyInfoInputs.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\FarmerMarket.Domain.AssemblyInfo.cs
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\FarmerMarket.Domain.csproj.CoreCompileInputs.cache
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\FarmerMarket.Domain.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\refint\FarmerMarket.Domain.dll
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\FarmerMarket.Domain.pdb
+C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Domain\obj\Debug\net10.0\ref\FarmerMarket.Domain.dll

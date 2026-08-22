@@ -1,0 +1,22 @@
+using System.Reflection;
+using FarmerMarket.Application.Common.Interfaces;
+using FarmerMarket.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace FarmerMarket.Infrastructure.Data;
+
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
+{
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Listing> Listings => Set<Listing>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+        builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+    }
+}

@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: farmermarket_db
+    restart: always
+    environment:
+      POSTGRES_DB: farmermarket
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d farmermarket"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8.10
+    container_name: farmermarket_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@farmermarket.et}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-AdminSecret2026!}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - ./pgadmin-servers.json:/pgadmin4/servers.json
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: farmermarket_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: ./FarmerMarket/src
+      dockerfile: FarmerMarket.API/Dockerfile
+    container_name: farmermarket_api
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=farmermarket;Username=postgres;Password=${DB_PASSWORD:-postgres}"
+      Redis__ConnectionString: "redis:6379"
+      Jwt__Key: ${JWT_SECRET:-FarmerMarket_Secret_Key_For_Ethiopia_Telebirr_Escrow_2026_Secure_JWT_Token_Key!}
+      Twilio__AccountSid: ${TWILIO_SID:-AC_MOCK_TWILIO_SID}
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports:
+      - "5000:8080"
+
+  web:
+    build:
+      context: ./farmer-market-web
+      dockerfile: Dockerfile
+    container_name: farmermarket_web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
