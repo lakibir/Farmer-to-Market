@@ -1,7 +1,8 @@
 import {
   Listing, Order, User, PlatformStats, PaymentSummary, DriverSummary,
   UserRole, OrderStatus, NotificationItem, PriceBenchmark, StandingOrder,
-  AnomalyAlert, KycVerificationItem, RegionalAnalytics, OptimizedRoute, OfflineAction
+  AnomalyAlert, KycVerificationItem, RegionalAnalytics, OptimizedRoute, OfflineAction,
+  TaxInvoice, TransportWaybill, LegalContract, DisputeMediationRecord
 } from '../types';
 import { signalRService } from './signalr.service';
 
@@ -28,7 +29,8 @@ class ApiService {
     pendingEscrowEtb: 14850,
     releasedEtb: 48200,
     completedOrdersCount: 18,
-    pendingOrdersCount: 1
+    pendingOrdersCount: 1,
+    totalWithholdingTaxPaidEtb: 964
   };
 
   private driverSummary: DriverSummary = {
@@ -50,7 +52,9 @@ class ApiService {
     activeEscrowHeldEtb: 25500,
     disputedOrdersCount: 1,
     totalMetricTonsMoved: 145.8,
-    middlemanMarginSavedEtb: 480000
+    middlemanMarginSavedEtb: 480000,
+    totalVatRemittedEtb: 258.75,
+    totalWithholdingReportedEtb: 690.00
   };
 
   constructor() {
@@ -156,6 +160,8 @@ class ApiService {
         region: "Addis Ababa (Kaliti)",
         documentType: "Commercial Vehicle Logbook & License",
         documentNumber: "ET-LOG-5T-98214",
+        tinNumber: "TIN-DRV-981244",
+        kycTier: 3,
         status: "Pending",
         submittedAt: "Yesterday"
       },
@@ -167,6 +173,8 @@ class ApiService {
         region: "Oromia (Bishoftu)",
         documentType: "National ID (Fayda)",
         documentNumber: "FAYDA-ET-8829104",
+        tinNumber: "TIN-FARM-882910",
+        kycTier: 2,
         status: "Verified",
         submittedAt: "3 days ago"
       },
@@ -178,6 +186,7 @@ class ApiService {
         region: "Sidama (Hawassa)",
         documentType: "Kebele Smallholder ID",
         documentNumber: "HAW-KEB-4410",
+        kycTier: 1,
         status: "Pending",
         submittedAt: "12 hours ago"
       }
@@ -253,12 +262,15 @@ class ApiService {
           role: (data.role || 'buyer').toLowerCase() as UserRole,
           region: data.region,
           verified: data.verified,
+          tinNumber: data.tinNumber || (data.role === 'buyer' ? 'TIN-ET-9912001' : 'TIN-FARM-882910'),
+          businessLicenseNumber: data.businessLicenseNumber || 'MOT-LIC-2026-98124',
           vehicleType: data.vehicleType || "Isuzu 5-Ton",
           refrigerationType: data.refrigerationType || "Ventilated",
           vehicleCapacityKg: data.vehicleCapacityKg || 5000,
           kycDocumentType: data.kycDocumentType,
           kycDocumentNumber: data.kycDocumentNumber,
           kycStatus: data.kycStatus || "Verified",
+          kycTier: data.kycTier || 2,
           repeatBuyerCount: data.repeatBuyerCount || 14,
           onTimeDeliveryRate: data.onTimeDeliveryRate || 99,
           walletBalanceEtb: data.walletBalanceEtb || 48200,
@@ -319,12 +331,15 @@ class ApiService {
       role: (data.user.role || 'buyer').toLowerCase() as UserRole,
       region: data.user.region,
       verified: data.user.verified,
+      tinNumber: data.user.role === 'buyer' ? 'TIN-ET-9912001' : 'TIN-FARM-882910',
+      businessLicenseNumber: 'MOT-LIC-2026-98124',
       vehicleType: data.user.vehicleType || "Isuzu 5-Ton",
       refrigerationType: data.user.refrigerationType || "Ventilated",
       vehicleCapacityKg: data.user.vehicleCapacityKg || 5000,
       kycDocumentType: data.user.kycDocumentType,
       kycDocumentNumber: data.user.kycDocumentNumber,
       kycStatus: data.user.kycStatus || "Verified",
+      kycTier: 2,
       repeatBuyerCount: data.user.repeatBuyerCount || 14,
       onTimeDeliveryRate: data.user.onTimeDeliveryRate || 99,
       walletBalanceEtb: data.user.walletBalanceEtb || 48200,
@@ -374,12 +389,15 @@ class ApiService {
       role: (data.user.role || 'buyer').toLowerCase() as UserRole,
       region: data.user.region,
       verified: data.user.verified,
+      tinNumber: 'TIN-NEW-' + Math.floor(100000 + Math.random() * 900000),
+      businessLicenseNumber: 'MOT-LIC-2026-NEW',
       vehicleType: role === 'driver' ? 'Isuzu 5-Ton' : undefined,
       refrigerationType: role === 'driver' ? 'Ventilated' : undefined,
       vehicleCapacityKg: role === 'driver' ? 5000 : undefined,
       kycDocumentType: 'National ID (Fayda)',
       kycDocumentNumber: 'FAYDA-NEW-' + Math.floor(100000 + Math.random() * 900000),
       kycStatus: 'Verified',
+      kycTier: 2,
       repeatBuyerCount: 5,
       onTimeDeliveryRate: 98,
       walletBalanceEtb: 0,
@@ -575,50 +593,65 @@ class ApiService {
       const res = await fetch('/api/orders', { headers: this.getAuthHeaders() });
       if (res.ok) {
         const items = await res.json();
-        this.orders = items.map((o: any) => ({
-          id: o.id,
-          listingId: o.listingId,
-          productName: o.productName,
-          productNameAm: o.productNameAm,
-          category: o.category,
-          farmerId: o.farmerId,
-          farmerName: o.farmerName,
-          farmerNameAm: o.farmerNameAm,
-          farmerPhone: o.farmerPhone,
-          farmerRegion: o.farmerRegion,
-          buyerId: o.buyerId,
-          buyerName: o.buyerName,
-          buyerPhone: o.buyerPhone,
-          driverId: o.driverId,
-          driverName: o.driverName,
-          driverPhone: o.driverPhone,
-          qtyKg: Number(o.qtyKg),
-          pricePerKg: Number(o.pricePerKg),
-          totalEtb: Number(o.totalEtb),
-          farmerCut: Number(o.farmerCut),
-          driverCut: Number(o.driverCut),
-          platformCut: Number(o.platformCut),
-          driverSubsidyEtb: Number(o.driverSubsidyEtb || 150),
-          status: (o.status || 'Pending').toLowerCase() as OrderStatus,
-          escrowHeld: o.escrowHeld,
-          paymentRef: o.paymentRef,
-          pickupPhoto: o.pickupPhoto,
-          deliveryPhoto: o.deliveryPhoto,
-          deliveryGpsLat: o.deliveryGpsLat,
-          deliveryGpsLng: o.deliveryGpsLng,
-          deliveredAt: o.deliveredAt,
-          deliveryAddress: o.deliveryAddress,
-          deliveryNotes: o.deliveryNotes,
-          disputeReason: o.disputeReason,
-          disputePhoto: o.disputePhoto,
-          requestedRefundPercent: o.requestedRefundPercent || 100,
-          disputeStatus: o.disputeStatus || 'None',
-          disputeResolutionNotes: o.disputeResolutionNotes,
-          isRecurring: o.isRecurring || false,
-          recurringFrequency: o.recurringFrequency,
-          confirmedAt: o.confirmedAt,
-          createdAt: o.createdAt
-        }));
+        this.orders = items.map((o: any) => {
+          const totalEtb = Number(o.totalEtb);
+          const farmerCut = Number(o.farmerCut || (totalEtb * 0.90));
+          const driverCut = Number(o.driverCut || (totalEtb * 0.05));
+          const platformCut = Number(o.platformCut || (totalEtb * 0.05));
+          const withholdingTax = Math.round(totalEtb * 0.02); // 2% Withholding
+          const platformVat = Math.round(platformCut * 0.15); // 15% VAT on service fee
+
+          return {
+            id: o.id,
+            listingId: o.listingId,
+            productName: o.productName,
+            productNameAm: o.productNameAm,
+            category: o.category,
+            farmerId: o.farmerId,
+            farmerName: o.farmerName,
+            farmerNameAm: o.farmerNameAm,
+            farmerPhone: o.farmerPhone,
+            farmerRegion: o.farmerRegion,
+            buyerId: o.buyerId,
+            buyerName: o.buyerName,
+            buyerPhone: o.buyerPhone,
+            driverId: o.driverId,
+            driverName: o.driverName,
+            driverPhone: o.driverPhone,
+            qtyKg: Number(o.qtyKg),
+            pricePerKg: Number(o.pricePerKg),
+            totalEtb,
+            farmerCut,
+            driverCut,
+            platformCut,
+            driverSubsidyEtb: Number(o.driverSubsidyEtb || 150),
+            withholdingTaxEtb: withholdingTax,
+            platformVatEtb: platformVat,
+            status: (o.status || 'Pending').toLowerCase() as OrderStatus,
+            escrowHeld: o.escrowHeld,
+            paymentRef: o.paymentRef || `TB-${o.id.slice(0, 8).toUpperCase()}`,
+            invoiceNumber: `ET-INV-2026-${o.id.slice(0, 6).toUpperCase()}`,
+            waybillNumber: `WB-FTA-${o.id.slice(0, 6).toUpperCase()}`,
+            contractNumber: `AGR-ET-${o.id.slice(0, 6).toUpperCase()}`,
+            arbitrationDecreeNumber: o.status === 'disputed' ? `ARB-DEC-${o.id.slice(0, 6).toUpperCase()}` : undefined,
+            pickupPhoto: o.pickupPhoto,
+            deliveryPhoto: o.deliveryPhoto,
+            deliveryGpsLat: o.deliveryGpsLat,
+            deliveryGpsLng: o.deliveryGpsLng,
+            deliveredAt: o.deliveredAt,
+            deliveryAddress: o.deliveryAddress,
+            deliveryNotes: o.deliveryNotes,
+            disputeReason: o.disputeReason,
+            disputePhoto: o.disputePhoto,
+            requestedRefundPercent: o.requestedRefundPercent || 100,
+            disputeStatus: o.disputeStatus || 'None',
+            disputeResolutionNotes: o.disputeResolutionNotes,
+            isRecurring: o.isRecurring || false,
+            recurringFrequency: o.recurringFrequency,
+            confirmedAt: o.confirmedAt,
+            createdAt: o.createdAt
+          };
+        });
         this.notify();
         return this.orders;
       }
@@ -738,14 +771,161 @@ class ApiService {
     await this.fetchOrders();
   }
 
-  // ==================== NEW ADVANCED MODULES ====================
+  // ==================== LEGAL & COMPLIANCE DOCUMENTS ====================
 
-  // Price Benchmarking
+  public getTaxInvoice(orderId: string): TaxInvoice {
+    const o = this.orders.find(ord => ord.id === orderId) || this.orders[0] || {
+      id: orderId,
+      productName: 'Fresh Sholla Red Tomatoes',
+      qtyKg: 200,
+      pricePerKg: 45,
+      totalEtb: 9000,
+      farmerCut: 8100,
+      driverCut: 450,
+      platformCut: 450,
+      farmerName: 'Abebe Bekele',
+      farmerRegion: 'Oromia (Bishoftu)',
+      farmerPhone: '+251 911 223 344',
+      buyerName: 'Bethlehem Tilahun (FreshMart)',
+      buyerRegion: 'Addis Ababa (Bole)',
+      buyerPhone: '+251 955 667 788',
+      paymentRef: 'TB-TXN-98217391',
+      invoiceNumber: 'ET-INV-2026-001',
+      createdAt: new Date().toISOString()
+    };
+
+    const platformVat = Math.round(o.platformCut * 0.15);
+    const withholding = Math.round(o.totalEtb * 0.02);
+
+    return {
+      invoiceNumber: o.invoiceNumber || `ET-INV-2026-${o.id.slice(0, 6).toUpperCase()}`,
+      orderId: o.id,
+      issueDate: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'),
+      paymentRef: o.paymentRef || `TB-C2B-${o.id.slice(0, 8).toUpperCase()}`,
+      sellerName: o.farmerName,
+      sellerTin: 'TIN-FARM-8829104',
+      sellerRegion: o.farmerRegion,
+      sellerPhone: o.farmerPhone,
+      sellerType: 'Registered Agricultural Smallholder Producer',
+      buyerName: o.buyerName,
+      buyerTin: 'TIN-ET-9912001',
+      buyerRegion: 'Addis Ababa (Bole)',
+      buyerPhone: o.buyerPhone,
+      productName: o.productName,
+      productNameAm: o.productNameAm,
+      grade: 'Grade 1 (Certified Farm Standard)',
+      qtyKg: o.qtyKg,
+      unitPriceEtb: o.pricePerKg,
+      grossAmountEtb: o.totalEtb,
+      farmerPayoutEtb: o.farmerCut,
+      driverFreightEtb: o.driverCut,
+      platformServiceFeeEtb: o.platformCut,
+      platformVatEtb: platformVat,
+      withholdingTaxEtb: withholding,
+      totalPaidViaTelebirr: o.totalEtb,
+      regulatoryAct: 'Ethiopian Tax Proclamation No. 979/2016 (Primary Agricultural Goods)',
+      qrVerificationCode: `ET-TAX-AUTH-2026-VERIFIED-${o.id.slice(0, 8).toUpperCase()}`,
+      isVatExemptAgriculturalGoods: true
+    };
+  }
+
+  public getTransportWaybill(orderId: string): TransportWaybill {
+    const o = this.orders.find(ord => ord.id === orderId) || this.orders[0];
+
+    return {
+      waybillNumber: o?.waybillNumber || `WB-FTA-2026-${orderId.slice(0, 6).toUpperCase()}`,
+      orderId: o?.id || orderId,
+      dispatchDate: new Date().toLocaleDateString('en-GB'),
+      consignorName: o?.farmerName || 'Abebe Bekele',
+      consignorFarmLocation: o?.farmerRegion || 'Bishoftu Green Farms, Oromia',
+      consignorPhone: o?.farmerPhone || '+251 911 223 344',
+      consigneeName: o?.buyerName || 'FreshMart Central Wholesale Hub',
+      consigneeDepotAddress: o?.deliveryAddress || 'Bole Depot, Addis Ababa',
+      consigneePhone: o?.buyerPhone || '+251 955 667 788',
+      carrierDriverName: o?.driverName || 'Dawit Kebede',
+      driverLicenseNumber: 'ET-CDL-COMM-89104',
+      vehiclePlateNumber: 'ET-3-B98124-AA',
+      vehicleModel: 'Isuzu 5-Ton Commercial Freight Carrier',
+      refrigerationStatus: 'Ventilated Agri-Body Cargo (18°C)',
+      insurancePolicyNumber: 'NIC-ET-CARGO-771920',
+      cargoDescription: `${o?.productName || 'Fresh Sholla Red Tomatoes'} (Grade 1)`,
+      packageCount: Math.ceil((o?.qtyKg || 200) / 25),
+      netWeightKg: o?.qtyKg || 200,
+      grossWeightKg: (o?.qtyKg || 200) + 18,
+      tareWeightKg: 18,
+      temperatureLogCelsius: 17.5,
+      farmerHandoffTimestamp: '06:30 AM (Farm Gate)',
+      driverSignatureRef: 'DAWIT-KEBEDE-VERIFIED-LOG',
+      buyerReceivedTimestamp: o?.status === 'delivered' ? '09:45 AM (Bole Depot)' : undefined,
+      transitStatus: o?.status === 'delivered' ? 'DeliveredWithGPS' : o?.status === 'picked_up' ? 'InTransit' : 'Dispatched'
+    };
+  }
+
+  public getLegalContract(orderId: string): LegalContract {
+    const o = this.orders.find(ord => ord.id === orderId) || this.orders[0];
+
+    return {
+      contractNumber: o?.contractNumber || `AGR-CONTR-2026-${orderId.slice(0, 6).toUpperCase()}`,
+      orderId: o?.id || orderId,
+      agreementDate: new Date().toLocaleDateString('en-GB'),
+      effectiveDate: new Date().toLocaleDateString('en-GB'),
+      sellerName: o?.farmerName || 'Abebe Bekele',
+      sellerIdNumber: 'FAYDA-ET-8829104',
+      sellerLocation: o?.farmerRegion || 'Bishoftu, Oromia, Ethiopia',
+      buyerName: o?.buyerName || 'Bethlehem Tilahun (FreshMart Wholesale)',
+      buyerTinNumber: 'TIN-ET-9912001',
+      buyerLocation: o?.deliveryAddress || 'Addis Ababa, Ethiopia',
+      cropType: o?.productName || 'Fresh Sholla Red Tomatoes',
+      contractedQuantityKg: o?.qtyKg || 200,
+      agreedPricePerKg: o?.pricePerKg || 45,
+      totalContractValueEtb: o?.totalEtb || 9000,
+      qualityStandardClause: 'Produce shall conform to Grade 1 Ethiopian Commodity Quality Standards (Maximum defect tolerance 2.5%, moisture within physiological thresholds).',
+      deliveryTimeline: 'Direct farm-to-depot transit guaranteed within 12 hours of farmer harvest confirmation.',
+      escrowClauseText: 'Purchase consideration is locked in Telebirr C2B Escrow and shall be automatically disbursed (90% Farmer / 5% Driver / 5% Platform) upon buyer delivery verification.',
+      forceMajeureClauseText: 'Neither party shall be liable for delivery failure caused by natural agricultural catastrophes, unseasonal frost, or national logistical force majeure.',
+      disputeJurisdiction: 'Federal Democratic Republic of Ethiopia Commercial Code and Ethiopian Agricultural Authority Arbitration Rules.',
+      eSignatures: {
+        sellerSigned: true,
+        sellerSignDate: 'Digitally Authenticated via OTP/Fayda',
+        buyerSigned: true,
+        buyerSignDate: 'Digitally Authenticated via Telebirr Escrow Lock',
+        platformWitnessHash: `EABC-FM-TRUST-SEAL-${orderId.slice(0, 8).toUpperCase()}`
+      }
+    };
+  }
+
+  public getDisputeMediationRecord(orderId: string): DisputeMediationRecord {
+    const o = this.orders.find(ord => ord.id === orderId) || this.orders[0];
+
+    return {
+      caseNumber: o?.arbitrationDecreeNumber || `ARB-CASE-2026-${orderId.slice(0, 6).toUpperCase()}`,
+      orderId: o?.id || orderId,
+      filingDate: 'Yesterday 3:15 PM',
+      resolutionDate: o?.status === 'disputed' ? undefined : 'Today 11:30 AM',
+      status: o?.status === 'disputed' ? 'UnderInvestigation' : 'Settled',
+      claimantBuyer: o?.buyerName || 'Bethlehem Tilahun',
+      respondentFarmer: o?.farmerName || 'Chala Gemechu',
+      freightCarrier: o?.driverName || 'Dawit Kebede',
+      totalDisputedAmountEtb: o?.totalEtb || 9000,
+      disputeReason: o?.disputeReason || 'Delivered avocados were overripe and 20% bruised during transit from Hawassa.',
+      claimedDefectPercentage: o?.requestedRefundPercent || 50,
+      inspectionReport: 'Independent physical inspection at Bole Cold Storage Depot confirmed 18.5% transit softening on batch packaging.',
+      photoEvidenceUrl: o?.disputePhoto || 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&auto=format&fit=crop&q=80',
+      leadArbitratorName: 'Sara Mengistu (Marketplace Compliance Arbitrator)',
+      legalFindingSummary: 'Partial packaging failure during transit. Fair 50/50 equitable split awarded under Ethiopian Commercial Code Art. 2289.',
+      arbitrationVerdict: 'FiftyFiftySplit',
+      farmerSettlementEtb: Math.round((o?.totalEtb || 9000) * 0.5),
+      buyerRefundEtb: Math.round((o?.totalEtb || 9000) * 0.5),
+      platformDecreeHash: `LEGAL-DECREE-ARB-${orderId.slice(0, 8).toUpperCase()}`
+    };
+  }
+
+  // ==================== EXISTING ADVANCED MODULES ====================
+
   public getPriceBenchmarks(): PriceBenchmark[] {
     return this.priceBenchmarks;
   }
 
-  // Standing / Recurring Orders
   public getStandingOrders(): StandingOrder[] {
     return this.standingOrders;
   }
@@ -778,7 +958,6 @@ class ApiService {
     }
   }
 
-  // KYC & Verification Queue
   public getKycQueue(): KycVerificationItem[] {
     return this.kycQueue;
   }
@@ -799,17 +978,14 @@ class ApiService {
     }
   }
 
-  // Anomaly Alerts
   public getAnomalyAlerts(): AnomalyAlert[] {
     return this.anomalyAlerts;
   }
 
-  // Regional Analytics
   public getRegionalAnalytics(): RegionalAnalytics[] {
     return this.regionalAnalytics;
   }
 
-  // Route Optimizer
   public getOptimizedRoute(): OptimizedRoute {
     return {
       id: "route-oromia-addis-01",
@@ -854,7 +1030,6 @@ class ApiService {
     };
   }
 
-  // Driver Vehicle Profile
   public updateDriverVehicle(vehicleType: string, refrigerationType: string, capacityKg: number) {
     if (this.currentUser && this.currentUser.role === 'driver') {
       this.currentUser.vehicleType = vehicleType;
@@ -865,7 +1040,6 @@ class ApiService {
     }
   }
 
-  // Offline Mode & Local Queue
   public toggleOfflineMode(): boolean {
     this.isOfflineMode = !this.isOfflineMode;
     this.notify();
@@ -895,7 +1069,6 @@ class ApiService {
     return count;
   }
 
-  // Inbound SMS Simulator
   public async sendInboundSms(from: string, body: string): Promise<string> {
     try {
       const res = await fetch('/api/sms/inbound', {
@@ -914,7 +1087,6 @@ class ApiService {
     return `[SIMULATED SMS ACK] Received: "${body}". Processed successfully in offline cache.`;
   }
 
-  // Voice Note Speech-To-Text Simulation
   public simulateVoiceTranscription(audioBlobLengthSec: number, spokenLanguage: 'am' | 'om' | 'en'): {
     productName: string;
     nameAm: string;
@@ -957,7 +1129,6 @@ class ApiService {
     }
   }
 
-  // Wallet Instant Withdrawal Simulation
   public requestWalletWithdrawal(amountEtb: number, phone: string): boolean {
     if (this.currentUser) {
       this.currentUser.walletBalanceEtb = Math.max(0, (this.currentUser.walletBalanceEtb || 48200) - amountEtb);
@@ -968,8 +1139,6 @@ class ApiService {
     }
     return false;
   }
-
-  // ==================== SUMMARIES & STATS ====================
 
   public async fetchSummaries() {
     if (!this.currentUser) return;
@@ -983,7 +1152,8 @@ class ApiService {
             pendingEscrowEtb: Number(data.pendingEscrowEtb),
             releasedEtb: Number(data.releasedEtb),
             completedOrdersCount: data.completedOrdersCount,
-            pendingOrdersCount: data.pendingOrdersCount
+            pendingOrdersCount: data.pendingOrdersCount,
+            totalWithholdingTaxPaidEtb: Math.round(Number(data.totalEarnedEtb) * 0.02)
           };
         }
       } else if (this.currentUser.role === 'driver') {
@@ -1013,7 +1183,9 @@ class ApiService {
             activeEscrowHeldEtb: Number(data.activeEscrowHeldEtb),
             disputedOrdersCount: data.disputedOrdersCount,
             totalMetricTonsMoved: Number(data.totalMetricTonsMoved || 145.8),
-            middlemanMarginSavedEtb: Number(data.middlemanMarginSavedEtb || 480000)
+            middlemanMarginSavedEtb: Number(data.middlemanMarginSavedEtb || 480000),
+            totalVatRemittedEtb: Number(data.totalPlatformCommissionEtb) * 0.15,
+            totalWithholdingReportedEtb: Number(data.totalTransactionVolumeEtb) * 0.02
           };
         }
       }
@@ -1032,7 +1204,8 @@ class ApiService {
       pendingEscrowEtb: (pendingEscrow || this.farmerSummary.pendingEscrowEtb),
       releasedEtb: (totalEarned || this.farmerSummary.releasedEtb),
       completedOrdersCount: farmerOrders.filter(o => o.status === 'delivered').length || this.farmerSummary.completedOrdersCount,
-      pendingOrdersCount: farmerOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length || this.farmerSummary.pendingOrdersCount
+      pendingOrdersCount: farmerOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length || this.farmerSummary.pendingOrdersCount,
+      totalWithholdingTaxPaidEtb: Math.round((totalEarned || this.farmerSummary.totalEarnedEtb) * 0.02)
     };
   }
 
@@ -1067,7 +1240,9 @@ class ApiService {
       activeEscrowHeldEtb: activeEscrow || this.platformStats.activeEscrowHeldEtb,
       disputedOrdersCount: disputed || this.platformStats.disputedOrdersCount,
       totalMetricTonsMoved: 145.8,
-      middlemanMarginSavedEtb: 480000
+      middlemanMarginSavedEtb: 480000,
+      totalVatRemittedEtb: (totalCommission || this.platformStats.totalPlatformCommissionEtb) * 0.15,
+      totalWithholdingReportedEtb: (totalVolume || this.platformStats.totalTransactionVolumeEtb) * 0.02
     };
   }
 

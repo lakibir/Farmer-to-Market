@@ -1,6 +1,6 @@
 export type UserRole = 'farmer' | 'buyer' | 'driver' | 'admin';
 export type OrderStatus = 'pending' | 'confirmed' | 'picked_up' | 'delivered' | 'disputed' | 'cancelled';
-export type ListingStatus = 'active' | 'sold_out' | 'expired';
+export type ListingStatus = 'active' | 'sold_out' | 'expired' | 'inactive';
 
 export interface User {
   id: string;
@@ -10,12 +10,15 @@ export interface User {
   role: UserRole;
   region: string;
   verified: boolean;
+  tinNumber?: string;
+  businessLicenseNumber?: string;
   vehicleType?: string;
   refrigerationType?: string;
   vehicleCapacityKg?: number;
   kycDocumentType?: string;
   kycDocumentNumber?: string;
   kycStatus?: 'Verified' | 'Pending' | 'Rejected';
+  kycTier?: 1 | 2 | 3;
   repeatBuyerCount?: number;
   onTimeDeliveryRate?: number;
   walletBalanceEtb?: number;
@@ -81,9 +84,14 @@ export interface Order {
   driverCut: number;
   platformCut: number;
   driverSubsidyEtb?: number;
+  withholdingTaxEtb?: number; // 2% Withholding under Ethiopian Tax Proclamation
+  platformVatEtb?: number; // 15% VAT on 5% platform service
   status: OrderStatus;
   escrowHeld: boolean;
   paymentRef?: string;
+  invoiceNumber?: string;
+  waybillNumber?: string;
+  contractNumber?: string;
   pickupPhoto?: string;
   deliveryPhoto?: string;
   deliveryGpsLat?: number;
@@ -96,6 +104,7 @@ export interface Order {
   requestedRefundPercent?: number;
   disputeStatus?: string; // "None", "PendingReview", "ResolvedReleaseFarmer", "ResolvedRefundBuyer", "ResolvedPartialSplit"
   disputeResolutionNotes?: string;
+  arbitrationDecreeNumber?: string;
   isRecurring?: boolean;
   recurringFrequency?: string; // "Weekly", "Bi-Weekly"
   confirmedAt?: string;
@@ -108,6 +117,7 @@ export interface PaymentSummary {
   releasedEtb: number;
   completedOrdersCount: number;
   pendingOrdersCount: number;
+  totalWithholdingTaxPaidEtb?: number;
 }
 
 export interface DriverSummary {
@@ -130,6 +140,8 @@ export interface PlatformStats {
   disputedOrdersCount: number;
   totalMetricTonsMoved?: number;
   middlemanMarginSavedEtb?: number;
+  totalVatRemittedEtb?: number;
+  totalWithholdingReportedEtb?: number;
 }
 
 export interface CartItem {
@@ -192,6 +204,8 @@ export interface KycVerificationItem {
   region: string;
   documentType: string;
   documentNumber: string;
+  tinNumber?: string;
+  kycTier?: 1 | 2 | 3;
   status: 'Pending' | 'Verified' | 'Rejected';
   submittedAt: string;
 }
@@ -233,4 +247,144 @@ export interface OfflineAction {
   timestamp: string;
   data: any;
   synced: boolean;
+}
+
+// ==================== LEGAL & COMPLIANCE DOCUMENT MODELS ====================
+
+export interface TaxInvoice {
+  invoiceNumber: string;
+  orderId: string;
+  issueDate: string;
+  paymentRef: string;
+  
+  // Seller / Farmer Details
+  sellerName: string;
+  sellerTin: string;
+  sellerRegion: string;
+  sellerPhone: string;
+  sellerType: string;
+
+  // Buyer Details
+  buyerName: string;
+  buyerTin: string;
+  buyerRegion: string;
+  buyerPhone: string;
+
+  // Produce & Fiscal Line Items
+  productName: string;
+  productNameAm?: string;
+  grade: string;
+  qtyKg: number;
+  unitPriceEtb: number;
+  grossAmountEtb: number;
+  farmerPayoutEtb: number; // 90%
+  driverFreightEtb: number; // 5%
+  platformServiceFeeEtb: number; // 5%
+  platformVatEtb: number; // 15% VAT on platform fee
+  withholdingTaxEtb: number; // 2% Withholding
+  totalPaidViaTelebirr: number;
+  
+  // Regulatory & QR Code Verification
+  regulatoryAct: string;
+  qrVerificationCode: string;
+  isVatExemptAgriculturalGoods: boolean;
+}
+
+export interface TransportWaybill {
+  waybillNumber: string;
+  orderId: string;
+  dispatchDate: string;
+  
+  // Consignor & Consignee
+  consignorName: string;
+  consignorFarmLocation: string;
+  consignorPhone: string;
+  consigneeName: string;
+  consigneeDepotAddress: string;
+  consigneePhone: string;
+
+  // Carrier & Vehicle Specifications
+  carrierDriverName: string;
+  driverLicenseNumber: string;
+  vehiclePlateNumber: string;
+  vehicleModel: string;
+  refrigerationStatus: string;
+  insurancePolicyNumber: string;
+
+  // Cargo & Weight Manifest
+  cargoDescription: string;
+  packageCount: number;
+  netWeightKg: number;
+  grossWeightKg: number;
+  tareWeightKg: number;
+  temperatureLogCelsius?: number;
+
+  // Signatures & Timestamp Seals
+  farmerHandoffTimestamp: string;
+  driverSignatureRef: string;
+  buyerReceivedTimestamp?: string;
+  transitStatus: 'Dispatched' | 'InTransit' | 'DeliveredWithGPS';
+}
+
+export interface LegalContract {
+  contractNumber: string;
+  orderId: string;
+  agreementDate: string;
+  effectiveDate: string;
+
+  // Parties
+  sellerName: string;
+  sellerIdNumber: string;
+  sellerLocation: string;
+  buyerName: string;
+  buyerTinNumber: string;
+  buyerLocation: string;
+
+  // Subject Matter
+  cropType: string;
+  contractedQuantityKg: number;
+  agreedPricePerKg: number;
+  totalContractValueEtb: number;
+  qualityStandardClause: string;
+  deliveryTimeline: string;
+  
+  // Binding Legal Clauses
+  escrowClauseText: string;
+  forceMajeureClauseText: string;
+  disputeJurisdiction: string;
+  eSignatures: {
+    sellerSigned: boolean;
+    sellerSignDate: string;
+    buyerSigned: boolean;
+    buyerSignDate: string;
+    platformWitnessHash: string;
+  };
+}
+
+export interface DisputeMediationRecord {
+  caseNumber: string;
+  orderId: string;
+  filingDate: string;
+  resolutionDate?: string;
+  status: 'UnderInvestigation' | 'Settled';
+
+  // Parties
+  claimantBuyer: string;
+  respondentFarmer: string;
+  freightCarrier: string;
+  totalDisputedAmountEtb: number;
+
+  // Claims & Evidence
+  disputeReason: string;
+  claimedDefectPercentage: number;
+  inspectionReport: string;
+  photoEvidenceUrl?: string;
+
+  // Arbitrator Legal Determination
+  leadArbitratorName: string;
+  legalFindingSummary: string;
+  arbitrationVerdict: 'FullReleaseToFarmer' | 'FullRefundToBuyer' | 'FiftyFiftySplit';
+  farmerSettlementEtb: number;
+  buyerRefundEtb: number;
+  platformDecreeHash: string;
 }

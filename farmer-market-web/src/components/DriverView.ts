@@ -28,6 +28,9 @@ export function renderDriverView(
             <span class="trust-badge text-emerald-800 bg-emerald-50 border-emerald-200">
               <i class="fa-solid fa-certificate"></i> Logbook Verified (${currentUser?.kycDocumentNumber || 'ET-LOG-5T-98214'})
             </span>
+            <span class="trust-badge text-blue-800 bg-blue-50 border-blue-200">
+              <i class="fa-solid fa-file-invoice text-blue-600"></i> TIN: ${currentUser?.tinNumber || 'TIN-DRV-981244'}
+            </span>
             <span class="trust-badge text-amber-800 bg-amber-50 border-amber-200">
               <i class="fa-solid fa-star text-amber-500"></i> 4.9 Driver Rating (98% On-Time)
             </span>
@@ -171,7 +174,7 @@ export function renderDriverView(
         </div>
       </section>
 
-      <!-- Active / Available Trips Queue -->
+      <!-- Active / Available Trips Queue with Official Federal Transport Waybills -->
       <section class="space-y-4">
         <h2 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
           <i class="fa-solid fa-road text-amber-600 mr-2"></i> ${t.availableTrips}
@@ -188,7 +191,7 @@ export function renderDriverView(
                 
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
                   <div>
-                    <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Order #${o.id.slice(0, 8).toUpperCase()}</span>
+                    <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Waybill #${o.waybillNumber || 'WB-FTA-001'}</span>
                     <h3 class="text-base font-extrabold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">${o.productName} (${o.qtyKg} kg)</h3>
                   </div>
                   <div class="text-right">
@@ -216,20 +219,29 @@ export function renderDriverView(
                   </div>
                 </div>
 
-                <!-- Driver Actions with Photo + GPS verification -->
+                <!-- Driver Actions with Photo + GPS verification and Waybill Viewer -->
                 <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div class="text-xs font-bold text-slate-500">
-                    Status: <span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold ${o.status === 'picked_up' ? 'bg-amber-100 text-amber-800' : o.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'}">${o.status.toUpperCase()}</span>
+                  <div class="flex items-center gap-2 text-xs font-bold text-slate-500">
+                    <span>Status:</span>
+                    <span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold ${o.status === 'picked_up' ? 'bg-amber-100 text-amber-800' : o.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'}">${o.status.toUpperCase()}</span>
                   </div>
 
-                  <div class="flex items-center gap-2 w-full sm:w-auto">
+                  <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <button onclick="window.openWaybillModal('${o.id}')" class="btn-secondary text-xs py-2 px-3 text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 cursor-pointer">
+                      <i class="fa-solid fa-file-invoice mr-1 text-sky-600"></i> ${t.viewWaybillBtn}
+                    </button>
+
+                    <button onclick="window.openContractModal('${o.id}')" class="btn-secondary text-xs py-2 px-3 text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 cursor-pointer">
+                      <i class="fa-solid fa-file-contract mr-1 text-purple-600"></i> ${t.viewContractBtn}
+                    </button>
+
                     ${o.status === 'confirmed' ? `
                       <button onclick="window.driverPickupWithProof('${o.id}')" class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer">
-                        <i class="fa-solid fa-camera"></i> ${t.uploadProof} & Pickup
+                        <i class="fa-solid fa-camera mr-1"></i> ${t.uploadProof} & Pickup
                       </button>
                     ` : o.status === 'picked_up' ? `
                       <button onclick="window.driverCompleteDeliveryProof('${o.id}')" class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer">
-                        <i class="fa-solid fa-location-crosshairs"></i> Complete Dropoff + GPS Proof
+                        <i class="fa-solid fa-location-crosshairs mr-1"></i> Dropoff + GPS Proof
                       </button>
                     ` : `
                       <span class="text-xs text-emerald-700 font-bold flex items-center gap-1">

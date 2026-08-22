@@ -18,8 +18,9 @@ export function renderBuyerView(
   activeRipeness: string = 'All',
   organicOnly: boolean = false,
   advanceOnly: boolean = false,
-  activeBuyerSubTab: 'marketplace' | 'standing_orders' = 'marketplace',
-  standingOrders: StandingOrder[] = api.getStandingOrders()
+  activeBuyerSubTab: 'marketplace' | 'orders' | 'standing_orders' = 'marketplace',
+  standingOrders: StandingOrder[] = api.getStandingOrders(),
+  buyerOrders: Order[] = api.getOrders('buyer')
 ): string {
   const t = translations[lang];
 
@@ -76,6 +77,9 @@ export function renderBuyerView(
               <button onclick="window.setCategory('Vegetables'); window.setBuyerSubTab('marketplace')" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs py-2.5 px-5 rounded-xl shadow-md transition-transform hover:-translate-y-0.5 cursor-pointer">
                 <i class="fa-solid fa-fire mr-1.5 text-amber-900"></i> Browse Farm Deals
               </button>
+              <button onclick="window.setBuyerSubTab('orders')" class="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-5 rounded-xl border border-white/20 transition-colors cursor-pointer">
+                <i class="fa-solid fa-file-invoice mr-1.5 text-emerald-300"></i> ${t.navOrders} & Invoices (${buyerOrders.length})
+              </button>
               <button onclick="window.setBuyerSubTab('standing_orders')" class="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-5 rounded-xl border border-white/20 transition-colors cursor-pointer">
                 <i class="fa-solid fa-repeat mr-1.5 text-amber-300"></i> ${t.standingOrdersTitle}
               </button>
@@ -91,11 +95,11 @@ export function renderBuyerView(
               </div>
               <div class="text-2xl font-black text-white">90% Direct to Farmer</div>
               <p class="text-xs text-emerald-100/90 leading-relaxed">
-                Source directly from farms within 10-100 km. Consolidate orders from multiple farmers in one delivery run.
+                Source directly from farms within 10-100 km. Consolidate orders from multiple farmers with official e-VAT tax receipts.
               </p>
               <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-emerald-200">
-                <span>Avg Delivery: <strong class="text-white">Same Day</strong></span>
-                <span>Multi-Farmer: <strong class="text-white">Supported</strong></span>
+                <span>Tax Invoices: <strong class="text-white">e-VAT Ready</strong></span>
+                <span>Contracts: <strong class="text-white">EABC Standard</strong></span>
               </div>
             </div>
           </div>
@@ -103,12 +107,16 @@ export function renderBuyerView(
         </div>
       </section>
 
-      <!-- Sub-Tab Switcher: Marketplace vs Standing Orders -->
+      <!-- Sub-Tab Switcher: Marketplace vs My Orders & Tax Invoices vs Standing Orders -->
       <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 overflow-x-auto">
           <button onclick="window.setBuyerSubTab('marketplace')" class="cat-pill ${activeBuyerSubTab === 'marketplace' ? 'active' : ''}">
             <i class="fa-solid fa-store"></i>
             <span>${lang === 'am' ? 'የጅምላ ገበያ' : 'Wholesale Marketplace'}</span>
+          </button>
+          <button onclick="window.setBuyerSubTab('orders')" class="cat-pill ${activeBuyerSubTab === 'orders' ? 'active' : ''}">
+            <i class="fa-solid fa-receipt"></i>
+            <span>${t.navOrders} & ${t.navLegalDocuments} (${buyerOrders.length})</span>
           </button>
           <button onclick="window.setBuyerSubTab('standing_orders')" class="cat-pill ${activeBuyerSubTab === 'standing_orders' ? 'active' : ''}">
             <i class="fa-solid fa-repeat"></i>
@@ -117,11 +125,12 @@ export function renderBuyerView(
         </div>
 
         <div class="text-xs text-slate-500 font-bold hidden sm:block">
-          <i class="fa-solid fa-location-crosshairs text-emerald-600 mr-1"></i> Addis Ababa Depot Sourcing
+          <i class="fa-solid fa-location-crosshairs text-emerald-600 mr-1"></i> Addis Ababa Wholesale Hub
         </div>
       </div>
 
-      ${activeBuyerSubTab === 'standing_orders' ? renderStandingOrdersSection(lang, standingOrders) : `
+      ${activeBuyerSubTab === 'standing_orders' ? renderStandingOrdersSection(lang, standingOrders) :
+      activeBuyerSubTab === 'orders' ? renderBuyerOrdersSection(lang, buyerOrders) : `
 
       <!-- Advanced Filter Toolbar (Category, Proximity Radius, Quality Grade, Ripeness, Advance) -->
       <section class="space-y-4">
@@ -148,7 +157,7 @@ export function renderBuyerView(
             <div class="flex items-center gap-1.5">
               ${[0, 25, 50, 100].map(km => `
                 <button onclick="window.setMaxDistanceKm(${km})" class="px-2.5 py-1 rounded-lg font-bold border transition-colors cursor-pointer ${maxDistanceKm === km ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}">
-                  ${km === 0 ? 'All Ethiopia' : `${km} km`}
+                  ${km === 0 ? 'All' : km + ' km'}
                 </button>
               `).join('')}
             </div>
@@ -157,34 +166,35 @@ export function renderBuyerView(
           <!-- Quality Grade Selector -->
           <div class="flex items-center gap-2">
             <span class="font-bold text-slate-700">${t.filterGrade}:</span>
-            <select onchange="window.setGradeFilter(this.value)" class="bg-slate-50 border border-slate-200 py-1 px-2.5 rounded-lg font-bold text-slate-800 cursor-pointer">
+            <select onchange="window.setFilterGrade(this.value)" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
               <option value="All" ${activeGrade === 'All' ? 'selected' : ''}>All Grades</option>
-              <option value="Grade 1" ${activeGrade === 'Grade 1' ? 'selected' : ''}>Grade 1 (Premium)</option>
+              <option value="Grade 1" ${activeGrade === 'Grade 1' ? 'selected' : ''}>Grade 1 (Standard)</option>
+              <option value="Grade 2" ${activeGrade === 'Grade 2' ? 'selected' : ''}>Grade 2 (Value)</option>
               <option value="Export Grade" ${activeGrade === 'Export Grade' ? 'selected' : ''}>Export Grade</option>
-              <option value="Grade 2" ${activeGrade === 'Grade 2' ? 'selected' : ''}>Grade 2</option>
             </select>
           </div>
 
           <!-- Ripeness Selector -->
           <div class="flex items-center gap-2">
             <span class="font-bold text-slate-700">${t.filterRipeness}:</span>
-            <select onchange="window.setRipenessFilter(this.value)" class="bg-slate-50 border border-slate-200 py-1 px-2.5 rounded-lg font-bold text-slate-800 cursor-pointer">
-              <option value="All" ${activeRipeness === 'All' ? 'selected' : ''}>All Stages</option>
+            <select onchange="window.setFilterRipeness(this.value)" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="All" ${activeRipeness === 'All' ? 'selected' : ''}>All Ripeness</option>
               <option value="Ready Today" ${activeRipeness === 'Ready Today' ? 'selected' : ''}>Ready Today</option>
               <option value="Semi-Ripe" ${activeRipeness === 'Semi-Ripe' ? 'selected' : ''}>Semi-Ripe</option>
               <option value="Green / Storable" ${activeRipeness === 'Green / Storable' ? 'selected' : ''}>Green / Storable</option>
             </select>
           </div>
 
-          <!-- Organic & Advance Harvest Toggles -->
+          <!-- Toggle Flags -->
           <div class="flex items-center gap-3">
             <label class="flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
-              <input type="checkbox" onchange="window.toggleOrganicFilter(this.checked)" ${organicOnly ? 'checked' : ''} class="rounded text-emerald-600" />
-              <span>Organic Only</span>
+              <input type="checkbox" onchange="window.toggleOrganicFilter(this.checked)" ${organicOnly ? 'checked' : ''} class="rounded text-emerald-600 focus:ring-emerald-500" />
+              <span>${t.filterOrganic}</span>
             </label>
+
             <label class="flex items-center gap-1.5 font-bold text-emerald-800 cursor-pointer">
-              <input type="checkbox" onchange="window.toggleAdvanceFilter(this.checked)" ${advanceOnly ? 'checked' : ''} class="rounded text-emerald-600" />
-              <span>Advance Harvests</span>
+              <input type="checkbox" onchange="window.toggleAdvanceFilter(this.checked)" ${advanceOnly ? 'checked' : ''} class="rounded text-emerald-600 focus:ring-emerald-500" />
+              <span>${t.filterAdvance}</span>
             </label>
           </div>
 
@@ -192,149 +202,115 @@ export function renderBuyerView(
 
       </section>
 
-      <!-- Main Produce Grid -->
-      <section>
-        <div class="flex items-center justify-between mb-5">
-          <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
-            ${lang === 'am' ? 'የቀጥታ የጅምላ ምርቶች ዝርዝር' : 'Verified Farm Produce Catalog'}
+      <!-- Produce Marketplace Grid -->
+      <section class="space-y-4">
+        
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+            <i class="fa-solid fa-boxes-packing text-emerald-600 mr-2"></i> ${t.catAll} (${listings.length})
           </h2>
-          <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-            Showing ${listings.length} wholesale listings
+          <span class="text-xs text-slate-500 font-semibold">
+            Showing verified smallholder produce within delivery range
           </span>
         </div>
 
         ${listings.length === 0 ? `
-          <div class="glass-card p-12 text-center space-y-3">
-            <div class="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-2xl">
-              <i class="fa-solid fa-leaf"></i>
-            </div>
-            <h3 class="text-base font-bold text-slate-800">No Produce Found Matching Filters</h3>
-            <p class="text-xs text-slate-500">Try adjusting your proximity radius, quality grade, or category.</p>
+          <div class="glass-card p-12 text-center text-slate-500 space-y-3">
+            <i class="fa-solid fa-magnifying-glass text-4xl text-slate-300"></i>
+            <p class="text-sm font-semibold">No produce matches your current filters.</p>
+            <button onclick="window.resetFilters()" class="btn-secondary text-xs py-2 px-4">Reset All Filters</button>
           </div>
         ` : `
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             ${listings.map(l => `
-              <div class="glass-card overflow-hidden flex flex-col justify-between group">
+              <div class="glass-card overflow-hidden flex flex-col justify-between">
                 
                 <div>
-                  <!-- Product Image with Badges -->
-                  <div class="relative h-52 w-full overflow-hidden bg-slate-100">
-                    <img src="${l.photos[0]}" alt="${l.productName}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div class="h-48 w-full relative overflow-hidden group">
+                    <img src="${l.photos[0]}" alt="${l.productName}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     
-                    <div class="absolute top-3 left-3 flex flex-col gap-1.5">
-                      <span class="escrow-pill shadow-xs">
-                        <i class="fa-solid fa-shield-halved text-amber-600"></i> Telebirr Escrow
-                      </span>
+                    <div class="absolute top-3 left-3 flex flex-col gap-1">
                       ${l.isAdvanceHarvest ? `
-                        <span class="advance-pill shadow-xs">
-                          <i class="fa-solid fa-calendar-days text-emerald-700"></i> Harvest in ${l.availableFrom}
+                        <span class="advance-pill shadow-md">
+                          <i class="fa-solid fa-calendar-check text-emerald-700"></i> Advance Harvest
+                        </span>
+                      ` : ''}
+                      ${l.isOrganic ? `
+                        <span class="bg-emerald-900/90 backdrop-blur-md text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-md">
+                          Organic Certified
                         </span>
                       ` : ''}
                     </div>
 
-                    <div class="absolute top-3 right-3 flex flex-col items-end gap-1">
-                      <span class="bg-white/90 backdrop-blur-md text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-xs border border-emerald-200">
-                        ${l.category}
-                      </span>
-                      <span class="bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
-                        ${l.grade || 'Grade 1'}
-                      </span>
-                    </div>
+                    <span class="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md text-white text-xs font-black px-3 py-1 rounded-full shadow-md">
+                      ${l.pricePerKg} ETB<span class="text-[10px] font-normal text-slate-300">/kg</span>
+                    </span>
 
-                    <!-- Region & Distance Overlay (PostGIS) -->
-                    <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-bold text-white bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
-                      <span><i class="fa-solid fa-location-dot text-emerald-400 mr-1"></i> ${l.region}</span>
-                      <span class="text-emerald-300">${l.distanceKm ? `~${l.distanceKm} km (Est. ${(l.distanceKm * 0.4).toFixed(0)} min)` : 'Direct Farm'}</span>
-                    </div>
+                    ${l.distanceKm ? `
+                      <span class="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">
+                        <i class="fa-solid fa-route text-amber-600 mr-1"></i> ${l.distanceKm} km ${t.farmDistance}
+                      </span>
+                    ` : ''}
                   </div>
 
-                  <!-- Product Info -->
                   <div class="p-5 space-y-3">
                     
-                    <div>
-                      <div class="flex items-center justify-between text-xs text-slate-500 font-semibold mb-1">
-                        <span class="text-amber-500 flex items-center gap-1 font-bold">
-                          <i class="fa-solid fa-star"></i> ${l.farmerRating} <span class="text-slate-400 font-medium">(${l.reviewCount} reviews)</span>
-                        </span>
-                        <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                          ${l.ripeness || 'Ready Today'}
-                        </span>
-                      </div>
-
-                      <h3 class="text-base sm:text-lg font-bold text-slate-900 leading-snug group-hover:text-emerald-800 transition-colors ${lang === 'am' ? 'lang-am' : ''}">
-                        ${lang === 'am' && l.nameAm ? l.nameAm : l.productName}
-                      </h3>
-                      ${lang === 'en' && l.nameAm ? `<p class="text-xs text-slate-400 font-medium lang-am">${l.nameAm}</p>` : ''}
+                    <div class="flex items-center justify-between text-xs text-slate-500 font-semibold">
+                      <span class="text-amber-700 font-bold"><i class="fa-solid fa-award mr-1"></i> ${l.grade || 'Grade 1'}</span>
+                      <span class="text-slate-600 font-medium">${l.ripeness || 'Ready Today'}</span>
                     </div>
 
-                    <!-- Farmer Credibility & Trust Badge -->
-                    <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs text-slate-600">
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2 truncate">
-                          <div class="w-5 h-5 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-[9px] shrink-0">
-                            <i class="fa-solid fa-user"></i>
-                          </div>
-                          <span class="font-bold text-slate-800 truncate">${lang === 'am' && l.farmerNameAm ? l.farmerNameAm : l.farmerName}</span>
-                        </div>
-                        <span class="text-[10px] font-bold text-emerald-700"><i class="fa-solid fa-certificate text-emerald-600 mr-1"></i>Fayda ID</span>
-                      </div>
+                    <h3 class="font-extrabold text-slate-900 text-lg leading-snug ${lang === 'am' ? 'lang-am' : ''}">
+                      ${lang === 'am' && l.nameAm ? l.nameAm : l.productName}
+                    </h3>
 
-                      <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
-                        <span><i class="fa-solid fa-repeat text-blue-600 mr-1"></i> ${l.repeatBuyerCount || 14} Repeat Buyers</span>
-                        <span><i class="fa-solid fa-bolt text-amber-500 mr-1"></i> ${l.onTimeDeliveryRate || 99}% On-Time</span>
+                    <!-- Farmer Credibility & Trust Badges -->
+                    <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="font-bold text-slate-800"><i class="fa-solid fa-user-check text-emerald-600 mr-1"></i> ${l.farmerName}</span>
+                        <span class="text-amber-600 font-extrabold"><i class="fa-solid fa-star mr-1"></i> ${l.farmerRating}</span>
+                      </div>
+                      <div class="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
+                        <span><i class="fa-solid fa-location-dot text-emerald-600"></i> ${l.region}</span>
+                        <span>·</span>
+                        <span>${l.repeatBuyerCount || 18} Repeat Wholesalers</span>
                       </div>
                     </div>
 
-                    <!-- Stock Progress Indicator -->
-                    <div class="space-y-1 text-xs">
-                      <div class="flex justify-between font-semibold text-slate-600">
-                        <span>Stock Available: <strong class="text-slate-900 font-black">${l.qtyKg.toLocaleString()} kg</strong></span>
-                        <span class="text-slate-400 font-medium">Min: ${l.minOrderKg} kg</span>
+                    ${l.voiceNoteTranscript ? `
+                      <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-900 flex items-start gap-2">
+                        <i class="fa-solid fa-microphone-lines text-emerald-700 text-sm mt-0.5"></i>
+                        <span class="italic leading-tight">"${l.voiceNoteTranscript}"</span>
                       </div>
-                      <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-emerald-600 rounded-full" style="width: 80%;"></div>
-                      </div>
+                    ` : ''}
+
+                    <div class="flex items-center justify-between text-xs text-slate-600 pt-1">
+                      <span>Available: <strong class="font-bold text-slate-900">${l.qtyKg.toLocaleString()} kg</strong></span>
+                      <span>Min Order: <strong class="font-bold text-slate-900">${l.minOrderKg} kg</strong></span>
                     </div>
 
                   </div>
                 </div>
 
-                <!-- Price & Add To Cart / Standing Order Action -->
+                <!-- Add to Bulk Cart Button -->
                 <div class="p-5 pt-0">
-                  <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div>
-                      <span class="text-xs font-bold text-slate-400 uppercase block leading-none">Unit Price</span>
-                      <div class="flex items-baseline gap-1 mt-0.5">
-                        <span class="text-2xl font-black text-emerald-800 leading-none">${l.pricePerKg}</span>
-                        <span class="text-xs font-extrabold text-slate-600">ETB / kg</span>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-1.5">
-                      <button onclick="window.quickBuy('${l.id}')" 
-                        class="btn-primary text-xs py-2.5 px-3.5 shadow-sm hover:shadow-md cursor-pointer">
-                        <i class="fa-solid fa-cart-plus"></i>
-                        <span class="${lang === 'am' ? 'lang-am' : ''}">${t.addToCart}</span>
-                      </button>
-                      <button onclick="window.handleCreateStandingOrderModal('${l.id}')" title="Set Weekly Standing Order"
-                        class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">
-                        <i class="fa-solid fa-repeat"></i>
-                      </button>
-                    </div>
-                  </div>
+                  <button onclick="window.addToCart('${l.id}')" class="btn-primary w-full py-2.5 text-xs font-extrabold shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-cart-plus mr-1.5"></i> ${t.addToCart}
+                  </button>
                 </div>
 
               </div>
             `).join('')}
           </div>
         `}
+
       </section>
       `}
 
-      <!-- Multi-Farmer Bulk Cart Slide-over Drawer -->
+      <!-- Bulk Cart Drawer Modal -->
       ${isCartOpen ? `
         <div class="modal-backdrop" onclick="if(event.target === this) window.toggleCart()">
-          <div class="modal-content max-w-lg p-6 sm:p-8 space-y-6">
+          <div class="modal-content max-w-xl p-6 sm:p-8 space-y-6">
             
             <div class="flex items-center justify-between pb-4 border-b border-slate-200">
               <div class="flex items-center gap-3">
@@ -343,7 +319,7 @@ export function renderBuyerView(
                 </div>
                 <div>
                   <h3 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">${t.cartTitle}</h3>
-                  <p class="text-xs text-slate-500 font-medium">Consolidated multi-farmer order with single driver dispatch</p>
+                  <p class="text-xs text-slate-500 font-medium">Consolidated multi-farmer checkout with Telebirr Escrow</p>
                 </div>
               </div>
               <button onclick="window.toggleCart()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer">
@@ -352,40 +328,32 @@ export function renderBuyerView(
             </div>
 
             ${cart.length === 0 ? `
-              <div class="py-12 text-center space-y-3">
-                <i class="fa-solid fa-basket-shopping text-4xl text-slate-300"></i>
-                <p class="text-sm font-semibold text-slate-500 ${lang === 'am' ? 'lang-am' : ''}">${t.cartEmpty}</p>
+              <div class="p-8 text-center text-slate-500 text-xs">
+                <p>${t.cartEmpty}</p>
               </div>
             ` : `
-              <!-- Grouped by Farm Source Section -->
-              <div class="space-y-4 max-h-72 overflow-y-auto pr-1">
+              <div class="space-y-4 max-h-80 overflow-y-auto pr-1">
                 ${Object.entries(farmerGroups).map(([fId, group]) => `
-                  <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
-                    <div class="flex items-center justify-between text-xs font-bold text-slate-800 border-b border-slate-200 pb-2">
-                      <span class="flex items-center gap-1.5 text-emerald-800">
-                        <i class="fa-solid fa-tractor text-emerald-600"></i> Farm: ${group.farmerName} (${group.farmerRegion})
-                      </span>
-                      <span class="text-[10px] text-slate-500">${group.items.length} item(s)</span>
+                  <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between text-xs font-bold text-slate-700 border-b border-slate-200 pb-2">
+                      <span><i class="fa-solid fa-seedling text-emerald-600 mr-1"></i> Farm Source: ${group.farmerName} (${group.farmerRegion})</span>
+                      <span class="text-[10px] text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">Direct Gate Payout</span>
                     </div>
 
                     ${group.items.map(item => `
                       <div class="flex items-center justify-between gap-3 text-xs">
-                        <img src="${item.listing.photos[0]}" class="w-12 h-12 rounded-xl object-cover shrink-0" />
-                        
-                        <div class="flex-1 min-w-0">
-                          <h4 class="font-bold text-slate-900 truncate">${lang === 'am' && item.listing.nameAm ? item.listing.nameAm : item.listing.productName}</h4>
-                          <p class="text-emerald-800 font-extrabold">${item.listing.pricePerKg} ETB/kg · <span class="text-slate-500 font-normal">${item.listing.grade || 'Grade 1'}</span></p>
-                          
-                          <div class="flex items-center gap-1.5 mt-1">
-                            <button onclick="window.updateCartQty('${item.listing.id}', -25)" class="w-5 h-5 rounded bg-white border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 cursor-pointer">-</button>
-                            <span class="font-black text-slate-900 px-1">${item.qtyKg} kg</span>
-                            <button onclick="window.updateCartQty('${item.listing.id}', 25)" class="w-5 h-5 rounded bg-white border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 cursor-pointer">+</button>
-                          </div>
+                        <div>
+                          <h4 class="font-bold text-slate-900">${item.listing.productName}</h4>
+                          <span class="text-slate-500">${item.listing.pricePerKg} ETB / kg</span>
                         </div>
 
-                        <div class="text-right shrink-0">
-                          <span class="font-black text-slate-900 block">${(item.qtyKg * item.listing.pricePerKg).toLocaleString()} ETB</span>
-                          <button onclick="window.removeFromCart('${item.listing.id}')" class="text-[11px] text-red-600 hover:text-red-700 font-semibold cursor-pointer">Remove</button>
+                        <div class="flex items-center gap-3">
+                          <div class="flex items-center gap-1">
+                            <button onclick="window.updateCartQty('${item.listing.id}', ${item.qtyKg - 10})" class="w-6 h-6 rounded bg-white border border-slate-300 text-xs font-bold flex items-center justify-center cursor-pointer">-</button>
+                            <span class="w-12 text-center font-bold text-slate-800">${item.qtyKg} kg</span>
+                            <button onclick="window.updateCartQty('${item.listing.id}', ${item.qtyKg + 10})" class="w-6 h-6 rounded bg-white border border-slate-300 text-xs font-bold flex items-center justify-center cursor-pointer">+</button>
+                          </div>
+                          <span class="font-extrabold text-slate-900 w-16 text-right">${(item.qtyKg * item.listing.pricePerKg).toLocaleString()} ETB</span>
                         </div>
                       </div>
                     `).join('')}
@@ -393,30 +361,28 @@ export function renderBuyerView(
                 `).join('')}
               </div>
 
-              <!-- 90/5/5 Escrow Transparent Breakdown Card -->
-              <div class="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 space-y-2 text-xs">
-                <div class="flex items-center justify-between text-slate-600">
-                  <span>${t.farmerShare}</span>
-                  <span class="font-black text-emerald-900">${farmerShare.toLocaleString()} ETB</span>
+              <!-- Price Breakdown (90% Farmer / 5% Driver / 5% Platform) -->
+              <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2 text-xs">
+                <div class="flex justify-between text-slate-600">
+                  <span>${t.farmerShare}:</span>
+                  <strong class="text-emerald-900">${farmerShare.toLocaleString()} ETB</strong>
                 </div>
-                <div class="flex items-center justify-between text-slate-600">
-                  <span>${t.deliveryEstimate}</span>
-                  <span class="font-bold text-slate-800">${driverShare.toLocaleString()} ETB</span>
+                <div class="flex justify-between text-slate-600">
+                  <span>${t.deliveryEstimate}:</span>
+                  <strong class="text-slate-800">${driverShare.toLocaleString()} ETB</strong>
                 </div>
-                <div class="flex items-center justify-between text-slate-600">
-                  <span>${t.platformFee}</span>
-                  <span class="font-bold text-slate-800">${platformShare.toLocaleString()} ETB</span>
+                <div class="flex justify-between text-slate-600">
+                  <span>${t.platformFee}:</span>
+                  <strong class="text-slate-800">${platformShare.toLocaleString()} ETB</strong>
                 </div>
-                <div class="pt-2 border-t border-emerald-300/60 flex items-center justify-between text-sm font-black text-slate-900">
-                  <span>${t.totalAmount}</span>
-                  <span class="text-emerald-900 text-base font-black">${cartTotal.toLocaleString()} ETB</span>
+                <div class="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-emerald-200">
+                  <span>${t.totalAmount}:</span>
+                  <span class="text-emerald-800">${cartTotal.toLocaleString()} ETB</span>
                 </div>
               </div>
 
-              <button onclick="window.openTelebirrModal()" 
-                class="btn-telebirr w-full py-3.5 text-sm flex items-center justify-center gap-2 cursor-pointer">
-                <i class="fa-solid fa-lock"></i>
-                <span class="${lang === 'am' ? 'lang-am' : ''}">${t.checkoutTelebirr}</span>
+              <button onclick="window.openTelebirrModal(${cartTotal})" class="btn-primary w-full py-3.5 text-xs font-extrabold shadow-md cursor-pointer">
+                <i class="fa-solid fa-shield-halved mr-1.5"></i> ${t.checkoutTelebirr}
               </button>
             `}
 
@@ -424,67 +390,60 @@ export function renderBuyerView(
         </div>
       ` : ''}
 
-      <!-- Telebirr Escrow Interactive Checkout Modal -->
-      ${activeTelebirrModal && activeTelebirrModal.isOpen ? `
+      <!-- Telebirr Escrow Payment Modal -->
+      ${activeTelebirrModal?.isOpen ? `
         <div class="modal-backdrop" onclick="if(event.target === this) window.closeTelebirrModal()">
           <div class="modal-content max-w-md p-6 sm:p-8 space-y-6">
             
             <div class="text-center space-y-2">
-              <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-amber-400 text-white flex items-center justify-center mx-auto text-3xl font-black shadow-lg shadow-blue-900/20">
-                <i class="fa-solid fa-bolt"></i>
+              <div class="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl font-bold mx-auto shadow-lg">
+                <i class="fa-solid fa-building-columns"></i>
               </div>
-              <h3 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">${t.telebirrTitle}</h3>
-              <p class="text-xs text-slate-500 ${lang === 'am' ? 'lang-am' : ''}">${t.telebirrDesc}</p>
+              <h3 class="text-xl font-extrabold text-slate-900">${t.telebirrTitle}</h3>
+              <p class="text-xs text-slate-500">${t.telebirrDesc}</p>
             </div>
 
-            <!-- Amount Card -->
             <div class="p-4 rounded-2xl bg-blue-50 border border-blue-100 text-center space-y-1">
-              <span class="text-xs font-bold text-blue-700 uppercase tracking-wider">Escrow Lock Amount</span>
+              <span class="text-xs font-bold text-blue-900">${t.totalAmount}</span>
               <div class="text-3xl font-black text-blue-950">${activeTelebirrModal.totalEtb.toLocaleString()} <span class="text-sm font-bold text-blue-700">ETB</span></div>
-              <p class="text-[11px] text-blue-600 font-semibold">90% Farmer / 5% Driver / 5% Platform locked in vault</p>
+              <span class="text-[11px] text-blue-800 font-semibold block">${t.escrowGuarantee}</span>
             </div>
 
-            <form onsubmit="window.processTelebirrPayment(event)" class="space-y-4 text-xs font-semibold text-slate-700">
+            <form onsubmit="window.handleTelebirrSubmit(event)" class="space-y-4">
               <div>
-                <label class="block mb-1">${t.enterPhone}</label>
-                <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">+251</span>
-                  <input type="text" value="955667788" required class="w-full pl-14 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-                </div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">${t.enterPhone}</label>
+                <input type="text" id="telePhone" required value="+251955667788" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none" />
               </div>
 
               <div>
-                <label class="block mb-1">${t.enterPin}</label>
-                <input type="password" maxlength="4" value="1234" required class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-center text-xl tracking-widest font-black focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                <label class="block text-xs font-bold text-slate-700 mb-1">${t.enterPin}</label>
+                <input type="password" id="telePin" required value="1234" maxlength="4" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold tracking-widest text-center focus:ring-2 focus:ring-blue-500 focus:outline-none" />
               </div>
 
-              <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-medium flex items-start gap-2">
-                <i class="fa-solid fa-shield-check text-amber-700 text-sm mt-0.5"></i>
-                <span class="${lang === 'am' ? 'lang-am' : ''}">${t.escrowGuarantee}</span>
+              <div class="pt-2">
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-lg transition-colors cursor-pointer">
+                  <i class="fa-solid fa-lock mr-1.5"></i> ${t.payNow}
+                </button>
               </div>
-
-              <button type="submit" id="telebirrSubmitBtn" class="btn-telebirr w-full py-3.5 text-sm cursor-pointer">
-                <i class="fa-solid fa-check-double"></i> ${t.payNow} (${activeTelebirrModal.totalEtb.toLocaleString()} ETB)
-              </button>
             </form>
 
           </div>
         </div>
       ` : ''}
 
-      <!-- Dispute / Partial Refund Submission Modal -->
-      ${activeDisputeModal && activeDisputeModal.isOpen ? `
+      <!-- Dispute Filing Modal -->
+      ${activeDisputeModal?.isOpen ? `
         <div class="modal-backdrop" onclick="if(event.target === this) window.closeDisputeModal()">
-          <div class="modal-content max-w-lg p-6 sm:p-8 space-y-6">
+          <div class="modal-content max-w-md p-6 sm:p-8 space-y-5">
             
-            <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-red-100 text-red-800 flex items-center justify-center text-lg font-bold">
+                <div class="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center text-lg font-bold">
                   <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
                 <div>
-                  <h3 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">${t.submitDisputeTitle}</h3>
-                  <p class="text-xs text-slate-500">Order #${activeDisputeModal.order.id.slice(0, 8).toUpperCase()} · ${activeDisputeModal.order.productName}</p>
+                  <h3 class="text-base font-bold text-slate-900">${t.submitDisputeTitle}</h3>
+                  <p class="text-xs text-slate-500">Order #${activeDisputeModal.order.id.slice(0, 8).toUpperCase()}</p>
                 </div>
               </div>
               <button onclick="window.closeDisputeModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer">
@@ -492,20 +451,20 @@ export function renderBuyerView(
               </button>
             </div>
 
-            <form onsubmit="window.handleDisputeSubmit(event, '${activeDisputeModal.order.id}')" class="space-y-4 text-xs font-semibold text-slate-700">
+            <form onsubmit="window.handleDisputeSubmit(event, '${activeDisputeModal.order.id}')" class="space-y-4 text-xs">
               <div>
-                <label class="block mb-1">${t.disputeReasonLabel}</label>
-                <textarea id="disputeReasonText" required rows="3" class="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-red-500 focus:outline-none" placeholder="e.g. Delivered produce is 20% bruised and size is smaller than Grade 1 listing specification..."></textarea>
+                <label class="block font-bold text-slate-700 mb-1">${t.disputeReasonLabel}</label>
+                <textarea id="disputeReasonInput" required rows="3" class="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-red-500 focus:outline-none" placeholder="Describe produce defects, transit spoilage, or weight discrepancy..."></textarea>
               </div>
 
               <div>
-                <label class="block mb-1">${t.disputePhotoLabel}</label>
+                <label class="block mb-1 font-bold text-slate-700">${t.disputePhotoLabel}</label>
                 <input type="text" id="disputePhotoUrl" value="https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&auto=format&fit=crop&q=80" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-red-500 focus:outline-none" />
               </div>
 
               <div>
                 <div class="flex items-center justify-between mb-1">
-                  <label>${t.refundPercentLabel}</label>
+                  <label class="font-bold text-slate-700">${t.refundPercentLabel}</label>
                   <span id="refundPercentVal" class="font-bold text-red-700">50% Partial Refund</span>
                 </div>
                 <input type="range" id="disputeRefundSlider" min="20" max="100" step="10" value="50" oninput="document.getElementById('refundPercentVal').innerText = this.value + '% Partial Refund (' + Math.round(${activeDisputeModal.order.totalEtb} * (this.value/100)).toLocaleString() + ' ETB)'" class="w-full accent-red-600 cursor-pointer" />
@@ -513,7 +472,7 @@ export function renderBuyerView(
 
               <div class="p-3 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-900 leading-relaxed">
                 <i class="fa-solid fa-lock text-red-700 mr-1"></i>
-                Submitting this dispute immediately locks the Telebirr Escrow and assigns case to Marketplace Admin for arbitration.
+                Submitting this dispute immediately locks the Telebirr Escrow and assigns case to Marketplace Admin for binding arbitration.
               </div>
 
               <button type="submit" class="btn-secondary w-full py-3 text-xs text-red-700 border-red-300 hover:bg-red-50 font-bold cursor-pointer">
@@ -525,7 +484,7 @@ export function renderBuyerView(
         </div>
       ` : ''}
 
-      <!-- Live Order SignalR Tracking Modal -->
+      <!-- Live Order SignalR Tracking & Legal Invoicing Modal -->
       ${activeOrderModal ? `
         <div class="modal-backdrop" onclick="if(event.target === this) window.closeOrderModal()">
           <div class="modal-content max-w-lg p-6 sm:p-8 space-y-6">
@@ -557,6 +516,27 @@ export function renderBuyerView(
                   ${activeOrderModal.escrowHeld ? 'Escrow Held' : 'Funds Released'}
                 </span>
               </div>
+            </div>
+
+            <!-- Legal Documents Quick Action Bar -->
+            <div class="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-slate-100 border border-slate-200">
+              <button onclick="window.openInvoiceModal('${activeOrderModal.id}')" class="px-2.5 py-1.5 rounded-lg bg-white text-emerald-800 hover:bg-emerald-50 border border-slate-200 font-bold text-xs shadow-xs cursor-pointer">
+                <i class="fa-solid fa-file-invoice mr-1 text-emerald-600"></i> ${t.viewInvoiceBtn}
+              </button>
+
+              <button onclick="window.openContractModal('${activeOrderModal.id}')" class="px-2.5 py-1.5 rounded-lg bg-white text-purple-800 hover:bg-purple-50 border border-slate-200 font-bold text-xs shadow-xs cursor-pointer">
+                <i class="fa-solid fa-file-contract mr-1 text-purple-600"></i> ${t.viewContractBtn}
+              </button>
+
+              <button onclick="window.openWaybillModal('${activeOrderModal.id}')" class="px-2.5 py-1.5 rounded-lg bg-white text-sky-800 hover:bg-sky-50 border border-slate-200 font-bold text-xs shadow-xs cursor-pointer">
+                <i class="fa-solid fa-truck-fast mr-1 text-sky-600"></i> ${t.viewWaybillBtn}
+              </button>
+
+              ${activeOrderModal.status === 'disputed' ? `
+                <button onclick="window.openArbitrationModal('${activeOrderModal.id}')" class="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 font-bold text-xs shadow-xs cursor-pointer">
+                  <i class="fa-solid fa-scale-balanced mr-1 text-red-600"></i> ${t.viewArbitrationBtn}
+                </button>
+              ` : ''}
             </div>
 
             <!-- Timeline -->
@@ -626,6 +606,70 @@ export function renderBuyerView(
         </div>
       ` : ''}
 
+    </div>
+  `;
+}
+
+function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
+  const t = translations[lang];
+
+  return `
+    <div class="space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+            <i class="fa-solid fa-receipt text-emerald-600 mr-2"></i> ${t.navOrders} & ${t.navLegalDocuments}
+          </h2>
+          <p class="text-xs text-slate-500 font-medium">View commercial tax invoices, legal commodity contracts, and transport waybills.</p>
+        </div>
+        <span class="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-200">
+          ${orders.length} Verified Purchases
+        </span>
+      </div>
+
+      ${orders.length === 0 ? `
+        <div class="glass-card p-12 text-center text-slate-500 text-xs">
+          <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-300"></i>
+          <p>No past purchases yet. Browse the wholesale marketplace to order farm-fresh produce.</p>
+        </div>
+      ` : `
+        <div class="space-y-3">
+          ${orders.map(o => `
+            <div class="glass-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="badge-status status-${o.status}">${o.status.toUpperCase()}</span>
+                  <span class="font-bold text-slate-900 text-sm">${o.productName}</span>
+                  <span class="text-xs text-slate-500">(${o.qtyKg} kg @ ${o.pricePerKg} ETB)</span>
+                </div>
+                <p class="text-xs text-slate-600">
+                  Farmer: <strong class="text-slate-800">${o.farmerName}</strong> · Telebirr Total: <strong class="text-emerald-800">${o.totalEtb.toLocaleString()} ETB</strong>
+                </p>
+                <div class="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                  <span>INV: ${o.invoiceNumber || 'ET-INV-001'}</span>
+                  <span>·</span>
+                  <span>CONTR: ${o.contractNumber || 'AGR-ET-001'}</span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <button onclick="window.openInvoiceModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 cursor-pointer">
+                  <i class="fa-solid fa-file-invoice mr-1"></i> ${t.viewInvoiceBtn}
+                </button>
+                <button onclick="window.openContractModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 cursor-pointer">
+                  <i class="fa-solid fa-file-contract mr-1"></i> ${t.viewContractBtn}
+                </button>
+                <button onclick="window.openWaybillModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 cursor-pointer">
+                  <i class="fa-solid fa-truck-fast mr-1"></i> ${t.viewWaybillBtn}
+                </button>
+                <button onclick="window.viewOrder('${o.id}')" class="btn-primary text-xs py-1.5 px-3.5 cursor-pointer">
+                  <i class="fa-solid fa-satellite-dish mr-1"></i> Track
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `}
     </div>
   `;
 }

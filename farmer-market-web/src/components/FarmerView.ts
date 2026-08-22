@@ -28,9 +28,12 @@ export function renderFarmerView(
               <i class="fa-solid fa-id-card"></i> ${t.verifiedFayda} (${currentUser?.kycDocumentNumber || 'FAYDA-8829104'})
             </span>
             <span class="trust-badge text-blue-800 bg-blue-50 border-blue-200">
-              <i class="fa-solid fa-users"></i> ${currentUser?.repeatBuyerCount || 18} ${t.repeatBuyers}
+              <i class="fa-solid fa-file-invoice text-blue-600"></i> TIN: ${currentUser?.tinNumber || 'TIN-FARM-882910'}
             </span>
             <span class="trust-badge text-purple-800 bg-purple-50 border-purple-200">
+              <i class="fa-solid fa-users"></i> ${currentUser?.repeatBuyerCount || 18} ${t.repeatBuyers}
+            </span>
+            <span class="trust-badge text-emerald-800 bg-emerald-50 border-emerald-200">
               <i class="fa-solid fa-clock-rotate-left"></i> ${currentUser?.onTimeDeliveryRate || 99}% ${t.onTimeRate}
             </span>
           </div>
@@ -122,101 +125,92 @@ export function renderFarmerView(
             ${(currentUser?.walletBalanceEtb || 48200).toLocaleString()} <span class="text-sm font-bold text-emerald-700">ETB</span>
           </div>
           <p class="text-[11px] text-emerald-700 font-semibold">
-            <i class="fa-solid fa-circle-check"></i> 90% direct deposit upon delivery
+            <i class="fa-solid fa-circle-check"></i> Ready for instant withdrawal
           </p>
         </div>
 
         <div class="glass-card p-5 border-l-4 border-amber-500 space-y-1">
           <div class="flex items-center justify-between text-xs font-bold text-slate-500">
             <span>${t.pendingEscrow}</span>
-            <span class="escrow-badge text-[10px]">Held in Escrow</span>
+            <span class="text-xs text-amber-600 font-bold">${summary.pendingOrdersCount} Active</span>
           </div>
           <div class="text-2xl sm:text-3xl font-black text-slate-900">
             ${summary.pendingEscrowEtb.toLocaleString()} <span class="text-sm font-bold text-amber-700">ETB</span>
           </div>
           <p class="text-[11px] text-amber-700 font-semibold">
-            <i class="fa-solid fa-hourglass-half"></i> Releases upon buyer delivery confirmation
+            <i class="fa-solid fa-lock"></i> Protected in Telebirr Escrow
           </p>
         </div>
 
         <div class="glass-card p-5 border-l-4 border-blue-600 space-y-1">
           <div class="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>Total Orders Fulfilled</span>
-            <span class="text-xs text-blue-600 font-bold">100% Guaranteed</span>
+            <span>${t.lifetimePayout}</span>
+            <span class="text-xs text-blue-600 font-bold">${summary.completedOrdersCount} Delivered</span>
           </div>
           <div class="text-2xl sm:text-3xl font-black text-slate-900">
-            ${summary.completedOrdersCount + summary.pendingOrdersCount} <span class="text-sm font-bold text-slate-500">Orders</span>
+            ${summary.releasedEtb.toLocaleString()} <span class="text-sm font-bold text-slate-500">ETB</span>
           </div>
           <p class="text-[11px] text-blue-700 font-semibold">
-            <i class="fa-solid fa-bolt"></i> Zero broker middleman take
+            <i class="fa-solid fa-hand-holding-dollar"></i> 90% direct produce value
           </p>
         </div>
 
       </section>
 
-      <!-- Incoming Orders Management -->
+      <!-- Incoming Orders with Full Legal & Tax Receipts -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
-            <i class="fa-solid fa-bell text-amber-500 mr-2"></i> ${t.incomingOrders}
+            <i class="fa-solid fa-clipboard-list text-emerald-600 mr-2"></i> ${t.incomingOrders}
           </h2>
-          <span class="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full">
-            ${orders.filter(o => o.status === 'pending').length} Action Required
+          <span class="text-xs font-bold px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-200">
+            ${orders.length} Active Orders
           </span>
         </div>
 
         ${orders.length === 0 ? `
-          <div class="glass-card p-8 text-center text-slate-500 text-sm">
-            No incoming orders yet. Post new produce listings to receive bulk orders.
+          <div class="glass-card p-8 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-300"></i>
+            <p>No incoming buyer orders yet. Create new listings to reach wholesale buyers.</p>
           </div>
         ` : `
           <div class="space-y-3">
             ${orders.map(o => `
-              <div class="glass-card p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div class="glass-card p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-emerald-300 transition-colors">
                 
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm font-extrabold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
-                      ${o.productName}
-                    </span>
-                    <span class="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
-                      ${o.qtyKg} kg
-                    </span>
-                    <span class="escrow-badge text-[10px]">
-                      <i class="fa-solid fa-shield-check text-amber-600"></i> ${(o.farmerCut).toLocaleString()} ETB (90% Payout)
-                    </span>
-                    ${o.isRecurring ? `
-                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                        <i class="fa-solid fa-repeat mr-1"></i> Standing Order (${o.recurringFrequency || 'Weekly'})
-                      </span>
-                    ` : ''}
+                <div class="space-y-1 min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="badge-status status-${o.status}">${o.status.toUpperCase()}</span>
+                    <span class="text-xs font-bold text-slate-900">${o.productName}</span>
+                    <span class="text-xs text-slate-500">(${o.qtyKg} kg @ ${o.pricePerKg} ETB)</span>
+                    <span class="text-[10px] font-mono text-slate-400">${o.contractNumber || 'AGR-ET-001'}</span>
                   </div>
 
                   <p class="text-xs text-slate-600">
-                    <i class="fa-solid fa-user text-slate-400 mr-1"></i> Buyer: <span class="font-semibold text-slate-800">${o.buyerName}</span> (${o.buyerPhone})
-                  </p>
-                  <p class="text-xs text-slate-500">
-                    <i class="fa-solid fa-location-dot text-slate-400 mr-1"></i> Delivery to: ${o.deliveryAddress || 'Addis Ababa'}
+                    Buyer: <strong class="text-slate-800">${o.buyerName}</strong> · Telebirr Escrow: <strong class="text-emerald-700">${o.totalEtb.toLocaleString()} ETB</strong> (Your Net 90%: <strong class="text-emerald-800 font-bold">${o.farmerCut.toLocaleString()} ETB</strong>)
                   </p>
                 </div>
 
-                <div class="flex items-center gap-2 w-full sm:w-auto">
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  <button onclick="window.openContractModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-2.5 text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 cursor-pointer" title="View Digital Sales Contract">
+                    <i class="fa-solid fa-file-contract mr-1"></i> ${t.viewContractBtn}
+                  </button>
+
+                  <button onclick="window.openInvoiceModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-2.5 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 cursor-pointer" title="Download Tax Exemption Receipt">
+                    <i class="fa-solid fa-file-invoice mr-1"></i> ${t.viewInvoiceBtn}
+                  </button>
+
+                  <button onclick="window.openWaybillModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-2.5 text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 cursor-pointer" title="View Transport Waybill">
+                    <i class="fa-solid fa-truck-fast mr-1"></i> ${t.viewWaybillBtn}
+                  </button>
+
                   ${o.status === 'pending' ? `
                     <button onclick="window.confirmFarmerOrder('${o.id}')" 
-                      class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer">
-                      <i class="fa-solid fa-check"></i>
+                      class="btn-primary text-xs py-1.5 px-4 shadow-sm cursor-pointer">
+                      <i class="fa-solid fa-check mr-1"></i>
                       <span class="${lang === 'am' ? 'lang-am' : ''}">${t.confirmOrderAction}</span>
                     </button>
-                  ` : `
-                    <div class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5">
-                      <i class="fa-solid fa-circle-check text-emerald-600"></i>
-                      <span>Status: ${o.status.toUpperCase()}</span>
-                    </div>
-                  `}
-                  
-                  <button onclick="window.viewOrder('${o.id}')" class="btn-secondary text-xs py-2 px-3 cursor-pointer">
-                    <i class="fa-solid fa-eye"></i>
-                  </button>
+                  ` : ''}
                 </div>
 
               </div>
@@ -321,6 +315,23 @@ function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orde
         </div>
       </div>
 
+      <!-- Tax Exemption & Withholding Summary Banner -->
+      <div class="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg font-bold shrink-0">
+            <i class="fa-solid fa-stamp"></i>
+          </div>
+          <div>
+            <h4 class="font-extrabold text-sm text-emerald-950">Ethiopian Tax Exemption Compliance (Proclamation No. 979/2016)</h4>
+            <p class="text-xs text-emerald-800">Primary agricultural produce sales are VAT-exempt. 2% withholding tax reported directly to MOR.</p>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="text-xs font-bold text-emerald-800">Withholding Declared:</div>
+          <div class="text-base font-black text-emerald-950">${(summary.totalWithholdingTaxPaidEtb || 964).toLocaleString()} ETB</div>
+        </div>
+      </div>
+
       <!-- Payout Log History -->
       <div class="glass-card p-6 space-y-4">
         <div class="flex items-center justify-between">
@@ -341,6 +352,7 @@ function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orde
                 <th class="py-2.5">Gross Order</th>
                 <th class="py-2.5 text-emerald-800">Net Farmer Payout (90%)</th>
                 <th class="py-2.5">Telebirr Ref</th>
+                <th class="py-2.5">Documents</th>
                 <th class="py-2.5">Status</th>
               </tr>
             </thead>
@@ -355,6 +367,16 @@ function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orde
                   <td class="py-3 font-semibold">${o.totalEtb.toLocaleString()} ETB</td>
                   <td class="py-3 font-black text-emerald-700 text-sm">${o.farmerCut.toLocaleString()} ETB</td>
                   <td class="py-3 font-mono text-[11px] text-slate-500">${o.paymentRef || 'TB-TXN-' + o.id.slice(0, 8)}</td>
+                  <td class="py-3">
+                    <div class="flex items-center gap-1.5">
+                      <button onclick="window.openInvoiceModal('${o.id}')" class="px-2 py-1 rounded bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 font-bold text-[10px] cursor-pointer" title="View Tax Receipt">
+                        <i class="fa-solid fa-file-invoice"></i> Receipt
+                      </button>
+                      <button onclick="window.openContractModal('${o.id}')" class="px-2 py-1 rounded bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200 font-bold text-[10px] cursor-pointer" title="View Contract">
+                        <i class="fa-solid fa-file-contract"></i> Contract
+                      </button>
+                    </div>
+                  </td>
                   <td class="py-3">
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${o.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
                       ${o.status === 'delivered' ? 'Paid to Telebirr' : 'Held in Escrow'}
@@ -460,137 +482,131 @@ function renderCreateListingModal(lang: Language, benchmarks: PriceBenchmark[]):
           </button>
         </div>
 
-        <!-- Voice-Note Quick Form Filler Module -->
-        <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 space-y-3">
+        <!-- Voice Note Recording Engine (Amharic / Afaan Oromoo) -->
+        <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs">
-                <i class="fa-solid fa-microphone"></i>
-              </div>
-              <span class="text-xs font-black text-emerald-950 ${lang === 'am' ? 'lang-am' : ''}">${t.voiceNoteTitle}</span>
+              <i class="fa-solid fa-microphone-lines text-emerald-700 text-lg"></i>
+              <span class="font-extrabold text-xs text-emerald-950 ${lang === 'am' ? 'lang-am' : ''}">${t.voiceNoteTitle}</span>
             </div>
-            <select id="voiceLangSelect" class="bg-white border border-emerald-300 text-emerald-900 text-[11px] font-bold py-1 px-2.5 rounded-lg">
-              <option value="am">አማርኛ (Amharic)</option>
-              <option value="om">Afaan Oromoo</option>
-              <option value="en">English</option>
-            </select>
+            <span class="text-[10px] font-bold bg-emerald-200/70 text-emerald-900 px-2 py-0.5 rounded-full">
+              Amharic / Oromifa Audio AI
+            </span>
           </div>
 
-          <p class="text-[11px] text-emerald-800 leading-relaxed">${t.voiceNoteDesc}</p>
+          <p class="text-xs text-emerald-800 leading-relaxed font-medium">
+            ${t.voiceNoteDesc}
+          </p>
 
-          <div class="flex items-center gap-3 pt-1">
+          <div class="flex flex-wrap items-center gap-3 pt-1">
             <button type="button" id="voiceRecordBtn" onclick="window.handleVoiceRecordToggle()" class="btn-primary text-xs py-2 px-4 shadow-sm cursor-pointer">
-              <i class="fa-solid fa-microphone mr-1 text-red-300"></i> <span id="voiceBtnText">${t.recordVoiceBtn}</span>
+              <i class="fa-solid fa-microphone mr-1"></i> <span id="voiceRecordLabel">${t.recordVoiceBtn}</span>
             </button>
-            <div id="voiceWaveIndicator" class="hidden flex items-center gap-1">
+            <div id="voiceWaveAnimation" class="hidden flex items-center gap-1 h-6">
               <div class="voice-wave-bar"></div>
               <div class="voice-wave-bar"></div>
               <div class="voice-wave-bar"></div>
               <div class="voice-wave-bar"></div>
               <div class="voice-wave-bar"></div>
-              <span class="text-[11px] font-bold text-emerald-700 ml-1">Recording (00:04)...</span>
+              <span class="text-xs font-bold text-emerald-800 ml-2 animate-pulse">Transcribing speech...</span>
             </div>
+          </div>
+
+          <div id="voiceTranscriptionResult" class="hidden p-3 rounded-xl bg-white border border-emerald-200 text-xs text-slate-800 space-y-1">
+            <div class="font-bold text-emerald-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-check"></i> ${t.voiceRecordedSuccess}
+            </div>
+            <p id="voiceTranscriptText" class="italic text-slate-600 text-[11px]"></p>
           </div>
         </div>
 
-        <form onsubmit="window.handleCreateListing(event)" class="space-y-4 text-xs font-semibold text-slate-700">
+        <form onsubmit="window.handleCreateListingSubmit(event)" class="space-y-4">
           
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block mb-1">${t.productNameEn}</label>
-              <input type="text" id="newProdName" required placeholder="e.g. Fresh Sholla Red Tomatoes" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.productNameEn}</label>
+              <input type="text" id="newProdName" required placeholder="e.g. Fresh Red Tomatoes" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
             </div>
+
             <div>
-              <label class="block mb-1">${t.productNameAm}</label>
-              <input type="text" id="newProdNameAm" placeholder="ለምሳሌ: የሾላ ቀይ ቲማቲም" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none lang-am" />
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.productNameAm}</label>
+              <input type="text" id="newProdNameAm" placeholder="ለምሳሌ: ቀይ የሾላ ቲማቲም" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label class="block mb-1">${t.categoryLabel}</label>
-              <select id="newProdCategory" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                <option value="Vegetables">Vegetables / አትክልት</option>
-                <option value="Grains">Grains / እህል</option>
-                <option value="Fruits">Fruits / ፍራፍሬ</option>
-                <option value="Coffee">Coffee / ቡና</option>
-                <option value="Spices">Spices / ቅመማ ቅመም</option>
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.categoryLabel}</label>
+              <select id="newCategory" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                <option value="Vegetables">${t.catVegetables}</option>
+                <option value="Grains">${t.catGrains}</option>
+                <option value="Fruits">${t.catFruits}</option>
+                <option value="Coffee">${t.catCoffee}</option>
+                <option value="Spices">${t.catSpices}</option>
               </select>
             </div>
+
             <div>
-              <label class="block mb-1">${t.qtyKgLabel}</label>
-              <input type="number" id="newProdQty" required min="10" value="1000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.qtyKgLabel}</label>
+              <input type="number" id="newQtyKg" required min="10" value="1000" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
             </div>
+
             <div>
-              <label class="block mb-1">${t.priceKgLabel}</label>
-              <input type="number" id="newProdPrice" required min="1" value="45" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.priceKgLabel}</label>
+              <input type="number" id="newPricePerKg" required min="1" value="45" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
             </div>
           </div>
 
-          <!-- Quality, Grade & Ripeness -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label class="block mb-1">${t.gradeLabel}</label>
-              <select id="newProdGrade" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                <option value="Grade 1">Grade 1 (Premium Farm)</option>
-                <option value="Export Grade">Export Grade (ECX/Verified)</option>
-                <option value="Grade 2">Grade 2 (Commercial Standard)</option>
-              </select>
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.minOrderLabel}</label>
+              <input type="number" id="newMinOrderKg" required min="5" value="50" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
             </div>
+
             <div>
-              <label class="block mb-1">${t.ripenessLabel}</label>
-              <select id="newProdRipeness" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                <option value="Ready Today">Ready Today (Fresh Harvest)</option>
-                <option value="Semi-Ripe">Semi-Ripe (Storable 5-7 days)</option>
-                <option value="Green / Storable">Green / Storable (Long Transit)</option>
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.gradeLabel}</label>
+              <select id="newGrade" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                <option value="Grade 1">Grade 1 (Standard)</option>
+                <option value="Grade 2">Grade 2 (Value)</option>
+                <option value="Export Grade">Export Grade (Premium)</option>
               </select>
             </div>
-            <div class="flex items-center gap-2 pt-6">
-              <input type="checkbox" id="newProdOrganic" checked class="w-4 h-4 text-emerald-600 rounded" />
-              <label for="newProdOrganic" class="text-xs font-bold text-slate-800">Certified Organic Claim</label>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.ripenessLabel}</label>
+              <select id="newRipeness" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                <option value="Ready Today">Ready Today</option>
+                <option value="Semi-Ripe">Semi-Ripe (2-3 Days)</option>
+                <option value="Green / Storable">Green / Storable (1-2 Weeks)</option>
+              </select>
             </div>
           </div>
 
-          <!-- Harvest Calendar & Advance Listing -->
-          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+          <!-- Advance Harvest Calendar Toggle -->
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
             <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <input type="checkbox" id="newProdAdvanceToggle" onchange="window.toggleAdvanceHarvestFields(this.checked)" class="w-4 h-4 text-emerald-600 rounded" />
-                <label for="newProdAdvanceToggle" class="text-xs font-black text-slate-900">${t.advanceHarvestToggle}</label>
-              </div>
-              <span class="text-[11px] font-bold text-emerald-700">Pre-commit buyer orders</span>
+              <label class="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                <input type="checkbox" id="newIsAdvanceHarvest" onchange="document.getElementById('advanceHarvestDateField').classList.toggle('hidden', !this.checked)" class="rounded text-emerald-600 focus:ring-emerald-500" />
+                <span>${t.advanceHarvestToggle}</span>
+              </label>
+              <span class="text-[10px] text-slate-500 font-semibold">Pre-commit Wholesale Buyers</span>
             </div>
 
-            <div id="advanceHarvestDateRow" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block mb-1">${t.expectedHarvestLabel}</label>
-                <input type="date" id="newProdHarvestDate" value="${new Date(Date.now() + 18 * 86400000).toISOString().split('T')[0]}" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-              </div>
-              <div class="text-[11px] text-slate-500 flex items-center">
-                Buyers can reserve stock in advance, eliminating harvest spoilage risk.
-              </div>
+            <div id="advanceHarvestDateField" class="hidden pt-1">
+              <label class="block text-xs font-bold text-slate-700 mb-1">${t.expectedHarvestLabel}</label>
+              <input type="date" id="newExpectedHarvestDate" class="px-3.5 py-2 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block mb-1">${t.minOrderLabel}</label>
-              <input type="number" id="newProdMinOrder" required min="1" value="50" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-            </div>
-            <div>
-              <label class="block mb-1">${t.farmLocationLabel}</label>
-              <input type="text" id="newProdRegion" value="Oromia (Bishoftu)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-            </div>
+          <div class="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+            <button type="button" onclick="window.toggleCreateListingModal()" class="btn-secondary text-xs py-2.5 px-4 cursor-pointer">
+              Cancel
+            </button>
+            <button type="submit" class="btn-primary text-xs py-2.5 px-6 shadow-md cursor-pointer">
+              <i class="fa-solid fa-cloud-arrow-up"></i> ${t.publishListingBtn}
+            </button>
           </div>
 
-          <div>
-            <label class="block mb-1">Produce Photo URL</label>
-            <input type="text" id="newProdPhoto" value="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&auto=format&fit=crop&q=80" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
-          </div>
-
-          <button type="submit" class="btn-primary w-full py-3.5 text-sm mt-4 cursor-pointer">
-            <i class="fa-solid fa-cloud-arrow-up"></i> ${t.publishListingBtn}
-          </button>
         </form>
 
       </div>

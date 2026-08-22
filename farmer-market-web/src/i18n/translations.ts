@@ -26,6 +26,7 @@ export const translations = {
     navStandingOrders: "Standing Orders",
     navWallet: "Telebirr Wallet",
     navSmsConsole: "SMS Console",
+    navLegalDocuments: "Contracts & Tax Invoices",
     navLogin: "Phone Login",
     navLogout: "Logout",
 
@@ -118,6 +119,14 @@ export const translations = {
     refundPercentLabel: "Requested Refund Percentage",
     submitDisputeBtn: "Freeze Escrow & Alert Admin",
 
+    // Legal & Official Document Buttons
+    viewContractBtn: "View Sales Contract",
+    viewInvoiceBtn: "Download Tax Invoice",
+    viewWaybillBtn: "Transport Waybill (Manifest)",
+    viewArbitrationBtn: "Arbitration Determination",
+    printDocument: "Print / Save PDF",
+    closeDocument: "Close Document",
+
     // Farmer Portal - Voice Note & Benchmarks
     farmerPortalTitle: "Farmer Produce & Earnings Portal",
     postNewListing: "Post New Produce Listing",
@@ -144,13 +153,14 @@ export const translations = {
     incomingOrders: "Incoming Buyer Orders",
     confirmOrderAction: "Confirm Order for Pickup",
 
-    // Farmer Wallet
-    walletTitle: "Telebirr Wallet & Payout Log (የቴሌብር ሂሳብ)",
+    // Farmer Wallet & Tax Statements
+    walletTitle: "Telebirr Wallet & Tax Statements (የቴሌብር ሂሳብ)",
     walletBalance: "Available Telebirr Balance",
     pendingEscrow: "Held in Escrow (In Transit)",
     lifetimePayout: "Total Lifetime Payouts",
+    withholdingTaxReported: "Withholding Tax (2% Goods)",
     requestWithdrawal: "Instant Telebirr Payout",
-    payoutHistory: "Recent Escrow Release History",
+    payoutHistory: "Recent Escrow Release & Tax Log",
 
     // SMS Fallback Console
     smsConsoleTitle: "Twilio Bilingual SMS Command Console",
@@ -159,7 +169,7 @@ export const translations = {
     smsCommandPlaceholder: "e.g. LIST Tomato 1500 45 Bishoftu OR CONFIRM 0001",
 
     // Driver Portal - Routes & Proof
-    driverPortalTitle: "Driver Delivery Hub & Route Optimizer",
+    driverPortalTitle: "Driver Delivery Hub & Cargo Manifest",
     availableTrips: "Available Farm Pickups",
     routeOptimizerTitle: "Multi-Pickup Optimized Route Plan",
     totalTripDistance: "Total Route Distance",
@@ -178,22 +188,24 @@ export const translations = {
     ruralBonus: "Rural Route Incentive Bonus",
     totalDeliveredTrips: "Trips Completed",
 
-    // Admin Portal - Arbitration & Anomalies
-    adminPortalTitle: "Marketplace Management & Compliance",
+    // Admin Portal - Arbitration & Compliance
+    adminPortalTitle: "Marketplace Governance, Law & Compliance",
     statTotalVolume: "Total Transaction Volume",
     statPlatformRev: "Platform Commission (5%)",
     statActiveEscrow: "Active Escrow Held",
     statDisputes: "Active Disputes",
     statMetricTons: "Metric Tons Traded",
     statMiddlemanSavings: "Middleman Markup Saved",
-    resolveDisputeTitle: "Escrow Dispute Arbitration Console",
-    disputeEvidence: "Evidence & Buyer Claim",
+    statVatRemitted: "VAT on Platform Fees (15%)",
+    statWithholding: "Withholding Tax (2%)",
+    resolveDisputeTitle: "Escrow Legal Arbitration Console",
+    disputeEvidence: "Evidence & Inspection Report",
     releaseFarmerBtn: "Release 100% to Farmer",
     refundBuyerBtn: "Refund 100% to Buyer",
     splitFiftyFiftyBtn: "Arbitrate 50/50 Partial Split",
     anomalyScannerTitle: "Fraud & Anomaly Detection Monitor",
-    kycQueueTitle: "Manual KYC & Vehicle Verification Queue",
-    approveKycBtn: "Approve Identity",
+    kycQueueTitle: "Tiered KYC & Trade Registry Queue",
+    approveKycBtn: "Approve Identity & License",
     rejectKycBtn: "Reject / Request Info",
     regionalAnalyticsTitle: "Regional Volume & EABC Impact Dashboard",
     broadcastSmsTitle: "Bilingual SMS Broadcaster",
@@ -230,6 +242,7 @@ export const translations = {
     navStandingOrders: "ቋሚ ትዕዛዞች",
     navWallet: "የቴሌብር ሂሳብ",
     navSmsConsole: "የኤስኤምኤስ ክፍል",
+    navLegalDocuments: "ውሎች እና የግብር ደረሰኞች",
     navLogin: "በስልክ ቁጥር መግቢያ",
     navLogout: "ውጣ",
 
@@ -322,6 +335,14 @@ export const translations = {
     refundPercentLabel: "የሚጠየቀው ተመላሽ ክፍያ በመቶኛ",
     submitDisputeBtn: "ክፍያውን አግድ እና ለአድሚን ላክ",
 
+    // Legal & Official Document Buttons
+    viewContractBtn: "የግብይት ውል ይመልከቱ",
+    viewInvoiceBtn: "የግብር እና ሽያጭ ደረሰኝ (e-VAT)",
+    viewWaybillBtn: "የጭነት ማጓጓዣ ሰነድ (Waybill)",
+    viewArbitrationBtn: "የሽምግልና ውሳኔ ሰነድ",
+    printDocument: "አትም / ፒዲኤፍ አስቀምጥ",
+    closeDocument: "ሰነዱን ዝጋ",
+
     // Farmer Portal - Voice Note & Benchmarks
     farmerPortalTitle: "የአርሶ አደር ምርት እና ገቢ ዳሽቦርድ",
     postNewListing: "አዲስ ምርት ለገበያ አቅርብ",
@@ -348,13 +369,14 @@ export const translations = {
     incomingOrders: "የገዢዎች ትዕዛዞች",
     confirmOrderAction: "ትዕዛዙን አረጋግጥ",
 
-    // Farmer Wallet
-    walletTitle: "የቴሌብር ሂሳብ እና የክፍያ ታሪክ",
+    // Farmer Wallet & Tax Statements
+    walletTitle: "የቴሌብር ሂሳብ እና የግብር መግለጫ",
     walletBalance: "ያለ የቴሌብር ሂሳብ",
     pendingEscrow: "በዋስትና የተያዘ (በጉዞ ላይ ያለ)",
     lifetimePayout: "ጠቅላላ የተከፈለ ገቢ",
+    withholdingTaxReported: "የተያዘ ግብር (2% Withholding)",
     requestWithdrawal: "ወደ ቴሌብር ሂሳብ አስገባ",
-    payoutHistory: "የቅርብ ጊዜ የክፍያ ታሪክ",
+    payoutHistory: "የቅርብ ጊዜ የክፍያ እና የደረሰኝ ታሪክ",
 
     // SMS Fallback Console
     smsConsoleTitle: "የTwilio ኤስኤምኤስ (SMS) መቆጣጠሪያ",
@@ -382,22 +404,24 @@ export const translations = {
     ruralBonus: "የገጠር መንገድ ጉርሻ",
     totalDeliveredTrips: "ያደረስካቸው ጉዞዎች",
 
-    // Admin Portal - Arbitration & Anomalies
-    adminPortalTitle: "የገበያ ቁጥጥር እና አስተዳደር",
+    // Admin Portal - Arbitration & Compliance
+    adminPortalTitle: "የገበያ ቁጥጥር፣ ህጋዊነት እና አስተዳደር",
     statTotalVolume: "ጠቅላላ የግብይት መጠን",
     statPlatformRev: "የሲስተም ገቢ (5%)",
     statActiveEscrow: "በዋስትና የተያዘ ገንዘብ",
     statDisputes: "ያልተፈቱ ቅሬታዎች",
     statMetricTons: "የተሸጠ ምርት (በሜትሪክ ቶን)",
     statMiddlemanSavings: "የተዳነ የደላላ ክፍያ",
-    resolveDisputeTitle: "የቅሬታዎች ውሳኔ መስጫ ኮንሶል",
-    disputeEvidence: "የገዢው ማስረጃ እና ፎቶ",
+    statVatRemitted: "የተሰበሰበ የተጨማሪ እሴት ታክስ (15% VAT)",
+    statWithholding: "የተያዘ ግብር (2% Withholding)",
+    resolveDisputeTitle: "የህጋዊ ቅሬታዎች ውሳኔ መስጫ ኮንሶል",
+    disputeEvidence: "የገዢው ማስረጃ እና የፍተሻ ሪፖርት",
     releaseFarmerBtn: "100% ለአርሶ አደሩ ይለቀቅ",
     refundBuyerBtn: "100% ለገዢው ይመለስ",
     splitFiftyFiftyBtn: "50/50 በፍትሃዊነት ይከፋፈል",
     anomalyScannerTitle: "አጠራጣሪ እንቅስቃሴዎችን መከታተያ (Fraud/Anomaly)",
-    kycQueueTitle: "የአርሶ አደሮች እና ሹፌሮች መታወቂያ ማረጋገጫ (KYC)",
-    approveKycBtn: "መታወቂያ አረጋግጥ",
+    kycQueueTitle: "የተጠቃሚዎች ህጋዊነት እና የንግድ ፈቃድ ማረጋገጫ (KYC)",
+    approveKycBtn: "መታወቂያ እና ፈቃድ አረጋግጥ",
     rejectKycBtn: "ውድቅ አድርግ",
     regionalAnalyticsTitle: "የክልሎች የምርት መጠን እና ተፅእኖ (EABC Impact)",
     broadcastSmsTitle: "የጅምላ ኤስኤምኤስ (SMS) ማሰራጫ",

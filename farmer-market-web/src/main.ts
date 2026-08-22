@@ -10,6 +10,7 @@ import { renderDriverView } from './components/DriverView';
 import { renderAdminView } from './components/AdminView';
 import { renderNotificationsModal } from './components/NotificationsModal';
 import { renderAuthModal } from './components/AuthModal';
+import { documentModal } from './components/DocumentModal';
 
 // Toast Notification Manager
 function showToast(message: string, icon: string = 'fa-circle-check', color: string = 'border-emerald-500') {
@@ -48,17 +49,20 @@ class App {
   private activeTelebirrModal: { isOpen: boolean; totalEtb: number; listingId?: string; qtyKg?: number } | null = null;
   private activeDisputeModal: { isOpen: boolean; order: Order } | null = null;
 
+  // Legal & Official Document Modal State
+  private activeLegalDocModal: { isOpen: boolean; type: 'invoice' | 'waybill' | 'contract' | 'arbitration'; orderId: string } | null = null;
+
   // Advanced Filters
   private maxDistanceKm: number = 0;
   private activeGrade: string = 'All';
   private activeRipeness: string = 'All';
   private organicOnly: boolean = false;
   private advanceOnly: boolean = false;
-  private activeBuyerSubTab: 'marketplace' | 'standing_orders' = 'marketplace';
+  private activeBuyerSubTab: 'marketplace' | 'orders' | 'standing_orders' = 'marketplace';
 
   // Farmer & Admin Sub-Tabs
   private activeFarmerTab: 'listings' | 'wallet' | 'sms' = 'listings';
-  private activeAdminTab: 'disputes' | 'anomalies' | 'kyc' | 'analytics' | 'sms' = 'disputes';
+  private activeAdminTab: 'disputes' | 'anomalies' | 'kyc' | 'tax_compliance' | 'analytics' | 'sms' = 'disputes';
 
   // Voice Note State
   private isRecordingVoice: boolean = false;
@@ -121,6 +125,9 @@ class App {
     const notifications = api.getNotifications();
     const unreadCount = notifications.filter(n => !n.read).length;
 
+    // Update document modal language
+    documentModal.setLanguage(this.lang);
+
     // Filter produce with advanced criteria (Grade, Ripeness, Proximity, Advance Harvests)
     const listings = api.getListings(
       this.activeCategory,
@@ -174,6 +181,7 @@ class App {
       );
     } else {
       // Default Wholesale Produce Marketplace (for Buyers or Logged Out Guests)
+      const buyerOrders = api.getOrders('buyer');
       viewHtml = renderBuyerView(
         this.lang,
         listings,
@@ -191,7 +199,8 @@ class App {
         this.organicOnly,
         this.advanceOnly,
         this.activeBuyerSubTab,
-        api.getStandingOrders()
+        api.getStandingOrders(),
+        buyerOrders
       );
     }
 
@@ -214,7 +223,7 @@ class App {
               <span>Farmer-to-Market</span>
             </div>
             <p class="text-xs text-slate-400 leading-relaxed">
-              Ethiopia's leading bilingual B2B produce exchange. Directly linking 15M+ smallholder farmers with wholesale buyers, hotels, and supermarkets.
+              Ethiopia's leading bilingual B2B produce exchange. Directly linking 15M+ smallholder farmers with wholesale buyers, hotels, and supermarkets with full Ethiopian tax and contract compliance.
             </p>
             <div class="flex items-center gap-2 pt-2">
               <span class="telebirr-badge text-[10px]"><i class="fa-solid fa-bolt"></i> Telebirr Escrow Certified</span>
@@ -232,12 +241,13 @@ class App {
           </div>
 
           <div class="space-y-2 text-xs">
-            <h4 class="font-bold text-white text-sm">Escrow & Governance</h4>
+            <h4 class="font-bold text-white text-sm">Legal & Fiscal Compliance</h4>
             <ul class="space-y-1.5 text-slate-400">
-              <li><span class="text-slate-300">90% Direct Farmer Payout</span></li>
-              <li><span class="text-slate-300">5% Dedicated Isuzu Freight Logistics</span></li>
-              <li><span class="text-slate-300">5% Platform Operational Commission</span></li>
-              <li><span class="text-slate-300">100% Buyer Quality Guarantee</span></li>
+              <li><span class="text-slate-300">90% Direct Farmer Payout (Tax-Exempt Produce)</span></li>
+              <li><span class="text-slate-300">5% Transport Logistics with Official FTA Waybills</span></li>
+              <li><span class="text-slate-300">15% VAT on Platform Service Remitted to MOR</span></li>
+              <li><span class="text-slate-300">2% Withholding Declaration Compliance (Proclamation 979)</span></li>
+              <li><span class="text-slate-300">EABC Binding Escrow Dispute Arbitration</span></li>
             </ul>
           </div>
 
@@ -253,12 +263,12 @@ class App {
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <p>© 2026 Farmer-to-Market Ltd. (Ethiopia). All rights reserved.</p>
           <div class="flex items-center gap-4 text-slate-400">
-            <span>Powered by .NET 9 Clean Architecture + Vite + PostgreSQL PostGIS</span>
+            <span>Powered by .NET 9 Clean Architecture + Vite + PostgreSQL PostGIS + Telebirr Escrow</span>
           </div>
         </div>
       </footer>
 
-      <!-- Real Authentication Modal -->
+      <!-- Authentication Modal -->
       ${this.isAuthModalOpen ? renderAuthModal(
       this.lang,
       this.authMode,
@@ -269,7 +279,40 @@ class App {
       this.matchedUserRole,
       this.authErrorMessage
     ) : ''}
+      
+      <!-- Notifications Modal -->
       ${this.isNotificationsModalOpen ? renderNotificationsModal(this.lang, notifications) : ''}
+
+      <!-- Official Legal Document Viewer Modal -->
+      ${this.activeLegalDocModal?.isOpen ? `
+        <div class="modal-backdrop" onclick="if(event.target === this) window.closeLegalDocModal()">
+          <div class="modal-content legal-doc-modal p-6 sm:p-8 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid fa-stamp text-emerald-600 text-lg"></i>
+                <span class="font-extrabold text-sm text-slate-900 uppercase">
+                  ${this.activeLegalDocModal.type.toUpperCase()} · OFFICIAL DOCUMENT
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="window.printOfficialDocument()" class="btn-primary text-xs py-1.5 px-3 cursor-pointer">
+                  <i class="fa-solid fa-print mr-1"></i> Print / PDF
+                </button>
+                <button onclick="window.closeLegalDocModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="max-h-[75vh] overflow-y-auto pr-1">
+              ${this.activeLegalDocModal.type === 'invoice' ? documentModal.renderInvoice(api.getTaxInvoice(this.activeLegalDocModal.orderId)) :
+                this.activeLegalDocModal.type === 'waybill' ? documentModal.renderWaybill(api.getTransportWaybill(this.activeLegalDocModal.orderId)) :
+                this.activeLegalDocModal.type === 'contract' ? documentModal.renderContract(api.getLegalContract(this.activeLegalDocModal.orderId)) :
+                documentModal.renderArbitration(api.getDisputeMediationRecord(this.activeLegalDocModal.orderId))}
+            </div>
+          </div>
+        </div>
+      ` : ''}
     `;
   }
 
@@ -290,7 +333,7 @@ class App {
     };
 
     // Sub-Tab Switchers
-    w.setBuyerSubTab = (tab: 'marketplace' | 'standing_orders') => {
+    w.setBuyerSubTab = (tab: 'marketplace' | 'orders' | 'standing_orders') => {
       this.activeBuyerSubTab = tab;
       this.render();
     };
@@ -300,9 +343,39 @@ class App {
       this.render();
     };
 
-    w.setAdminTab = (tab: 'disputes' | 'anomalies' | 'kyc' | 'analytics' | 'sms') => {
+    w.setAdminTab = (tab: 'disputes' | 'anomalies' | 'kyc' | 'tax_compliance' | 'analytics' | 'sms') => {
       this.activeAdminTab = tab;
       this.render();
+    };
+
+    // Legal Document Modal Openers
+    w.openInvoiceModal = (orderId: string) => {
+      this.activeLegalDocModal = { isOpen: true, type: 'invoice', orderId };
+      this.render();
+    };
+
+    w.openContractModal = (orderId: string) => {
+      this.activeLegalDocModal = { isOpen: true, type: 'contract', orderId };
+      this.render();
+    };
+
+    w.openWaybillModal = (orderId: string) => {
+      this.activeLegalDocModal = { isOpen: true, type: 'waybill', orderId };
+      this.render();
+    };
+
+    w.openArbitrationModal = (orderId: string) => {
+      this.activeLegalDocModal = { isOpen: true, type: 'arbitration', orderId };
+      this.render();
+    };
+
+    w.closeLegalDocModal = () => {
+      this.activeLegalDocModal = null;
+      this.render();
+    };
+
+    w.printOfficialDocument = () => {
+      window.print();
     };
 
     // Advanced Filters
@@ -312,12 +385,12 @@ class App {
       this.render();
     };
 
-    w.setGradeFilter = (grade: string) => {
+    w.setFilterGrade = (grade: string) => {
       this.activeGrade = grade;
       this.render();
     };
 
-    w.setRipenessFilter = (ripeness: string) => {
+    w.setFilterRipeness = (ripeness: string) => {
       this.activeRipeness = ripeness;
       this.render();
     };
@@ -332,62 +405,84 @@ class App {
       this.render();
     };
 
+    w.setCategory = (cat: string) => {
+      this.activeCategory = cat;
+      this.render();
+    };
+
+    w.resetFilters = () => {
+      this.activeCategory = 'All';
+      this.selectedRegion = 'All';
+      this.searchQuery = '';
+      this.maxDistanceKm = 0;
+      this.activeGrade = 'All';
+      this.activeRipeness = 'All';
+      this.organicOnly = false;
+      this.advanceOnly = false;
+      this.render();
+    };
+
     // Voice Note Listing Creation Simulation
     w.handleVoiceRecordToggle = () => {
-      const btnText = document.getElementById('voiceBtnText');
-      const wave = document.getElementById('voiceWaveIndicator');
-      const langSelect = (document.getElementById('voiceLangSelect') as HTMLSelectElement)?.value as 'am' | 'om' | 'en' || 'am';
+      const btn = document.getElementById('voiceRecordBtn');
+      const label = document.getElementById('voiceRecordLabel');
+      const wave = document.getElementById('voiceWaveAnimation');
+      const result = document.getElementById('voiceTranscriptionResult');
+      const transcript = document.getElementById('voiceTranscriptText');
 
       if (!this.isRecordingVoice) {
         this.isRecordingVoice = true;
-        if (btnText) btnText.innerText = 'Stop & Transcribe (አቁም)';
+        if (label) label.innerText = 'Stop & Transcribe (አቁም)';
+        if (btn) {
+          btn.classList.remove('bg-emerald-600');
+          btn.classList.add('bg-red-600');
+        }
         if (wave) wave.classList.remove('hidden');
+        if (result) result.classList.add('hidden');
 
         showToast('Voice Recording in progress... Speak produce details.', 'fa-microphone', 'border-amber-500');
 
         this.voiceRecordTimer = setTimeout(() => {
           if (this.isRecordingVoice) {
-            w.finishVoiceTranscription(langSelect);
+            w.finishVoiceTranscription('am');
           }
-        }, 3000);
+        }, 3500);
       } else {
         clearTimeout(this.voiceRecordTimer);
-        w.finishVoiceTranscription(langSelect);
+        w.finishVoiceTranscription('am');
       }
     };
 
     w.finishVoiceTranscription = (spokenLang: 'am' | 'om' | 'en') => {
       this.isRecordingVoice = false;
-      const btnText = document.getElementById('voiceBtnText');
-      const wave = document.getElementById('voiceWaveIndicator');
-      if (btnText) btnText.innerText = 'Record Voice Note (ድምጽ ቅጂ)';
+      const label = document.getElementById('voiceRecordLabel');
+      const wave = document.getElementById('voiceWaveAnimation');
+      const result = document.getElementById('voiceTranscriptionResult');
+      const transcript = document.getElementById('voiceTranscriptText');
+
+      if (label) label.innerText = 'Record Voice Note (ድምጽ ቅጂ)';
       if (wave) wave.classList.add('hidden');
 
       const parsed = api.simulateVoiceTranscription(4, spokenLang);
       const nameInput = document.getElementById('newProdName') as HTMLInputElement;
       const nameAmInput = document.getElementById('newProdNameAm') as HTMLInputElement;
-      const catInput = document.getElementById('newProdCategory') as HTMLSelectElement;
-      const qtyInput = document.getElementById('newProdQty') as HTMLInputElement;
-      const priceInput = document.getElementById('newProdPrice') as HTMLInputElement;
-      const regionInput = document.getElementById('newProdRegion') as HTMLInputElement;
+      const catInput = document.getElementById('newCategory') as HTMLSelectElement;
+      const qtyInput = document.getElementById('newQtyKg') as HTMLInputElement;
+      const priceInput = document.getElementById('newPricePerKg') as HTMLInputElement;
 
       if (nameInput) nameInput.value = parsed.productName;
       if (nameAmInput) nameAmInput.value = parsed.nameAm;
       if (catInput) catInput.value = parsed.category;
       if (qtyInput) qtyInput.value = parsed.qtyKg.toString();
       if (priceInput) priceInput.value = parsed.pricePerKg.toString();
-      if (regionInput) regionInput.value = parsed.region;
+
+      if (result && transcript) {
+        transcript.innerText = `"${parsed.transcript}"`;
+        result.classList.remove('hidden');
+      }
 
       confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 } });
-      showToast(`Voice Note Transcribed! Form auto-populated in ${spokenLang.toUpperCase()}`, 'fa-wand-magic-sparkles');
-    };
-
-    w.toggleAdvanceHarvestFields = (checked: boolean) => {
-      const row = document.getElementById('advanceHarvestDateRow');
-      if (row) {
-        if (checked) row.classList.remove('hidden');
-        else row.classList.add('hidden');
-      }
+      showToast(`Voice Note Transcribed! Form auto-filled in Amharic.`, 'fa-wand-magic-sparkles');
     };
 
     // SMS Fallback Simulator
@@ -461,7 +556,7 @@ class App {
 
     w.handleDisputeSubmit = async (e: Event, orderId: string) => {
       e.preventDefault();
-      const reason = (document.getElementById('disputeReasonText') as HTMLTextAreaElement).value;
+      const reason = (document.getElementById('disputeReasonInput') as HTMLTextAreaElement).value;
       const photo = (document.getElementById('disputePhotoUrl') as HTMLInputElement).value;
       const slider = (document.getElementById('disputeRefundSlider') as HTMLInputElement).value;
 
@@ -598,8 +693,6 @@ class App {
         showToast(`SMS verification code dispatched to +251 ${phoneInput}`, 'fa-comment-sms', 'border-emerald-500');
       } catch (err: any) {
         this.authErrorMessage = err.message || 'No account registered with this phone number. Please register first.';
-        this.otpStep = false;
-        showToast(this.authErrorMessage, 'fa-circle-xmark', 'border-red-500');
       }
 
       this.render();
@@ -607,8 +700,8 @@ class App {
 
     w.handleVerifyOtp = async (e: Event) => {
       e.preventDefault();
-      const otp = (document.getElementById('authOtpInput') as HTMLInputElement).value.trim();
-      if (!otp) {
+      const codeInput = ((document.getElementById('authOtpInput') as HTMLInputElement) || (document.getElementById('otpCodeInput') as HTMLInputElement))?.value.trim();
+      if (!codeInput || codeInput.length !== 6) {
         showToast('Please enter the 6-digit verification code', 'fa-triangle-exclamation', 'border-red-500');
         return;
       }
@@ -620,7 +713,41 @@ class App {
       }
 
       try {
-        const user = await api.verifyOtp(this.pendingPhone, otp);
+        const user = await api.verifyOtp(this.pendingPhone, codeInput);
+        this.isAuthModalOpen = false;
+        this.otpStep = false;
+        this.authErrorMessage = '';
+
+        if (user.role === 'farmer') this.activeTab = 'farmer';
+        else if (user.role === 'driver') this.activeTab = 'driver';
+        else if (user.role === 'admin') this.activeTab = 'admin';
+        else this.activeTab = 'marketplace';
+
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        showToast(`Welcome back, ${user.name}! (${user.role.toUpperCase()})`, 'fa-circle-check', 'border-emerald-500');
+      } catch (err: any) {
+        this.authErrorMessage = err.message || 'Invalid OTP code. Please try again.';
+      }
+
+      this.render();
+    };
+
+    const registerHandler = async (e: Event) => {
+      e.preventDefault();
+      const name = (document.getElementById('regName') as HTMLInputElement)?.value.trim() || '';
+      const nameAm = (document.getElementById('regNameAm') as HTMLInputElement)?.value.trim() || name;
+      const phone = (document.getElementById('regPhone') as HTMLInputElement)?.value.trim() || '';
+      const region = (document.getElementById('regRegion') as HTMLSelectElement)?.value || 'Oromia (Bishoftu)';
+      const role = (document.querySelector('input[name="regRole"]:checked') as HTMLInputElement)?.value as UserRole || 'buyer';
+
+      const btn = document.getElementById('registerSubmitBtn') as HTMLButtonElement;
+      if (btn) {
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Registering in PostgreSQL...`;
+        btn.disabled = true;
+      }
+
+      try {
+        const user = await api.registerUser(name, nameAm, phone, role, region);
         this.isAuthModalOpen = false;
         this.authErrorMessage = '';
 
@@ -629,100 +756,48 @@ class App {
         else if (user.role === 'admin') this.activeTab = 'admin';
         else this.activeTab = 'marketplace';
 
-        confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
-        showToast(`Welcome back, ${user.name}!`, 'fa-user-check');
+        confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+        showToast(`Welcome to Farmer-to-Market, ${user.name}!`, 'fa-circle-check', 'border-emerald-500');
       } catch (err: any) {
-        this.authErrorMessage = err.message || 'Invalid verification code. Please check your SMS or try again.';
-        showToast(this.authErrorMessage, 'fa-circle-xmark', 'border-red-500');
+        this.authErrorMessage = err.message || 'Registration failed. Please try a different phone number.';
       }
 
       this.render();
     };
 
-    w.handleRegisterUser = async (e: Event) => {
-      e.preventDefault();
-      const name = (document.getElementById('regName') as HTMLInputElement).value.trim();
-      const nameAm = (document.getElementById('regNameAm') as HTMLInputElement).value.trim();
-      const phone = (document.getElementById('regPhone') as HTMLInputElement).value.trim();
-      const region = (document.getElementById('regRegion') as HTMLSelectElement).value;
-      const role = ((document.querySelector('input[name="regRole"]:checked') as HTMLInputElement)?.value || 'farmer') as UserRole;
-
-      if (!name || !phone) {
-        showToast('Please fill in all required fields', 'fa-triangle-exclamation', 'border-red-500');
-        return;
-      }
-
-      const btn = document.getElementById('registerSubmitBtn') as HTMLButtonElement;
-      if (btn) {
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Registering in Database...`;
-        btn.disabled = true;
-      }
-
-      this.authErrorMessage = '';
-
-      try {
-        const newUser = await api.registerUser(name, nameAm, phone, role, region);
-        this.isAuthModalOpen = false;
-
-        if (newUser.role === 'farmer') this.activeTab = 'farmer';
-        else if (newUser.role === 'driver') this.activeTab = 'driver';
-        else if (newUser.role === 'admin') this.activeTab = 'admin';
-        else this.activeTab = 'marketplace';
-
-        confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 } });
-        showToast(`Registration Complete! Welcome to Farmer-to-Market, ${name}.`, 'fa-champagne-glasses');
-      } catch (err: any) {
-        this.authErrorMessage = err.message || 'Registration failed. Please try again.';
-        showToast(this.authErrorMessage, 'fa-circle-xmark', 'border-red-500');
-      }
-
-      this.render();
-    };
+    w.handleRegisterUser = registerHandler;
+    w.handleRegisterSubmit = registerHandler;
 
     w.handleLogout = () => {
       api.logout();
       this.activeTab = 'marketplace';
-      showToast('You have been signed out.', 'fa-arrow-right-from-bracket', 'border-slate-500');
+      this.cart = [];
+      showToast('Logged out successfully', 'fa-arrow-right-from-bracket');
       this.render();
     };
 
-    w.openNotificationsModal = () => {
-      this.isNotificationsModalOpen = true;
-      this.render();
-    };
+    // Switch Demo User
+    w.switchDemoUser = async (phone: string) => {
+      try {
+        const res = await api.requestOtp(phone);
+        if (res.demoCode) {
+          const user = await api.verifyOtp(phone, res.demoCode);
+          if (user.role === 'farmer') this.activeTab = 'farmer';
+          else if (user.role === 'driver') this.activeTab = 'driver';
+          else if (user.role === 'admin') this.activeTab = 'admin';
+          else this.activeTab = 'marketplace';
 
-    w.closeNotificationsModal = () => {
-      this.isNotificationsModalOpen = false;
-      this.render();
-    };
-
-    w.setCategory = (cat: string) => {
-      this.activeCategory = cat;
-      this.render();
-    };
-
-    w.setRegion = (region: string) => {
-      this.selectedRegion = region;
-      this.render();
-    };
-
-    w.setSearchQuery = (query: string) => {
-      this.searchQuery = query;
-      this.render();
-    };
-
-    w.toggleCart = () => {
-      this.isCartOpen = !this.isCartOpen;
-      this.render();
-    };
-
-    w.quickBuy = (listingId: string) => {
-      if (!api.isAuthenticated()) {
-        w.openAuthModal('login');
-        showToast('Please sign in to place wholesale orders', 'fa-right-to-bracket', 'border-amber-500');
-        return;
+          confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+          showToast(`Switched to profile: ${user.name} (${user.role.toUpperCase()})`, 'fa-user-shield');
+        }
+      } catch (err: any) {
+        showToast('Demo switch failed: ' + err.message, 'fa-circle-xmark', 'border-red-500');
       }
+      this.render();
+    };
 
+    // Cart Management
+    w.addToCart = (listingId: string) => {
       const listing = api.getListingById(listingId);
       if (!listing) return;
 
@@ -732,35 +807,34 @@ class App {
       } else {
         this.cart.push({ listing, qtyKg: listing.minOrderKg });
       }
-      this.isCartOpen = true;
-      showToast(`Added ${listing.minOrderKg}kg of ${listing.productName} to bulk cart`, 'fa-cart-plus');
+
+      showToast(`Added ${listing.productName} to bulk cart`, 'fa-cart-plus');
       this.render();
     };
 
-    w.updateCartQty = (listingId: string, delta: number) => {
+    w.updateCartQty = (listingId: string, newQty: number) => {
       const item = this.cart.find(c => c.listing.id === listingId);
       if (item) {
-        item.qtyKg = Math.max(item.listing.minOrderKg, item.qtyKg + delta);
-        this.render();
+        if (newQty <= 0) {
+          this.cart = this.cart.filter(c => c.listing.id !== listingId);
+        } else {
+          item.qtyKg = newQty;
+        }
       }
-    };
-
-    w.removeFromCart = (listingId: string) => {
-      this.cart = this.cart.filter(c => c.listing.id !== listingId);
-      showToast('Item removed from cart', 'fa-trash-can', 'border-red-500');
       this.render();
     };
 
-    w.openTelebirrModal = () => {
+    w.toggleCart = () => {
+      this.isCartOpen = !this.isCartOpen;
+      this.render();
+    };
+
+    w.openTelebirrModal = (totalEtb: number) => {
       if (!api.isAuthenticated()) {
         w.openAuthModal('login');
         return;
       }
-      const total = this.cart.reduce((sum, item) => sum + (item.qtyKg * item.listing.pricePerKg), 0);
-      this.activeTelebirrModal = {
-        isOpen: true,
-        totalEtb: total
-      };
+      this.activeTelebirrModal = { isOpen: true, totalEtb };
       this.render();
     };
 
@@ -769,34 +843,26 @@ class App {
       this.render();
     };
 
-    w.processTelebirrPayment = async (e: Event) => {
+    w.handleTelebirrSubmit = async (e: Event) => {
       e.preventDefault();
-      const btn = document.getElementById('telebirrSubmitBtn') as HTMLButtonElement;
-      if (btn) {
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Authorizing with Telebirr Escrow...`;
-        btn.disabled = true;
-      }
-
       try {
-        let lastOrder: Order | null = null;
+        let placedOrder: Order | null = null;
         for (const item of this.cart) {
-          lastOrder = await api.placeOrder(item.listing.id, item.qtyKg);
+          placedOrder = await api.placeOrder(item.listing.id, item.qtyKg);
         }
-
         this.cart = [];
         this.isCartOpen = false;
         this.activeTelebirrModal = null;
 
-        confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-        showToast('Payment secured via Telebirr Escrow! Orders dispatched to farmers & drivers.', 'fa-lock', 'border-blue-500');
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        showToast('Payment Authorized! Funds locked in Telebirr Escrow. Order Dispatched.', 'fa-lock', 'border-blue-500');
 
-        if (lastOrder) {
-          this.activeOrderModal = lastOrder;
+        if (placedOrder) {
+          this.activeOrderModal = placedOrder;
         }
       } catch (err: any) {
-        showToast(err.message || 'Payment authorization failed.', 'fa-circle-xmark', 'border-red-500');
+        showToast('Order placement failed: ' + err.message, 'fa-circle-xmark', 'border-red-500');
       }
-
       this.render();
     };
 
@@ -830,7 +896,7 @@ class App {
 
     w.adminResolveDispute = async (orderId: string, resolution: 'ReleaseToFarmer' | 'RefundBuyer' | 'PartialSplit') => {
       await api.resolveDispute(orderId, resolution);
-      showToast(`Dispute resolved: ${resolution}`, 'fa-gavel', 'border-purple-500');
+      showToast(`Dispute resolved: ${resolution}. Decree generated.`, 'fa-gavel', 'border-purple-500');
       this.render();
     };
 
@@ -839,21 +905,18 @@ class App {
       this.render();
     };
 
-    w.handleCreateListing = async (e: Event) => {
+    w.handleCreateListingSubmit = async (e: Event) => {
       e.preventDefault();
       const prodName = (document.getElementById('newProdName') as HTMLInputElement).value;
       const prodNameAm = (document.getElementById('newProdNameAm') as HTMLInputElement).value;
-      const category = (document.getElementById('newProdCategory') as HTMLSelectElement).value;
-      const qty = parseFloat((document.getElementById('newProdQty') as HTMLInputElement).value);
-      const price = parseFloat((document.getElementById('newProdPrice') as HTMLInputElement).value);
-      const minOrder = parseFloat((document.getElementById('newProdMinOrder') as HTMLInputElement).value);
-      const grade = (document.getElementById('newProdGrade') as HTMLSelectElement).value;
-      const ripeness = (document.getElementById('newProdRipeness') as HTMLSelectElement).value;
-      const isOrganic = (document.getElementById('newProdOrganic') as HTMLInputElement).checked;
-      const isAdvance = (document.getElementById('newProdAdvanceToggle') as HTMLInputElement).checked;
-      const harvestDate = (document.getElementById('newProdHarvestDate') as HTMLInputElement)?.value;
-      const region = (document.getElementById('newProdRegion') as HTMLInputElement).value;
-      const photo = (document.getElementById('newProdPhoto') as HTMLInputElement).value;
+      const category = (document.getElementById('newCategory') as HTMLSelectElement).value;
+      const qty = parseFloat((document.getElementById('newQtyKg') as HTMLInputElement).value);
+      const price = parseFloat((document.getElementById('newPricePerKg') as HTMLInputElement).value);
+      const minOrder = parseFloat((document.getElementById('newMinOrderKg') as HTMLInputElement).value);
+      const grade = (document.getElementById('newGrade') as HTMLSelectElement).value;
+      const ripeness = (document.getElementById('newRipeness') as HTMLSelectElement).value;
+      const isAdvance = (document.getElementById('newIsAdvanceHarvest') as HTMLInputElement).checked;
+      const harvestDate = (document.getElementById('newExpectedHarvestDate') as HTMLInputElement)?.value;
 
       try {
         await api.createListing({
@@ -865,16 +928,14 @@ class App {
           minOrderKg: minOrder,
           grade,
           ripeness,
-          isOrganic,
+          isOrganic: true,
           isAdvanceHarvest: isAdvance,
           expectedHarvestDate: isAdvance ? harvestDate : undefined,
-          region,
-          photos: [photo],
           availableFrom: isAdvance && harvestDate ? harvestDate : new Date().toISOString().split('T')[0]
         });
 
         this.isCreateListingModalOpen = false;
-        showToast(`Published ${prodName} with Market Price Benchmark!`, 'fa-cloud-arrow-up');
+        showToast(`Published ${prodName} to marketplace!`, 'fa-cloud-arrow-up');
       } catch (err: any) {
         showToast(err.message || 'Failed to publish listing', 'fa-circle-xmark', 'border-red-500');
       }
@@ -882,14 +943,14 @@ class App {
       this.render();
     };
 
-    w.handleBroadcastSms = async (e: Event) => {
+    w.handleAdminBroadcastSms = async (e: Event) => {
       e.preventDefault();
-      const en = (document.getElementById('broadcastEn') as HTMLTextAreaElement).value;
-      const am = (document.getElementById('broadcastAm') as HTMLTextAreaElement).value;
-      const target = (document.getElementById('broadcastTarget') as HTMLSelectElement).value;
+      const target = (document.getElementById('smsTargetRole') as HTMLSelectElement).value;
+      const en = (document.getElementById('smsMsgEn') as HTMLTextAreaElement).value;
+      const am = (document.getElementById('smsMsgAm') as HTMLTextAreaElement).value;
 
       await api.broadcastSms(en, am, target);
-      showToast(this.lang === 'am' ? 'የኤስኤምኤስ መልእክት ለአርሶ አደሮች ተልኳል!' : 'SMS Broadcast sent to all registered farmers via Twilio!', 'fa-paper-plane');
+      showToast(this.lang === 'am' ? 'የኤስኤምኤስ መልእክት ለአርሶ አደሮች ተልኳል!' : 'SMS Broadcast sent to smallholders via Twilio!', 'fa-paper-plane');
       this.render();
     };
   }
