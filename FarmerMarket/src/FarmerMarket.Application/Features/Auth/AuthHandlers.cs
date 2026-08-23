@@ -81,6 +81,11 @@ public class VerifyOtpHandler(IAppDbContext db, IJwtService jwt, IOtpService otp
             user.Role,
             user.Region,
             user.Verified,
+            user.VerificationStatus,
+            user.TinNumber,
+            user.KycDocumentNumber,
+            user.RejectionReason,
+            user.WalletBalanceEtb,
             user.CreatedAt
         );
 
@@ -119,7 +124,10 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHa
             NameAm = string.IsNullOrWhiteSpace(dto.NameAm) ? null : dto.NameAm.Trim(),
             Role = dto.Role,
             Region = string.IsNullOrWhiteSpace(dto.Region) ? "Addis Ababa" : dto.Region.Trim(),
-            Verified = true,
+            Verified = false,
+            VerificationStatus = VerificationStatus.PendingSubmission,
+            RegistrationMethod = "Self",
+            WalletBalanceEtb = 0,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -135,6 +143,11 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHa
             user.Role,
             user.Region,
             user.Verified,
+            user.VerificationStatus,
+            user.TinNumber,
+            user.KycDocumentNumber,
+            user.RejectionReason,
+            user.WalletBalanceEtb,
             user.CreatedAt
         );
 
@@ -161,6 +174,11 @@ public class GetMeHandler(IAppDbContext db) : IRequestHandler<GetMeQuery, Result
             user.Role,
             user.Region,
             user.Verified,
+            user.VerificationStatus,
+            user.TinNumber,
+            user.KycDocumentNumber,
+            user.RejectionReason,
+            user.WalletBalanceEtb,
             user.CreatedAt
         ));
     }
@@ -191,6 +209,11 @@ public class UpdateProfileHandler(IAppDbContext db) : IRequestHandler<UpdateProf
             user.Role,
             user.Region,
             user.Verified,
+            user.VerificationStatus,
+            user.TinNumber,
+            user.KycDocumentNumber,
+            user.RejectionReason,
+            user.WalletBalanceEtb,
             user.CreatedAt
         ));
     }

@@ -238,55 +238,128 @@ export function renderAdminView(
         </section>
       ` : ''}
 
-      <!-- Tab Content 3: Manual KYC Verification Queue -->
+      <!-- Tab Content 3: Comprehensive Verification & Regulatory Audit Queue -->
       ${activeAdminTab === 'kyc' ? `
-        <section class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
-              <i class="fa-solid fa-id-card text-emerald-600 mr-2"></i> ${t.kycQueueTitle}
-            </h2>
-            <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-              National ID (Fayda), Kebele IDs & Commercial Logbooks
-            </span>
+        <section class="space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+                <i class="fa-solid fa-id-card text-emerald-600 mr-2"></i> ${t.sideBySideInspectionTitle}
+              </h2>
+              <p class="text-xs text-slate-500">
+                ${lang === 'am' ? 'የፋይዳ (Fayda) ብሔራዊ መታወቂያ፣ የግብር ከፋይ ቁጥር (TIN) እና የአርሶ አደሮች ሰነዶች ማረጋገጫ' : 'Inspect high-res Fayda ID cards, MOR TIN numbers, and field agent submissions.'}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                🛡️ Fayda & MOR Compliance Console
+              </span>
+            </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            ${kycQueue.map(k => `
-              <div class="glass-card p-5 space-y-4">
-                <div class="flex items-start justify-between">
+          <!-- Side-by-Side Document Inspection Cards -->
+          <div class="space-y-6">
+            ${api.getVerificationQueue().map(item => `
+              <div class="glass-card p-6 border-l-4 ${item.verificationStatus === 'Approved' ? 'border-emerald-500' : item.verificationStatus === 'Rejected' ? 'border-red-500' : 'border-amber-500'} space-y-4">
+                
+                <!-- Card Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
                   <div>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${k.userRole === 'Driver' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
-                      ${k.userRole} · Tier ${k.kycTier || 2}
+                    <div class="flex items-center gap-2">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.userRole === 'Driver' ? 'bg-amber-100 text-amber-800' : item.userRole === 'Farmer' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">
+                        ${item.userRole}
+                      </span>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
+                        ${item.registrationMethod === 'Agent' ? '🧑‍🌾 Assisted by ' + (item.registeredByAgentName || 'Field Agent') : '💻 Self Registered'}
+                      </span>
+                    </div>
+                    <h3 class="text-lg font-extrabold text-slate-900 mt-1">
+                      ${item.userName} ${item.userNameAm ? `<span class="text-sm font-normal text-slate-500">(${item.userNameAm})</span>` : ''}
+                    </h3>
+                    <p class="text-xs text-slate-500 font-mono">${item.phone} · 📍 ${item.region}</p>
+                  </div>
+
+                  <div class="flex flex-col sm:items-end gap-1">
+                    <span class="px-3 py-1 rounded-full text-xs font-extrabold ${item.verificationStatus === 'Approved' ? 'bg-emerald-100 text-emerald-800' : item.verificationStatus === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}">
+                      ${item.verificationStatus === 'Approved' ? '✅ APPROVED' : item.verificationStatus === 'Rejected' ? '❌ REJECTED' : '⏳ UNDER REVIEW'}
                     </span>
-                    <h3 class="text-base font-extrabold text-slate-900 mt-1">${k.userName}</h3>
-                    <p class="text-xs text-slate-500">${k.phone} · ${k.region}</p>
+                    <span class="text-[10px] text-slate-400">Registered: ${item.registeredAt}</span>
                   </div>
-                  <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold ${k.status === 'Verified' ? 'bg-emerald-100 text-emerald-800' : k.status === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}">
-                    ${k.status.toUpperCase()}
-                  </span>
                 </div>
 
-                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                  <div class="font-bold text-slate-800"><i class="fa-solid fa-file-lines text-emerald-600 mr-1"></i> ${k.documentType}</div>
-                  <div class="font-mono text-slate-600">Document ID: ${k.documentNumber}</div>
-                  <div class="font-mono text-slate-600">TIN: ${k.tinNumber || 'TIN-ET-VERIFIED'}</div>
-                  <div class="text-[10px] text-slate-400">Submitted: ${k.submittedAt}</div>
+                <!-- Verification Data & Documents Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                  
+                  <!-- Column 1: Identity & Tax Data -->
+                  <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <div class="font-bold text-slate-800 border-b border-slate-200 pb-1">
+                      📋 ${lang === 'am' ? 'የመታወቂያ እና የታክስ መረጃ' : 'Identity & Tax Record'}
+                    </div>
+                    <div>
+                      <span class="text-slate-500 block">${t.tinNumberLabel}:</span>
+                      <strong class="font-mono text-emerald-800 text-sm">${item.tinNumber || '0099881122'}</strong>
+                    </div>
+                    ${item.documents.map(d => `
+                      <div class="pt-1">
+                        <span class="text-slate-500 block">${d.documentType}:</span>
+                        <strong class="font-mono text-slate-800">${d.documentNumber}</strong>
+                      </div>
+                    `).join('')}
+                    ${item.rejectionReason ? `
+                      <div class="p-2 rounded bg-red-50 text-red-800 text-[11px] font-medium border border-red-200 mt-2">
+                        <strong>${t.rejectionReasonLabel}:</strong> ${item.rejectionReason}
+                      </div>
+                    ` : ''}
+                  </div>
+
+                  <!-- Column 2 & 3: High-Res Document Photo Previews -->
+                  <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${item.documents.flatMap(d => [
+                      d.frontImageUrl ? `
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                          <div class="text-[11px] font-bold text-slate-700 mb-1">🪪 ${d.documentType} (Front)</div>
+                          <img src="${d.frontImageUrl}" alt="Document Front" class="w-full h-28 object-cover rounded-lg border border-slate-200 mb-2 cursor-pointer" onclick="window.open('${d.frontImageUrl}', '_blank')" />
+                          <span class="text-[10px] text-slate-400">Click image to inspect full-res</span>
+                        </div>
+                      ` : '',
+                      d.backImageUrl ? `
+                        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                          <div class="text-[11px] font-bold text-slate-700 mb-1">📜 ${d.documentType} (Back)</div>
+                          <img src="${d.backImageUrl}" alt="Document Back" class="w-full h-28 object-cover rounded-lg border border-slate-200 mb-2 cursor-pointer" onclick="window.open('${d.backImageUrl}', '_blank')" />
+                          <span class="text-[10px] text-slate-400">Click image to inspect full-res</span>
+                        </div>
+                      ` : ''
+                    ]).join('') || `
+                      <div class="p-6 text-center text-slate-400 col-span-2">No uploaded photos attached.</div>
+                    `}
+                  </div>
+
                 </div>
 
-                ${k.status === 'Pending' ? `
-                  <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
-                    <button onclick="window.adminVerifyKyc('${k.userId}', true)" class="btn-primary flex-1 text-xs py-2 cursor-pointer">
-                      <i class="fa-solid fa-check"></i> ${t.approveKycBtn}
+                <!-- Action Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                  <div class="flex items-center gap-2 text-xs text-slate-500">
+                    <span>💬</span>
+                    <span>${t.sendSmsNoticeToggle}</span>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <button 
+                      onclick="window.adminReviewVerification('${item.userId}', 'Reject')" 
+                      class="px-4 py-2 rounded-xl text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 cursor-pointer"
+                    >
+                      <i class="fa-solid fa-xmark mr-1"></i> ${t.rejectVerificationAction}
                     </button>
-                    <button onclick="window.adminVerifyKyc('${k.userId}', false)" class="btn-secondary text-xs py-2 px-4 text-red-700 border-red-300 hover:bg-red-50 cursor-pointer">
-                      <i class="fa-solid fa-xmark"></i> ${t.rejectKycBtn}
+                    
+                    <button 
+                      onclick="window.adminReviewVerification('${item.userId}', 'Approve')" 
+                      class="btn-primary text-xs py-2 px-5 cursor-pointer bg-emerald-700 hover:bg-emerald-800"
+                    >
+                      <i class="fa-solid fa-check mr-1"></i> ${t.approveVerificationAction}
                     </button>
                   </div>
-                ` : `
-                  <div class="text-[11px] font-bold text-emerald-700 bg-emerald-50 p-2 rounded-lg text-center">
-                    <i class="fa-solid fa-certificate mr-1"></i> Identity & Trade License Approved
-                  </div>
-                `}
+                </div>
+
               </div>
             `).join('')}
           </div>

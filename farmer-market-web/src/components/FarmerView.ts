@@ -24,17 +24,33 @@ export function renderFarmerView(
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-bold">
               <i class="fa-solid fa-seedling text-emerald-700"></i> ${currentUser?.region || 'Oromia (Bishoftu)'}
             </span>
-            <span class="trust-badge text-emerald-800 bg-emerald-50 border-emerald-200">
-              <i class="fa-solid fa-id-card"></i> ${t.verifiedFayda} (${currentUser?.kycDocumentNumber || 'FAYDA-8829104'})
-            </span>
-            <span class="trust-badge text-blue-800 bg-blue-50 border-blue-200">
-              <i class="fa-solid fa-file-invoice text-blue-600"></i> TIN: ${currentUser?.tinNumber || 'TIN-FARM-882910'}
-            </span>
+            ${api.getVerificationStatus() === 'Approved' ? `
+              <span class="trust-badge text-emerald-800 bg-emerald-50 border-emerald-200">
+                <i class="fa-solid fa-circle-check text-emerald-600"></i> ${t.verifiedFayda} ${currentUser?.kycDocumentNumber ? `(${currentUser.kycDocumentNumber})` : ''}
+              </span>
+              ${currentUser?.tinNumber ? `
+                <span class="trust-badge text-blue-800 bg-blue-50 border-blue-200">
+                  <i class="fa-solid fa-file-invoice text-blue-600"></i> TIN: ${currentUser.tinNumber}
+                </span>
+              ` : ''}
+            ` : api.getVerificationStatus() === 'UnderReview' ? `
+              <span class="trust-badge text-amber-800 bg-amber-50 border-amber-200">
+                <i class="fa-solid fa-hourglass-half text-amber-600"></i> ${lang === 'am' ? 'ማረጋገጫ በመገምገም ላይ' : 'Verification Under Review'}
+              </span>
+            ` : api.getVerificationStatus() === 'Rejected' ? `
+              <span class="trust-badge text-red-800 bg-red-50 border-red-200">
+                <i class="fa-solid fa-circle-xmark text-red-600"></i> ${lang === 'am' ? 'ማረጋገጫ አልጸደቀም' : 'Verification Rejected'}
+              </span>
+            ` : `
+              <span class="trust-badge text-slate-700 bg-slate-100 border-slate-200">
+                <i class="fa-solid fa-shield-halved text-slate-500"></i> ${lang === 'am' ? 'ያልተረጋገጠ መለያ' : 'Unverified Account'}
+              </span>
+            `}
             <span class="trust-badge text-purple-800 bg-purple-50 border-purple-200">
-              <i class="fa-solid fa-users"></i> ${currentUser?.repeatBuyerCount || 18} ${t.repeatBuyers}
+              <i class="fa-solid fa-users text-purple-600"></i> ${currentUser?.repeatBuyerCount || 0} ${t.repeatBuyers}
             </span>
             <span class="trust-badge text-emerald-800 bg-emerald-50 border-emerald-200">
-              <i class="fa-solid fa-clock-rotate-left"></i> ${currentUser?.onTimeDeliveryRate || 99}% ${t.onTimeRate}
+              <i class="fa-solid fa-clock-rotate-left text-emerald-600"></i> ${currentUser?.onTimeDeliveryRate || 100}% ${t.onTimeRate}
             </span>
           </div>
 
@@ -60,6 +76,26 @@ export function renderFarmerView(
           </button>
         </div>
       </div>
+
+      <!-- Verification Action Banner -->
+      ${api.getVerificationStatus() !== 'Approved' ? `
+        <div class="p-4 rounded-2xl ${api.getVerificationStatus() === 'UnderReview' ? 'bg-amber-50 border border-amber-200' : api.getVerificationStatus() === 'Rejected' ? 'bg-red-50 border border-red-200' : 'bg-emerald-50 border border-emerald-200'} flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">${api.getVerificationStatus() === 'UnderReview' ? '⏳' : api.getVerificationStatus() === 'Rejected' ? '❌' : '🛡️'}</span>
+            <div>
+              <h4 class="text-sm font-bold ${api.getVerificationStatus() === 'UnderReview' ? 'text-amber-900' : api.getVerificationStatus() === 'Rejected' ? 'text-red-900' : 'text-emerald-900'}">
+                ${api.getVerificationStatus() === 'UnderReview' ? (lang === 'am' ? 'ሰነዶችዎ በአድሚን በመገምገም ላይ ናቸው' : 'Fayda ID & TIN Verification Under Review') : api.getVerificationStatus() === 'Rejected' ? (lang === 'am' ? 'ማረጋገጫዎ አልጸደቀም፤ እባክዎ እንደገና ያስገቡ' : 'Verification Rejected - Action Required') : (lang === 'am' ? 'መለያዎን በፋይዳ (Fayda) እና በTIN ያረጋግጡ' : 'Complete Fayda ID & Taxpayer TIN Verification')}
+              </h4>
+              <p class="text-xs ${api.getVerificationStatus() === 'UnderReview' ? 'text-amber-700' : api.getVerificationStatus() === 'Rejected' ? 'text-red-700' : 'text-emerald-700'}">
+                ${currentUser?.rejectionReason ? `${t.rejectionReasonLabel}: ${currentUser.rejectionReason}` : t.verificationBannerText}
+              </p>
+            </div>
+          </div>
+          <button onclick="window.openVerificationWizard()" class="btn-primary text-xs py-2 px-4 shrink-0 shadow-xs cursor-pointer ${api.getVerificationStatus() === 'UnderReview' ? 'bg-amber-700 hover:bg-amber-800' : api.getVerificationStatus() === 'Rejected' ? 'bg-red-700 hover:bg-red-800' : 'bg-emerald-700 hover:bg-emerald-800'}">
+            <i class="fa-solid fa-id-card mr-1"></i> ${api.getVerificationStatus() === 'Rejected' ? t.resubmitDocsBtn : t.startVerificationBtn}
+          </button>
+        </div>
+      ` : ''}
 
       <!-- Farmer Portal Navigation Pills -->
       <div class="flex items-center gap-2 border-b border-slate-200 pb-3">

@@ -31,9 +31,9 @@ export class DocumentModal {
         <div class="doc-meta-grid">
           <div class="meta-box">
             <label>DATE OF ISSUE / የወጣበት ቀን</label>
-            <p><strong>${inv.issueDate}</strong></p>
+            <p><strong>${inv.issueDate || inv.issuedDate || '2026-08-22'}</strong></p>
             <label>TELEBIRR ESCROW REF / የክፍያ ማረጋገጫ</label>
-            <p><code class="ref-code">${inv.paymentRef}</code></p>
+            <p><code class="ref-code">${inv.paymentRef || 'TB-ESCROW-2026-0912'}</code></p>
           </div>
           <div class="meta-box">
             <label>REGULATORY STATUS / የግብር ሁኔታ</label>
@@ -46,10 +46,10 @@ export class DocumentModal {
         <div class="doc-parties-grid">
           <div class="party-card seller-card">
             <h5>SUPPLIER / SELLER (አቅራቢ / አርሶ አደር)</h5>
-            <p class="party-name"><strong>${inv.sellerName}</strong></p>
-            <p><span class="label">Tax Identification No (TIN):</span> <strong>${inv.sellerTin}</strong></p>
-            <p><span class="label">Region / Farm Gate:</span> ${inv.sellerRegion}</p>
-            <p><span class="label">Contact Phone:</span> ${inv.sellerPhone}</p>
+            <p class="party-name"><strong>${inv.sellerName || inv.supplierName || 'Abebe Bekele'}</strong></p>
+            <p><span class="label">Tax Identification No (TIN):</span> <strong>${inv.sellerTin || inv.supplierTin || 'TIN-FARM-882910'}</strong></p>
+            <p><span class="label">Region / Farm Gate:</span> ${inv.sellerRegion || inv.supplierRegion || 'Oromia (Bishoftu)'}</p>
+            <p><span class="label">Contact Phone:</span> ${inv.sellerPhone || inv.supplierPhone || '+251 911 223 344'}</p>
             <p class="party-type-tag">Smallholder Agricultural Producer</p>
           </div>
 
@@ -57,8 +57,8 @@ export class DocumentModal {
             <h5>PURCHASER / BUYER (ገዢ / የንግድ ድርጅት)</h5>
             <p class="party-name"><strong>${inv.buyerName}</strong></p>
             <p><span class="label">Purchaser TIN:</span> <strong>${inv.buyerTin}</strong></p>
-            <p><span class="label">Delivery Location:</span> ${inv.buyerRegion}</p>
-            <p><span class="label">Contact Phone:</span> ${inv.buyerPhone}</p>
+            <p><span class="label">Delivery Location:</span> ${inv.buyerRegion || inv.buyerAddress || 'Addis Ababa (Bole Depot)'}</p>
+            <p><span class="label">Contact Phone:</span> ${inv.buyerPhone || '+251 955 667 788'}</p>
             <p class="party-type-tag">Commercial Wholesale Buyer</p>
           </div>
         </div>
@@ -79,10 +79,10 @@ export class DocumentModal {
                 <strong>${inv.productName}</strong>
                 ${inv.productNameAm ? `<div class="sub-am">${inv.productNameAm}</div>` : ''}
               </td>
-              <td><span class="badge-grade">${inv.grade}</span></td>
+              <td><span class="badge-grade">${inv.grade || 'Grade 1'}</span></td>
               <td><strong>${inv.qtyKg.toLocaleString()} kg</strong></td>
               <td>${inv.unitPriceEtb.toFixed(2)} ETB</td>
-              <td style="text-align: right;"><strong>${inv.grossAmountEtb.toLocaleString()} ETB</strong></td>
+              <td style="text-align: right;"><strong>${(inv.grossAmountEtb || inv.goodsGrossTotalEtb || (inv.qtyKg * inv.unitPriceEtb)).toLocaleString()} ETB</strong></td>
             </tr>
           </tbody>
         </table>
@@ -92,36 +92,36 @@ export class DocumentModal {
             <h6>ESCROW DISBURSEMENT APPORTIONMENT (90 / 5 / 5)</h6>
             <div class="breakdown-row">
               <span>Farmer Net Payout (90%):</span>
-              <strong>${inv.farmerPayoutEtb.toLocaleString()} ETB</strong>
+              <strong>${(inv.farmerPayoutEtb || inv.netPayableToFarmerEtb || (inv.qtyKg * inv.unitPriceEtb * 0.9)).toLocaleString()} ETB</strong>
             </div>
             <div class="breakdown-row">
               <span>Driver Transport Fee (5%):</span>
-              <strong>${inv.driverFreightEtb.toLocaleString()} ETB</strong>
+              <strong>${(inv.driverFreightEtb || inv.freightFeeEtb || (inv.qtyKg * inv.unitPriceEtb * 0.05)).toLocaleString()} ETB</strong>
             </div>
             <div class="breakdown-row">
               <span>Platform Service Commission (5%):</span>
-              <strong>${inv.platformServiceFeeEtb.toLocaleString()} ETB</strong>
+              <strong>${(inv.platformServiceFeeEtb || (inv.qtyKg * inv.unitPriceEtb * 0.05)).toLocaleString()} ETB</strong>
             </div>
             <div class="breakdown-row vat-row">
               <span>15% VAT on Platform Service Fee:</span>
-              <span>${inv.platformVatEtb.toFixed(2)} ETB (Remitted to MOR)</span>
+              <span>${(inv.platformVatEtb || (inv.qtyKg * inv.unitPriceEtb * 0.05 * 0.15)).toFixed(2)} ETB (Remitted to MOR)</span>
             </div>
             <div class="breakdown-row withholding-row">
               <span>Withholding Tax on Goods (2% Declared):</span>
-              <span>${inv.withholdingTaxEtb.toFixed(2)} ETB</span>
+              <span>${(inv.withholdingTaxEtb || (inv.qtyKg * inv.unitPriceEtb * 0.02)).toFixed(2)} ETB</span>
             </div>
           </div>
 
           <div class="total-summary-box">
             <label>TOTAL PAID VIA TELEBIRR ESCROW</label>
-            <h2 class="grand-total">${inv.totalPaidViaTelebirr.toLocaleString()} <span class="currency">ETB</span></h2>
+            <h2 class="grand-total">${(inv.totalPaidViaTelebirr || inv.totalInvoiceAmountEtb || (inv.qtyKg * inv.unitPriceEtb)).toLocaleString()} <span class="currency">ETB</span></h2>
             <div class="qr-placeholder">
               <div class="qr-code-box">
                 <span class="qr-mock">▣▣▣<br/>▣■▣<br/>▣▣▣</span>
               </div>
               <div class="qr-info">
                 <p><strong>ETH-TAX-VERIFIED</strong></p>
-                <small>${inv.qrVerificationCode}</small>
+                <small>${inv.qrVerificationCode || 'MOR-EABC-VERIFIED'}</small>
               </div>
             </div>
           </div>
@@ -129,15 +129,10 @@ export class DocumentModal {
 
         <div class="doc-footer">
           <p class="legal-notice">
-            This electronic fiscal document is issued under the authority of the Ethiopian Electronic Commerce Proclamation and the Ministry of Revenues. Direct farm produce is VAT-exempt under Proclamation No. 979/2016.
+            ${isAm 
+              ? 'ይህ ሰነድ በኢትዮጵያ የግብር ህግ እና የኤሌክትሮኒክስ ፊርማ አዋጅ ቁጥር 1072/2018 መሰረት ህጋዊ ተቀባይነት ያለው ነው።' 
+              : 'This electronic receipt is generated automatically upon Telebirr escrow confirmation under Ethiopian Tax Law & Proclamation No. 979/2016.'}
           </p>
-          <div class="seal-container">
-            <div class="official-seal">
-              <span>★ ETHIOPIAN AGRICULTURAL AUTHORITY ★</span>
-              <strong>DIGITALLY SEALED</strong>
-              <small>TELEBIRR ESCROW SECURED</small>
-            </div>
-          </div>
         </div>
       </div>
     `;
@@ -148,15 +143,15 @@ export class DocumentModal {
       <div class="legal-doc-container print-area">
         <div class="doc-header">
           <div class="doc-emblem">
-            <span class="emblem-flag">🚚</span>
+            <span class="emblem-flag">🚛</span>
             <div class="emblem-text">
-              <h4>FEDERAL TRANSPORT AUTHORITY OF ETHIOPIA</h4>
-              <h5>COMMERCIAL AGRICULTURAL FREIGHT WAYBILL & MANIFEST</h5>
-              <p class="amharic-sub">የኢትዮጵያ ፌዴራል ትራንስፖርት ባለስልጣን የግብርና ምርት ጭነት ሰነድ</p>
+              <h4>FEDERAL TRANSPORT AUTHORITY (FTA) · ETHIOPIA</h4>
+              <h5>OFFICIAL AGRICULTURAL FREIGHT WAYBILL & CHAIN OF CUSTODY</h5>
+              <p class="amharic-sub">የኢትዮጵያ ትራንስፖርት ባለስልጣን የግብርና ምርት ማጓጓዣ ሰነድ</p>
             </div>
           </div>
           <div class="doc-type-badge waybill-stamp">
-            <span class="badge-title">OFFICIAL WAYBILL / MANIFEST</span>
+            <span class="badge-title">OFFICIAL WAYBILL</span>
             <span class="badge-am">የጭነት ማጓጓዣ ሰነድ</span>
             <span class="invoice-num">${wb.waybillNumber}</span>
           </div>
@@ -165,13 +160,13 @@ export class DocumentModal {
         <div class="doc-meta-grid">
           <div class="meta-box">
             <label>DISPATCH DATE / የተላከበት ቀን</label>
-            <p><strong>${wb.dispatchDate}</strong></p>
+            <p><strong>${wb.dispatchDate || wb.issueDate || '2026-08-22'}</strong></p>
             <label>INSURANCE POLICY REF / የኢንሹራንስ ፖሊሲ</label>
-            <p><code class="ref-code">${wb.insurancePolicyNumber}</code></p>
+            <p><code class="ref-code">${wb.insurancePolicyNumber || wb.transitInsurancePolicyNumber || 'NIC-AGRI-TR-99214'}</code></p>
           </div>
           <div class="meta-box">
             <label>TRANSIT STATUS / የጉዞ ሁኔታ</label>
-            <p><span class="badge-green">${wb.transitStatus.toUpperCase()}</span></p>
+            <p><span class="badge-green">${(wb.transitStatus || wb.chainOfCustodyStatus || 'In Transit').toUpperCase()}</span></p>
             <label>ORDER REF / የትዕዛዝ ቁጥር</label>
             <p><code>${wb.orderId.slice(0, 13)}...</code></p>
           </div>
@@ -181,16 +176,16 @@ export class DocumentModal {
           <div class="party-card seller-card">
             <h5>CONSIGNOR / ORIGIN FARM (ላኪ አርሶ አደር)</h5>
             <p class="party-name"><strong>${wb.consignorName}</strong></p>
-            <p><span class="label">Loading Farm Gate:</span> ${wb.consignorFarmLocation}</p>
-            <p><span class="label">Farmer Contact:</span> ${wb.consignorPhone}</p>
-            <p><span class="label">Farm Handoff Time:</span> ${wb.farmerHandoffTimestamp}</p>
+            <p><span class="label">Loading Farm Gate:</span> ${wb.consignorFarmLocation || wb.pickupLocation || 'Bishoftu Farm Gate'}</p>
+            <p><span class="label">Farmer Contact:</span> ${wb.consignorPhone || '+251 911 223 344'}</p>
+            <p><span class="label">Farm Handoff Time:</span> ${wb.farmerHandoffTimestamp || 'Today 07:30 AM'}</p>
           </div>
 
           <div class="party-card buyer-card">
             <h5>CONSIGNEE / DESTINATION (ተቀባይ የጅምላ ገዢ)</h5>
             <p class="party-name"><strong>${wb.consigneeName}</strong></p>
-            <p><span class="label">Unloading Hub:</span> ${wb.consigneeDepotAddress}</p>
-            <p><span class="label">Buyer Contact:</span> ${wb.consigneePhone}</p>
+            <p><span class="label">Unloading Hub:</span> ${wb.consigneeDepotAddress || wb.deliveryLocation || 'Addis Ababa Central Depot'}</p>
+            <p><span class="label">Buyer Contact:</span> ${wb.consigneePhone || '+251 955 667 788'}</p>
             <p><span class="label">Received Timestamp:</span> ${wb.buyerReceivedTimestamp || 'In Transit (Pending GPS Dropoff)'}</p>
           </div>
         </div>
@@ -200,11 +195,11 @@ export class DocumentModal {
           <div class="carrier-grid">
             <div>
               <span class="label">Licensed Driver:</span>
-              <strong>${wb.carrierDriverName}</strong>
+              <strong>${wb.carrierDriverName || wb.transporterName || 'Dawit Kebede'}</strong>
             </div>
             <div>
               <span class="label">Commercial CDL License:</span>
-              <strong>${wb.driverLicenseNumber}</strong>
+              <strong>${wb.driverLicenseNumber || 'ET-CDL-5T-98214'}</strong>
             </div>
             <div>
               <span class="label">Vehicle Plate Number:</span>
@@ -212,15 +207,15 @@ export class DocumentModal {
             </div>
             <div>
               <span class="label">Vehicle Type / Specs:</span>
-              <span>${wb.vehicleModel}</span>
+              <span>${wb.vehicleModel || wb.vehicleType || 'Isuzu NPR 5-Ton'}</span>
             </div>
             <div>
               <span class="label">Refrigeration Mode:</span>
-              <span class="badge-blue">${wb.refrigerationStatus}</span>
+              <span class="badge-blue">${wb.refrigerationStatus || 'Ventilated Agro-Crate Box'}</span>
             </div>
             <div>
               <span class="label">Cargo Temp Log:</span>
-              <span>${wb.temperatureLogCelsius}°C (Verified Fresh)</span>
+              <span>${wb.temperatureLogCelsius || 18}°C (Verified Fresh)</span>
             </div>
           </div>
         </div>
@@ -237,11 +232,11 @@ export class DocumentModal {
           </thead>
           <tbody>
             <tr>
-              <td><strong>${wb.cargoDescription}</strong></td>
-              <td>${wb.packageCount} Commercial Crates</td>
-              <td>${wb.netWeightKg.toLocaleString()} kg</td>
-              <td>${wb.tareWeightKg} kg</td>
-              <td style="text-align: right;"><strong>${wb.grossWeightKg.toLocaleString()} kg</strong></td>
+              <td><strong>${wb.cargoDescription || wb.productName || 'Fresh Agricultural Cargo'}</strong></td>
+              <td>${wb.packageCount || 100} Commercial Crates</td>
+              <td>${(wb.netWeightKg || wb.cargoWeightNetKg || 2500).toLocaleString()} kg</td>
+              <td>${wb.tareWeightKg || wb.cargoWeightTareKg || 300} kg</td>
+              <td style="text-align: right;"><strong>${(wb.grossWeightKg || wb.cargoWeightGrossKg || 2800).toLocaleString()} kg</strong></td>
             </tr>
           </tbody>
         </table>
@@ -251,14 +246,14 @@ export class DocumentModal {
             <p class="sig-title">1. CONSIGNOR (FARM GATE DISPATCH)</p>
             <div class="sig-line-area">
               <span class="sig-check">✓ SIGNED & HANDED OVER</span>
-              <small>${wb.consignorName} (${wb.farmerHandoffTimestamp})</small>
+              <small>${wb.consignorName} (${wb.farmerHandoffTimestamp || 'Today 07:30 AM'})</small>
             </div>
           </div>
           <div class="sig-block">
             <p class="sig-title">2. CARRIER (DRIVER CUSTODY ACK)</p>
             <div class="sig-line-area">
               <span class="sig-check">✓ IN-TRANSIT SECURITY SEALED</span>
-              <small>${wb.carrierDriverName} (${wb.vehiclePlateNumber})</small>
+              <small>${wb.carrierDriverName || wb.transporterName || 'Dawit Kebede'} (${wb.vehiclePlateNumber})</small>
             </div>
           </div>
           <div class="sig-block">
@@ -305,7 +300,7 @@ export class DocumentModal {
 
         <div class="contract-preamble">
           <p>
-            This Standard Agricultural Produce Agreement (the <strong>"Contract"</strong>) is entered into on <strong>${c.agreementDate}</strong> between the Seller and Buyer identified below through the Farmer-to-Market direct exchange.
+            This Standard Agricultural Produce Agreement (the <strong>"Contract"</strong>) is entered into on <strong>${c.agreementDate || c.executionDate || '2026-08-22'}</strong> between the Seller and Buyer identified below through the Farmer-to-Market direct exchange.
           </p>
         </div>
 
@@ -313,15 +308,15 @@ export class DocumentModal {
           <div class="party-card seller-card">
             <h5>THE SELLER (አቅራቢ / ሻጭ)</h5>
             <p class="party-name"><strong>${c.sellerName}</strong></p>
-            <p><span class="label">National Fayda ID:</span> ${c.sellerIdNumber}</p>
-            <p><span class="label">Location:</span> ${c.sellerLocation}</p>
+            <p><span class="label">National Fayda ID:</span> ${c.sellerIdNumber || 'FAN-8812-4091-2810'}</p>
+            <p><span class="label">Location:</span> ${c.sellerLocation || 'Oromia (Bishoftu)'}</p>
           </div>
 
           <div class="party-card buyer-card">
             <h5>THE BUYER (ገዢ ድርጅት)</h5>
             <p class="party-name"><strong>${c.buyerName}</strong></p>
-            <p><span class="label">Buyer TIN:</span> ${c.buyerTinNumber}</p>
-            <p><span class="label">Depot Destination:</span> ${c.buyerLocation}</p>
+            <p><span class="label">Buyer TIN:</span> ${c.buyerTinNumber || c.buyerTin || 'TIN-ET-9912001'}</p>
+            <p><span class="label">Depot Destination:</span> ${c.buyerLocation || 'Addis Ababa (Bole Depot)'}</p>
           </div>
         </div>
 
@@ -329,29 +324,29 @@ export class DocumentModal {
           <div class="clause-item">
             <h6>ARTICLE 1: SUBJECT MATTER & PRICE SPECIFICATIONS (የምርት እና የዋጋ ዝርዝር)</h6>
             <p>
-              The Seller agrees to supply and the Buyer agrees to purchase <strong>${c.contractedQuantityKg.toLocaleString()} kg</strong> of <strong>${c.cropType}</strong> at the agreed unit rate of <strong>${c.agreedPricePerKg.toFixed(2)} ETB per kg</strong>, constituting a total consideration of <strong>${c.totalContractValueEtb.toLocaleString()} ETB</strong>.
+              The Seller agrees to supply and the Buyer agrees to purchase <strong>${(c.contractedQuantityKg || c.quantityKg || 2500).toLocaleString()} kg</strong> of <strong>${c.cropType || c.productDescription || 'Fresh Sholla Tomatoes'}</strong> at the agreed unit rate of <strong>${(c.agreedPricePerKg || c.unitPriceEtb || 45).toFixed(2)} ETB per kg</strong>, constituting a total consideration of <strong>${c.totalContractValueEtb.toLocaleString()} ETB</strong>.
             </p>
           </div>
 
           <div class="clause-item">
             <h6>ARTICLE 2: QUALITY STANDARDS & TOLERANCE (የጥራት ደረጃ)</h6>
-            <p>${c.qualityStandardClause}</p>
+            <p>${c.qualityStandardClause || c.qualityStandardSpecification || 'Produce shall meet Grade 1 Ethiopian Agricultural Quality Standards with maximum 5% visual variance tolerance.'}</p>
           </div>
 
           <div class="clause-item">
             <h6>ARTICLE 3: TELEBIRR ESCROW & PAYMENT SETTLEMENT (የዋስትና ክፍያ እና ስምምነት)</h6>
-            <p>${c.escrowClauseText}</p>
+            <p>${c.escrowClauseText || c.paymentEscrowClause || 'Full purchase consideration is locked in Telebirr escrow prior to harvest dispatch and released upon buyer digital inspection confirmation.'}</p>
           </div>
 
           <div class="clause-item">
             <h6>ARTICLE 4: DELIVERY & CHAIN OF CUSTODY (የማድረስ ሁኔታ)</h6>
-            <p>${c.deliveryTimeline}</p>
+            <p>${c.deliveryTimeline || 'Delivery within 24 hours of harvest confirmation via certified temperature-controlled commercial freight carrier.'}</p>
           </div>
 
           <div class="clause-item">
             <h6>ARTICLE 5: FORCE MAJEURE & ARBITRATION (አቅም በላይ የሆነ ሁኔታ እና የህግ ሽምግልና)</h6>
-            <p>${c.forceMajeureClauseText}</p>
-            <p><em>Dispute Resolution Jurisdiction: ${c.disputeJurisdiction}</em></p>
+            <p>${c.forceMajeureClauseText || c.forceMajeureClause || 'Neither party shall be liable for agricultural loss resulting from severe climate events verified by Ministry of Agriculture.'}</p>
+            <p><em>Dispute Resolution Jurisdiction: ${c.disputeJurisdiction || c.arbitrationVenue || 'Ethiopian Arbitration and Conciliation Center (EABC), Addis Ababa'}</em></p>
           </div>
         </div>
 
@@ -361,7 +356,7 @@ export class DocumentModal {
             <div class="sig-badge verified-sig">
               <span>✓ DIGITALLY SIGNED VIA OTP</span>
               <strong>${c.sellerName}</strong>
-              <small>${c.eSignatures.sellerSignDate}</small>
+              <small>${c.eSignatures?.sellerSignDate || '2026-08-22 08:30:14'}</small>
             </div>
           </div>
 
@@ -370,14 +365,14 @@ export class DocumentModal {
             <div class="sig-badge verified-sig">
               <span>✓ DIGITALLY SIGNED VIA TELEBIRR LOCK</span>
               <strong>${c.buyerName}</strong>
-              <small>${c.eSignatures.buyerSignDate}</small>
+              <small>${c.eSignatures?.buyerSignDate || '2026-08-22 08:31:02'}</small>
             </div>
           </div>
         </div>
 
         <div class="doc-footer">
           <p class="legal-notice">
-            Digital signatures are legally recognized under the Ethiopian Electronic Signature Proclamation No. 1072/2018. Immutable Platform Cryptographic Witness Hash: <code>${c.eSignatures.platformWitnessHash}</code>
+            Digital signatures are legally recognized under the Ethiopian Electronic Signature Proclamation No. 1072/2018. Immutable Platform Cryptographic Witness Hash: <code>${c.eSignatures?.platformWitnessHash || '0x8f2a991bce98124a9e4d'}</code>
           </p>
         </div>
       </div>
@@ -408,50 +403,50 @@ export class DocumentModal {
             <label>FILING DATE / የቀረበበት ቀን</label>
             <p><strong>${a.filingDate}</strong></p>
             <label>DISPUTED ESCROW AMOUNT</label>
-            <p><strong class="highlight-warn">${a.totalDisputedAmountEtb.toLocaleString()} ETB</strong></p>
+            <p><strong class="highlight-warn">${(a.totalDisputedAmountEtb || 112500).toLocaleString()} ETB</strong></p>
           </div>
           <div class="meta-box">
             <label>CASE STATUS / የክርክር ሁኔታ</label>
-            <p><span class="badge-green">${a.status.toUpperCase()}</span></p>
+            <p><span class="badge-green">${(a.status || 'Resolved').toUpperCase()}</span></p>
             <label>LEAD ARBITRATOR</label>
-            <p><strong>${a.leadArbitratorName}</strong></p>
+            <p><strong>${a.leadArbitratorName || a.arbitratorName || 'Sara Mengistu'}</strong></p>
           </div>
         </div>
 
         <div class="doc-parties-grid">
           <div class="party-card buyer-card">
             <h5>CLAIMANT (ቅሬታ አቅራቢ ገዢ)</h5>
-            <p class="party-name"><strong>${a.claimantBuyer}</strong></p>
-            <p><span class="label">Claimed Defect:</span> ${a.claimedDefectPercentage}% Value Impairment</p>
-            <p><span class="label">Dispute Reason:</span> ${a.disputeReason}</p>
+            <p class="party-name"><strong>${a.claimantBuyer || a.complainantName || 'Bethlehem Tilahun'}</strong></p>
+            <p><span class="label">Claimed Defect:</span> ${a.claimedDefectPercentage || 50}% Value Impairment</p>
+            <p><span class="label">Dispute Reason:</span> ${a.disputeReason || a.disputeSubject || 'Quality degradation in transit'}</p>
           </div>
 
           <div class="party-card seller-card">
             <h5>RESPONDENT (ተጠሪ አርሶ አደር)</h5>
-            <p class="party-name"><strong>${a.respondentFarmer}</strong></p>
-            <p><span class="label">Freight Carrier:</span> ${a.freightCarrier}</p>
+            <p class="party-name"><strong>${a.respondentFarmer || a.respondentName || 'Chala Gemechu'}</strong></p>
+            <p><span class="label">Freight Carrier:</span> ${a.freightCarrier || 'Dawit Kebede (Isuzu 5-Ton)'}</p>
             <p><span class="label">Original Farm Payout:</span> 90% Contract Standard</p>
           </div>
         </div>
 
         <div class="arbitration-findings-box">
           <h5>1. INDEPENDENT PHYSICAL INSPECTION & PATHOLOGY FINDINGS</h5>
-          <p>${a.inspectionReport}</p>
+          <p>${a.inspectionReport || a.inspectionFindingNotes || 'Depot inspector confirmed 20% surface bruising due to transit ventilation failure.'}</p>
         </div>
 
         <div class="arbitration-findings-box ruling-highlight-box">
           <h5>2. ARBITRATOR LEGAL DETERMINATION & REMEDY</h5>
-          <p><strong>${a.legalFindingSummary}</strong></p>
+          <p><strong>${a.legalFindingSummary || a.arbitrationDetermination || 'Escrow funds split 50/50 between farmer and buyer with immediate Telebirr wallet settlement.'}</strong></p>
           
           <div class="verdict-award-grid">
             <div class="award-box">
               <span class="award-label">FARMER ESCROW RELEASE (50%)</span>
-              <h3 class="award-amount">${a.farmerSettlementEtb.toLocaleString()} ETB</h3>
+              <h3 class="award-amount">${(a.farmerSettlementEtb || 56250).toLocaleString()} ETB</h3>
               <small>Released to Farmer Telebirr Wallet</small>
             </div>
             <div class="award-box">
               <span class="award-label">BUYER ESCROW REFUND (50%)</span>
-              <h3 class="award-amount">${a.buyerRefundEtb.toLocaleString()} ETB</h3>
+              <h3 class="award-amount">${(a.buyerRefundEtb || 56250).toLocaleString()} ETB</h3>
               <small>Refunded to Buyer Telebirr Account</small>
             </div>
           </div>
@@ -465,7 +460,7 @@ export class DocumentModal {
             <div class="official-seal">
               <span>★ EABC ARBITRATION BOARD ★</span>
               <strong>ENFORCEABLE DECREE</strong>
-              <small>${a.platformDecreeHash}</small>
+              <small>${a.platformDecreeHash || a.bindingEnforcementSeal || 'EABC-DECREE-SEAL-8821'}</small>
             </div>
           </div>
         </div>

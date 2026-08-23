@@ -8,6 +8,8 @@ import { renderBuyerView } from './components/BuyerView';
 import { renderFarmerView } from './components/FarmerView';
 import { renderDriverView } from './components/DriverView';
 import { renderAdminView } from './components/AdminView';
+import { AgentView } from './components/AgentView';
+import { VerificationWizardModal } from './components/VerificationWizardModal';
 import { renderNotificationsModal } from './components/NotificationsModal';
 import { renderAuthModal } from './components/AuthModal';
 import { documentModal } from './components/DocumentModal';
@@ -77,6 +79,10 @@ class App {
   private matchedUserName: string = '';
   private matchedUserRole: string = '';
   private authErrorMessage: string = '';
+
+  // Field Agent & Verification Modals
+  private agentView: AgentView = new AgentView(this.lang);
+  private verificationWizardModal: VerificationWizardModal = new VerificationWizardModal(this.lang);
 
   constructor() {
     this.init();
@@ -179,6 +185,9 @@ class App {
         api.getRegionalAnalytics(),
         this.activeAdminTab
       );
+    } else if (this.activeTab === 'agent' || (isAuthenticated && currentUser?.role === 'agent')) {
+      this.agentView.setLanguage(this.lang);
+      viewHtml = this.agentView.render();
     } else {
       // Default Wholesale Produce Marketplace (for Buyers or Logged Out Guests)
       const buyerOrders = api.getOrders('buyer');
@@ -282,6 +291,9 @@ class App {
       
       <!-- Notifications Modal -->
       ${this.isNotificationsModalOpen ? renderNotificationsModal(this.lang, notifications) : ''}
+
+      <!-- Verification Wizard Modal Container -->
+      <div id="verificationWizardModal"></div>
 
       <!-- Official Legal Document Viewer Modal -->
       ${this.activeLegalDocModal?.isOpen ? `
@@ -419,6 +431,52 @@ class App {
       this.activeRipeness = 'All';
       this.organicOnly = false;
       this.advanceOnly = false;
+      this.render();
+    };
+
+    // Farmer Create Listing Modal & Submission Handlers
+    w.toggleCreateListingModal = () => {
+      this.isCreateListingModalOpen = !this.isCreateListingModalOpen;
+      this.render();
+    };
+
+    w.handleCreateListingSubmit = async (e: Event) => {
+      e.preventDefault();
+      const prodName = (document.getElementById('newProdName') as HTMLInputElement)?.value;
+      const prodNameAm = (document.getElementById('newProdNameAm') as HTMLInputElement)?.value;
+      const category = (document.getElementById('newCategory') as HTMLSelectElement)?.value || 'Vegetables';
+      const qtyKg = Number((document.getElementById('newQtyKg') as HTMLInputElement)?.value || 1000);
+      const pricePerKg = Number((document.getElementById('newPricePerKg') as HTMLInputElement)?.value || 45);
+      const minOrderKg = Number((document.getElementById('newMinOrderKg') as HTMLInputElement)?.value || 50);
+      const grade = (document.getElementById('newGrade') as HTMLSelectElement)?.value || 'Grade 1';
+      const ripeness = (document.getElementById('newRipeness') as HTMLSelectElement)?.value || 'Ready Today';
+      const isAdvance = (document.getElementById('newIsAdvanceHarvest') as HTMLInputElement)?.checked || false;
+      const expectedHarvest = (document.getElementById('newExpectedHarvestDate') as HTMLInputElement)?.value || undefined;
+      const voiceTranscript = (document.getElementById('voiceTranscriptText') as HTMLElement)?.innerText?.replace(/^"|"$/g, '') || undefined;
+
+      const user = api.getCurrentUser();
+      const newListing = await api.createListing({
+        productName: prodName,
+        nameAm: prodNameAm || undefined,
+        category,
+        qtyKg,
+        pricePerKg,
+        minOrderKg,
+        grade,
+        ripeness,
+        isAdvanceHarvest: isAdvance,
+        expectedHarvestDate: expectedHarvest,
+        voiceNoteTranscript: voiceTranscript,
+        farmerId: user?.id,
+        farmerName: user?.name,
+        farmerNameAm: user?.nameAm,
+        farmerPhone: user?.phone,
+        region: user?.region
+      });
+
+      this.isCreateListingModalOpen = false;
+      confetti({ particleCount: 90, spread: 60, origin: { y: 0.6 } });
+      showToast(this.lang === 'am' ? 'አዲስ ምርት በተሳካ ሁኔታ ተመዝግቧል!' : `Published ${newListing.productName} successfully!`, 'fa-circle-check');
       this.render();
     };
 
@@ -953,7 +1011,117 @@ class App {
       showToast(this.lang === 'am' ? 'የኤስኤምኤስ መልእክት ለአርሶ አደሮች ተልኳል!' : 'SMS Broadcast sent to smallholders via Twilio!', 'fa-paper-plane');
       this.render();
     };
+
+    // ==================== VERIFICATION & FIELD AGENT HANDLERS ====================
+    w.openVerificationWizard = (step: number = 1) => {
+      this.verificationWizardModal.setLanguage(this.lang);
+      this.verificationWizardModal.open(step);
+    };
+
+    w.closeVerificationWizard = () => {
+      this.verificationWizardModal.close();
+    };
+
+    w.setWizardStep = (step: number) => {
+      this.verificationWizardModal.setStep(step);
+    };
+
+    w.updateWizardField = (field: 'fayda' | 'tin' | 'kebele', value: string) => {
+      this.verificationWizardModal.updateField(field, value);
+    };
+
+    w.submitVerificationForm = async () => {
+      await this.verificationWizardModal.submit();
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      showToast(this.lang === 'am' ? 'ሰነዶችዎ ደርሰውናል! በ24 ሰዓት ውስጥ ይገመገማሉ።' : 'Documents submitted! Verification under 24-hour review.', 'fa-shield-check', 'border-emerald-500');
+      this.render();
+    };
+
+    w.switchAgentTab = (tab: 'register' | 'roster' | 'ussd_sim') => {
+      this.agentView.switchTab(tab);
+      this.render();
+    };
+
+    w.setUssdInput = (code: string) => {
+      this.agentView.setUssdInput(code);
+    };
+
+    w.sendUssdCommand = async () => {
+      await this.agentView.executeUssd();
+    };
+
+    w.sendInboundSms = async () => {
+      const inputEl = document.getElementById('inboundSmsBody') as HTMLInputElement;
+      const text = inputEl?.value || 'FAYDA FAN-8812-4091-2810';
+      showToast(this.lang === 'am' ? `የኤስኤምኤስ ትዕዛዝ ተቀብለናል፡ "${text}"` : `Inbound SMS processed: "${text}"`, 'fa-comment-sms', 'border-blue-500');
+      await api.refreshAllData();
+      this.render();
+    };
+
+    w.handleAgentRegisterSubmit = async (e: Event) => {
+      e.preventDefault();
+      const name = (document.getElementById('agFarmerName') as HTMLInputElement).value;
+      const nameAm = (document.getElementById('agFarmerNameAm') as HTMLInputElement)?.value;
+      const phone = (document.getElementById('agFarmerPhone') as HTMLInputElement).value;
+      const region = (document.getElementById('agFarmerRegion') as HTMLSelectElement).value;
+      const kebele = (document.getElementById('agFarmerKebele') as HTMLInputElement)?.value;
+      const crop = (document.getElementById('agFarmerCrop') as HTMLInputElement)?.value;
+      const fayda = (document.getElementById('agFarmerFayda') as HTMLInputElement)?.value;
+      const tin = (document.getElementById('agFarmerTin') as HTMLInputElement)?.value;
+
+      try {
+        await api.agentRegisterFarmer({
+          name,
+          nameAm,
+          phone,
+          region,
+          kebele,
+          primaryCrop: crop,
+          faydaId: fayda,
+          tinNumber: tin
+        });
+
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        showToast(this.lang === 'am' ? `${name} ተመዝግቧል! የማረጋገጫ ኤስኤምኤስ ተልኳል።` : `Farmer ${name} registered! Welcome SMS dispatched.`, 'fa-user-check', 'border-emerald-500');
+        this.agentView.switchTab('roster');
+        this.render();
+      } catch (err: any) {
+        showToast('Registration failed: ' + err.message, 'fa-circle-xmark', 'border-red-500');
+      }
+    };
+
+    w.sendAgentFarmerSms = (phone: string) => {
+      showToast(this.lang === 'am' ? `ኤስኤምኤስ ወደ ${phone} ተልኳል!` : `SMS dispatch sent to ${phone}!`, 'fa-paper-plane', 'border-blue-500');
+    };
+
+    w.adminReviewVerification = async (userId: string, action: 'Approve' | 'Reject') => {
+      let notes: string | undefined;
+      let rejectionReason: string | undefined;
+
+      if (action === 'Reject') {
+        rejectionReason = prompt(
+          this.lang === 'am'
+            ? 'እባክዎ ውድቅ የተደረገበትን ምክንያት ያስገቡ (ለምሳሌ፡ የፋይዳ ፎቶው ግልጽ አይደለም / የታክስ ቁጥር አልተገኘም):'
+            : 'Enter rejection reason to notify the user via SMS (e.g. Blurry ID photo / TIN mismatch):',
+          'Blurry Fayda ID photo. Please re-upload clear image.'
+        ) || undefined;
+
+        if (!rejectionReason) return; // User cancelled prompt
+      } else {
+        notes = 'Identity & TIN verified against Ministry of Revenues registry.';
+      }
+
+      await api.reviewVerification(userId, action, notes, rejectionReason);
+      if (action === 'Approve') {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        showToast(this.lang === 'am' ? 'የተጠቃሚው ማረጋገጫ ጸድቋል! የኤስኤምኤስ መልእክት ተልኳል።' : 'User account APPROVED! SMS confirmation dispatched.', 'fa-circle-check', 'border-emerald-500');
+      } else {
+        showToast(this.lang === 'am' ? 'ማረጋገጫው ውድቅ ተደርጓል፤ ምክንያቱ በኤስኤምኤስ ተልኳል።' : 'Verification rejected & reason SMS sent to user.', 'fa-triangle-exclamation', 'border-amber-500');
+      }
+      this.render();
+    };
   }
 }
 
 new App();
+

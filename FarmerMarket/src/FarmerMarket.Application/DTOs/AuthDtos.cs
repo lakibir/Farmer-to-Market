@@ -35,6 +35,11 @@ public record UserDto(
     UserRole Role,
     string Region,
     bool Verified,
+    VerificationStatus VerificationStatus,
+    string? TinNumber,
+    string? KycDocumentNumber,
+    string? RejectionReason,
+    decimal? WalletBalanceEtb,
     DateTimeOffset CreatedAt
 );
 

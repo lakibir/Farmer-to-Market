@@ -88,6 +88,12 @@ public class TwilioSmsService(IConfiguration config, ILogger<TwilioSmsService> l
         return await SendTwilioSmsRawAsync(phone, msg, ct);
     }
 
+    public async Task<bool> SendVerificationNotificationAsync(string phone, string messageEn, string messageAm, CancellationToken ct = default)
+    {
+        var msg = $"{messageEn}\n{messageAm}";
+        return await SendTwilioSmsRawAsync(phone, msg, ct);
+    }
+
     public async Task<int> BroadcastAnnouncementAsync(string messageEn, string messageAm, string targetRole, CancellationToken ct = default)
     {
         var query = db.Users.AsQueryable();

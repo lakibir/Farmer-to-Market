@@ -12,6 +12,16 @@ public class User
     public string Region { get; set; } = "Addis Ababa";
     public bool Verified { get; set; } = false;
 
+    // Onboarding & Multi-Channel Registration Method
+    public string RegistrationMethod { get; set; } = "Self"; // Self, Agent
+    public Guid? RegisteredByAgentId { get; set; }
+    public User? RegisteredByAgent { get; set; }
+
+    // Verification Status Lifecycle & Rejection Feedback
+    public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Approved;
+    public string? RejectionReason { get; set; }
+    public string? TinNumber { get; set; }
+
     // Driver Vehicle & Capacity Profile
     public string? VehicleType { get; set; } = "Isuzu 5-Ton"; // Isuzu 5-Ton, Pickup 1.5-Ton, Sino 10-Ton, Bajaj
     public string? RefrigerationType { get; set; } = "Ventilated"; // Refrigerated, Ventilated, Standard
@@ -36,4 +46,6 @@ public class User
     public ICollection<Review> ReviewsGiven { get; set; } = new List<Review>();
     public ICollection<Review> ReviewsReceived { get; set; } = new List<Review>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public ICollection<UserDocument> Documents { get; set; } = new List<UserDocument>();
+    public ICollection<VerificationReview> VerificationReviews { get; set; } = new List<VerificationReview>();
 }

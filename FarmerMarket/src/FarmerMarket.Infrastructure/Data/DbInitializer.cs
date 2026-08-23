@@ -47,6 +47,39 @@ public static class DbInitializer
             // Run idempotent ALTER TABLE statements to add any missing columns in existing PostgreSQL databases
             var sqlCommands = new[]
             {
+                // Users table verification and agent columns
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""RegistrationMethod"" character varying(50) DEFAULT 'Self';",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""RegisteredByAgentId"" uuid;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""VerificationStatus"" integer DEFAULT 2;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""RejectionReason"" character varying(500);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""TinNumber"" character varying(100);",
+
+                // UserDocuments table
+                @"CREATE TABLE IF NOT EXISTS ""UserDocuments"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL REFERENCES ""Users""(""Id"") ON DELETE CASCADE,
+                    ""DocumentType"" integer NOT NULL,
+                    ""DocumentNumber"" character varying(100) NOT NULL,
+                    ""FrontImageUrl"" character varying(500),
+                    ""BackImageUrl"" character varying(500),
+                    ""FileUrl"" character varying(500),
+                    ""Status"" integer NOT NULL DEFAULT 1,
+                    ""RejectionReason"" character varying(500),
+                    ""SubmittedAt"" timestamp with time zone NOT NULL,
+                    ""ReviewedAt"" timestamp with time zone
+                );",
+
+                // VerificationReviews table
+                @"CREATE TABLE IF NOT EXISTS ""VerificationReviews"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL REFERENCES ""Users""(""Id"") ON DELETE CASCADE,
+                    ""ReviewerId"" uuid NOT NULL REFERENCES ""Users""(""Id""),
+                    ""DocumentId"" uuid,
+                    ""ActionTaken"" character varying(100) NOT NULL,
+                    ""Notes"" character varying(1000),
+                    ""Timestamp"" timestamp with time zone NOT NULL
+                );",
+
                 // Users table
                 @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""VehicleType"" character varying(100);",
                 @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""RefrigerationType"" character varying(100);",
@@ -220,10 +253,72 @@ public static class DbInitializer
             Role = UserRole.Admin,
             Region = "Addis Ababa",
             Verified = true,
+            VerificationStatus = VerificationStatus.Approved,
             CreatedAt = DateTimeOffset.UtcNow.AddMonths(-5)
         };
 
-        context.Users.AddRange(farmerAbebe, farmerAlmaz, farmerChala, buyerBethlehem, driverDawit, adminSara);
+        var agentKassahun = new User
+        {
+            Id = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+            Phone = "+251988776655",
+            Name = "Kassahun Tolessa (Field Agent)",
+            NameAm = "ካሳሁን ቶለሳ (የገበሬዎች ድጋፍ ኤጀንት)",
+            Role = UserRole.Agent,
+            Region = "Oromia (East Shewa / Bishoftu)",
+            Verified = true,
+            VerificationStatus = VerificationStatus.Approved,
+            KycDocumentType = "Cooperative Agent Certificate",
+            KycDocumentNumber = "COOP-AG-98214",
+            KycStatus = "Verified",
+            TinNumber = "TIN-AG-881920",
+            CreatedAt = DateTimeOffset.UtcNow.AddMonths(-4)
+        };
+
+        var farmerGirma = new User
+        {
+            Id = Guid.Parse("88888888-8888-8888-8888-888888888888"),
+            Phone = "+251944556677",
+            Name = "Girma Wondimu",
+            NameAm = "ግርማ ወንዲሙ",
+            Role = UserRole.Farmer,
+            Region = "Oromia (Bishoftu / Ada'a)",
+            Verified = false,
+            RegistrationMethod = "Agent",
+            RegisteredByAgentId = agentKassahun.Id,
+            VerificationStatus = VerificationStatus.UnderReview,
+            KycDocumentType = "National ID (Fayda)",
+            KycDocumentNumber = "FAN-8812-4091-2810",
+            TinNumber = "0099881122",
+            KycStatus = "Pending",
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
+        };
+
+        context.Users.AddRange(farmerAbebe, farmerAlmaz, farmerChala, buyerBethlehem, driverDawit, adminSara, agentKassahun, farmerGirma);
+
+        var docGirmaFayda = new UserDocument
+        {
+            Id = Guid.Parse("d1111111-1111-1111-1111-111111111111"),
+            UserId = farmerGirma.Id,
+            DocumentType = DocumentType.FaydaId,
+            DocumentNumber = "FAN-8812-4091-2810",
+            FrontImageUrl = "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
+            BackImageUrl = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80",
+            Status = VerificationStatus.UnderReview,
+            SubmittedAt = DateTimeOffset.UtcNow.AddDays(-1)
+        };
+
+        var docGirmaTin = new UserDocument
+        {
+            Id = Guid.Parse("d2222222-2222-2222-2222-222222222222"),
+            UserId = farmerGirma.Id,
+            DocumentType = DocumentType.TinCertificate,
+            DocumentNumber = "0099881122",
+            FrontImageUrl = "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600&auto=format&fit=crop&q=80",
+            Status = VerificationStatus.UnderReview,
+            SubmittedAt = DateTimeOffset.UtcNow.AddDays(-1)
+        };
+
+        context.UserDocuments.AddRange(docGirmaFayda, docGirmaTin);
 
         // 2. Listings with Voice Notes, Benchmarks, Grades, Ripeness, Advance Harvests
         var listingTomatoes = new Listing

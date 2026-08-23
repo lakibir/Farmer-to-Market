@@ -30,7 +30,7 @@ export function renderNotificationsModal(lang: Language, notifications: Notifica
                   <span class="px-2 py-0.5 rounded-full ${n.channel === 'sms' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'} uppercase">
                     ${n.channel === 'sms' ? 'Twilio SMS' : 'Push Notification'}
                   </span>
-                  <span class="text-slate-400">${new Date(n.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span class="text-slate-400">${new Date(n.sentAt || n.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
                 <p class="text-slate-800 font-medium leading-relaxed ${lang === 'am' ? 'lang-am' : ''}">
                   ${lang === 'am' && n.messageAm ? n.messageAm : n.messageEn}

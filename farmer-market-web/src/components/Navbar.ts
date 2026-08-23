@@ -17,6 +17,7 @@ export function renderNavbar(
     farmer: { label: 'Farmer / Producer', labelAm: 'አርሶ አደር', color: 'bg-emerald-100 text-emerald-900 border-emerald-300', icon: 'fa-seedling' },
     buyer: { label: 'Wholesale Buyer', labelAm: 'የጅምላ ገዢ', color: 'bg-blue-100 text-blue-900 border-blue-300', icon: 'fa-shopping-basket' },
     driver: { label: 'Freight Driver', labelAm: 'አጓጓዥ ሹፌር', color: 'bg-amber-100 text-amber-900 border-amber-300', icon: 'fa-truck-fast' },
+    agent: { label: 'Field Extension Agent', labelAm: 'የግብርና ድጋፍ ኤጀንት', color: 'bg-teal-100 text-teal-900 border-teal-300', icon: 'fa-users-gear' },
     admin: { label: 'Platform Admin', labelAm: 'አድሚን', color: 'bg-purple-100 text-purple-900 border-purple-300', icon: 'fa-shield-halved' }
   };
 
@@ -151,6 +152,18 @@ export function renderNavbar(
                     </div>
                   </div>
 
+                  <!-- Verification Status Banner in Dropdown -->
+                  <div class="p-2.5 rounded-xl ${currentUser.verificationStatus === 'Approved' || currentUser.verified ? 'bg-emerald-50 border border-emerald-200' : currentUser.verificationStatus === 'UnderReview' ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'} text-xs">
+                    <div class="flex items-center justify-between">
+                      <span class="font-bold ${currentUser.verificationStatus === 'Approved' || currentUser.verified ? 'text-emerald-900' : currentUser.verificationStatus === 'UnderReview' ? 'text-amber-900' : 'text-red-900'}">
+                        ${currentUser.verificationStatus === 'Approved' || currentUser.verified ? '🛡️ ' + (lang === 'am' ? 'የተረጋገጠ መለያ' : 'Fayda Verified') : currentUser.verificationStatus === 'UnderReview' ? '⏳ ' + (lang === 'am' ? 'በመገምገም ላይ' : 'Under Review') : '⚠️ ' + (lang === 'am' ? 'ማረጋገጫ ያስፈልጋል' : 'Unverified Account')}
+                      </span>
+                      <button onclick="window.openVerificationWizard()" class="text-[10px] font-bold underline cursor-pointer text-emerald-800">
+                        ${lang === 'am' ? 'ይመልከቱ' : 'Manage'}
+                      </button>
+                    </div>
+                  </div>
+
                   <!-- Quick Portal Navigation -->
                   <div class="space-y-1 text-xs font-bold text-slate-700">
                     <button onclick="window.navigateTab('${currentUser.role}');" class="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 hover:text-emerald-900 transition-colors flex items-center justify-between cursor-pointer">
@@ -158,6 +171,10 @@ export function renderNavbar(
                         <i class="fa-solid fa-gauge text-emerald-600"></i> My Portal Dashboard
                       </span>
                       <i class="fa-solid fa-arrow-right text-[10px] text-slate-400"></i>
+                    </button>
+
+                    <button onclick="window.openVerificationWizard();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 hover:text-emerald-900 transition-colors flex items-center gap-2 cursor-pointer">
+                      <i class="fa-solid fa-id-card text-emerald-600"></i> ${lang === 'am' ? 'የፋይዳ / የታክስ ማረጋገጫ' : 'Fayda & TIN Verification'}
                     </button>
 
                     ${currentUser.role === 'farmer' ? `
@@ -271,6 +288,13 @@ export function renderNavbar(
               <button onclick="window.navigateTab('driver')" 
                 class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'driver' ? 'bg-emerald-900 text-white font-bold shadow-xs' : 'hover:bg-slate-200/70 text-slate-700'} ${lang === 'am' ? 'lang-am' : ''}">
                 <i class="fa-solid fa-truck"></i> ${t.navDriverPortal}
+              </button>
+            ` : ''}
+
+            ${isAuthenticated && currentUser?.role === 'agent' ? `
+              <button onclick="window.navigateTab('agent')" 
+                class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'agent' ? 'bg-emerald-900 text-white font-bold shadow-xs' : 'hover:bg-slate-200/70 text-slate-700'} ${lang === 'am' ? 'lang-am' : ''}">
+                <i class="fa-solid fa-users-gear text-teal-400"></i> ${t.navAgentPortal}
               </button>
             ` : ''}
 

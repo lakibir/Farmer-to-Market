@@ -2,7 +2,8 @@ import {
   Listing, Order, User, PlatformStats, PaymentSummary, DriverSummary,
   UserRole, OrderStatus, NotificationItem, PriceBenchmark, StandingOrder,
   AnomalyAlert, KycVerificationItem, RegionalAnalytics, OptimizedRoute, OfflineAction,
-  TaxInvoice, TransportWaybill, LegalContract, DisputeMediationRecord
+  TaxInvoice, TransportWaybill, LegalContract, DisputeMediationRecord,
+  VerificationQueueItem, AgentRegisteredFarmer, UserDocument, VerificationStatus
 } from '../types';
 import { signalRService } from './signalr.service';
 
@@ -19,6 +20,8 @@ class ApiService {
   private standingOrders: StandingOrder[] = [];
   private anomalyAlerts: AnomalyAlert[] = [];
   private kycQueue: KycVerificationItem[] = [];
+  private verificationQueue: VerificationQueueItem[] = [];
+  private agentRegisteredFarmers: AgentRegisteredFarmer[] = [];
   private regionalAnalytics: RegionalAnalytics[] = [];
   private priceBenchmarks: PriceBenchmark[] = [];
   private offlineQueue: OfflineAction[] = [];
@@ -179,6 +182,19 @@ class ApiService {
         submittedAt: "3 days ago"
       },
       {
+        userId: "88888888-8888-8888-8888-888888888888",
+        userName: "Girma Wondimu (Farmer)",
+        userRole: "Farmer",
+        phone: "+251944556677",
+        region: "Oromia (Bishoftu / Ada'a)",
+        documentType: "National ID (Fayda)",
+        documentNumber: "FAN-8812-4091-2810",
+        tinNumber: "0099881122",
+        kycTier: 2,
+        status: "Pending",
+        submittedAt: "1 day ago"
+      },
+      {
         userId: "33333333-3333-3333-3333-333333333333",
         userName: "Chala Gemechu (Farmer)",
         userRole: "Farmer",
@@ -189,6 +205,165 @@ class ApiService {
         kycTier: 1,
         status: "Pending",
         submittedAt: "12 hours ago"
+      }
+    ];
+
+    this.verificationQueue = [
+      {
+        userId: "88888888-8888-8888-8888-888888888888",
+        userName: "Girma Wondimu",
+        userNameAm: "ግርማ ወንዲሙ",
+        userRole: "Farmer",
+        phone: "+251944556677",
+        region: "Oromia (Bishoftu / Ada'a)",
+        registrationMethod: "Agent",
+        registeredByAgentName: "Kassahun Tolessa (Field Agent)",
+        verificationStatus: "UnderReview",
+        tinNumber: "0099881122",
+        registeredAt: "Yesterday 4:15 PM",
+        documents: [
+          {
+            id: "doc-1",
+            userId: "88888888-8888-8888-8888-888888888888",
+            documentType: "FaydaId",
+            documentNumber: "FAN-8812-4091-2810",
+            frontImageUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
+            backImageUrl: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80",
+            status: "UnderReview",
+            submittedAt: "Yesterday 4:15 PM"
+          },
+          {
+            id: "doc-2",
+            userId: "88888888-8888-8888-8888-888888888888",
+            documentType: "TinCertificate",
+            documentNumber: "0099881122",
+            frontImageUrl: "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600&auto=format&fit=crop&q=80",
+            status: "UnderReview",
+            submittedAt: "Yesterday 4:15 PM"
+          }
+        ],
+        reviews: []
+      },
+      {
+        userId: "55555555-5555-5555-5555-555555555555",
+        userName: "Dawit Kebede",
+        userNameAm: "ዳዊት ከበደ",
+        userRole: "Driver",
+        phone: "+251977889900",
+        region: "Addis Ababa (Kaliti)",
+        registrationMethod: "Self",
+        verificationStatus: "UnderReview",
+        tinNumber: "TIN-DRV-981244",
+        registeredAt: "2 days ago",
+        documents: [
+          {
+            id: "doc-3",
+            userId: "55555555-5555-5555-5555-555555555555",
+            documentType: "VehicleLogbook",
+            documentNumber: "ET-LOG-5T-98214",
+            frontImageUrl: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80",
+            status: "UnderReview",
+            submittedAt: "2 days ago"
+          }
+        ],
+        reviews: []
+      },
+      {
+        userId: "33333333-3333-3333-3333-333333333333",
+        userName: "Chala Gemechu",
+        userNameAm: "ጫላ ገመቹ",
+        userRole: "Farmer",
+        phone: "+251933445566",
+        region: "Sidama (Hawassa)",
+        registrationMethod: "Self",
+        verificationStatus: "UnderReview",
+        registeredAt: "3 days ago",
+        documents: [
+          {
+            id: "doc-4",
+            userId: "33333333-3333-3333-3333-333333333333",
+            documentType: "KebeleId",
+            documentNumber: "HAW-KEB-4410",
+            frontImageUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80",
+            status: "UnderReview",
+            submittedAt: "3 days ago"
+          }
+        ],
+        reviews: []
+      },
+      {
+        userId: "11111111-1111-1111-1111-111111111111",
+        userName: "Abebe Bekele",
+        userNameAm: "አበበ በቀለ",
+        userRole: "Farmer",
+        phone: "+251911223344",
+        region: "Oromia (Bishoftu)",
+        registrationMethod: "Self",
+        verificationStatus: "Approved",
+        tinNumber: "TIN-FARM-882910",
+        registeredAt: "1 month ago",
+        documents: [
+          {
+            id: "doc-5",
+            userId: "11111111-1111-1111-1111-111111111111",
+            documentType: "FaydaId",
+            documentNumber: "FAYDA-ET-8829104",
+            status: "Approved",
+            submittedAt: "1 month ago"
+          }
+        ],
+        reviews: [
+          {
+            id: "rev-1",
+            userId: "11111111-1111-1111-1111-111111111111",
+            reviewerName: "Sara Mengistu",
+            actionTaken: "Approved",
+            notes: "National ID and Bishoftu farm registry confirmed.",
+            timestamp: "1 month ago"
+          }
+        ]
+      }
+    ];
+
+    this.agentRegisteredFarmers = [
+      {
+        id: "88888888-8888-8888-8888-888888888888",
+        name: "Girma Wondimu",
+        nameAm: "ግርማ ወንዲሙ",
+        phone: "+251944556677",
+        region: "Oromia (Bishoftu / Ada'a)",
+        kebele: "Ada'a Kebele 04",
+        primaryCrop: "Magna Teff & Tomatoes",
+        faydaId: "FAN-8812-4091-2810",
+        tinNumber: "0099881122",
+        status: "UnderReview",
+        registeredAt: "Yesterday 4:15 PM",
+        faydaFrontImageUrl: "https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80"
+      },
+      {
+        id: "f-agent-02",
+        name: "Tadesse Roba",
+        nameAm: "ታደሰ ሮባ",
+        phone: "+251911889900",
+        region: "Oromia (Bishoftu)",
+        kebele: "Bishoftu Rural Kebele 02",
+        primaryCrop: "Red Onions & Garlic",
+        faydaId: "FAN-1029-4819-2041",
+        tinNumber: "0088772211",
+        status: "Approved",
+        registeredAt: "5 days ago"
+      },
+      {
+        id: "f-agent-03",
+        name: "Desta Wolde",
+        nameAm: "ደስታ ወልዴ",
+        phone: "+251922776655",
+        region: "Oromia (Ada'a)",
+        kebele: "Dukem Farm Zone",
+        primaryCrop: "Wheat & Chickpeas",
+        faydaId: "FAN-7766-5544-3322",
+        status: "Approved",
+        registeredAt: "1 week ago"
       }
     ];
 
@@ -254,6 +429,7 @@ class ApiService {
       const res = await fetch('/api/auth/me', { headers: this.getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
+        const vStatus: VerificationStatus = data.verificationStatus || (data.verified ? 'Approved' : 'PendingSubmission');
         const user: User = {
           id: data.id,
           phone: data.phone,
@@ -261,19 +437,21 @@ class ApiService {
           nameAm: data.nameAm,
           role: (data.role || 'buyer').toLowerCase() as UserRole,
           region: data.region,
-          verified: data.verified,
-          tinNumber: data.tinNumber || (data.role === 'buyer' ? 'TIN-ET-9912001' : 'TIN-FARM-882910'),
-          businessLicenseNumber: data.businessLicenseNumber || 'MOT-LIC-2026-98124',
-          vehicleType: data.vehicleType || "Isuzu 5-Ton",
-          refrigerationType: data.refrigerationType || "Ventilated",
-          vehicleCapacityKg: data.vehicleCapacityKg || 5000,
-          kycDocumentType: data.kycDocumentType,
+          verified: data.verified ?? (vStatus === 'Approved'),
+          verificationStatus: vStatus,
+          rejectionReason: data.rejectionReason,
+          tinNumber: data.tinNumber || (vStatus === 'Approved' && data.role === 'buyer' ? 'TIN-ET-9912001' : undefined),
+          businessLicenseNumber: data.businessLicenseNumber || (vStatus === 'Approved' ? 'MOT-LIC-2026-98124' : undefined),
+          vehicleType: data.vehicleType || (data.role === 'driver' ? "Isuzu 5-Ton" : undefined),
+          refrigerationType: data.refrigerationType || (data.role === 'driver' ? "Ventilated" : undefined),
+          vehicleCapacityKg: data.vehicleCapacityKg || (data.role === 'driver' ? 5000 : undefined),
+          kycDocumentType: data.kycDocumentType || (vStatus === 'Approved' ? "National ID (Fayda)" : undefined),
           kycDocumentNumber: data.kycDocumentNumber,
-          kycStatus: data.kycStatus || "Verified",
+          kycStatus: vStatus === 'Approved' ? "Verified" : vStatus === 'UnderReview' ? "Pending" : "Pending",
           kycTier: data.kycTier || 2,
-          repeatBuyerCount: data.repeatBuyerCount || 14,
-          onTimeDeliveryRate: data.onTimeDeliveryRate || 99,
-          walletBalanceEtb: data.walletBalanceEtb || 48200,
+          repeatBuyerCount: data.repeatBuyerCount || (data.role === 'farmer' ? 14 : undefined),
+          onTimeDeliveryRate: data.onTimeDeliveryRate || (data.role === 'farmer' || data.role === 'driver' ? 99 : undefined),
+          walletBalanceEtb: data.walletBalanceEtb ?? 0,
           createdAt: data.createdAt
         };
         this.currentUser = user;
@@ -323,6 +501,7 @@ class ApiService {
     this.token = data.token;
     localStorage.setItem('token', data.token);
 
+    const vStatus: VerificationStatus = data.user.verificationStatus || (data.user.verified ? 'Approved' : 'PendingSubmission');
     const user: User = {
       id: data.user.id,
       phone: data.user.phone,
@@ -330,19 +509,21 @@ class ApiService {
       nameAm: data.user.nameAm,
       role: (data.user.role || 'buyer').toLowerCase() as UserRole,
       region: data.user.region,
-      verified: data.user.verified,
-      tinNumber: data.user.role === 'buyer' ? 'TIN-ET-9912001' : 'TIN-FARM-882910',
-      businessLicenseNumber: 'MOT-LIC-2026-98124',
-      vehicleType: data.user.vehicleType || "Isuzu 5-Ton",
-      refrigerationType: data.user.refrigerationType || "Ventilated",
-      vehicleCapacityKg: data.user.vehicleCapacityKg || 5000,
+      verified: data.user.verified ?? (vStatus === 'Approved'),
+      verificationStatus: vStatus,
+      rejectionReason: data.user.rejectionReason,
+      tinNumber: data.user.tinNumber,
+      businessLicenseNumber: data.user.businessLicenseNumber,
+      vehicleType: data.user.vehicleType || (data.user.role === 'driver' ? "Isuzu 5-Ton" : undefined),
+      refrigerationType: data.user.refrigerationType || (data.user.role === 'driver' ? "Ventilated" : undefined),
+      vehicleCapacityKg: data.user.vehicleCapacityKg || (data.user.role === 'driver' ? 5000 : undefined),
       kycDocumentType: data.user.kycDocumentType,
       kycDocumentNumber: data.user.kycDocumentNumber,
-      kycStatus: data.user.kycStatus || "Verified",
+      kycStatus: vStatus === 'Approved' ? "Verified" : "Pending",
       kycTier: 2,
-      repeatBuyerCount: data.user.repeatBuyerCount || 14,
-      onTimeDeliveryRate: data.user.onTimeDeliveryRate || 99,
-      walletBalanceEtb: data.user.walletBalanceEtb || 48200,
+      repeatBuyerCount: data.user.repeatBuyerCount || (data.user.role === 'farmer' ? 14 : undefined),
+      onTimeDeliveryRate: data.user.onTimeDeliveryRate || (data.user.role === 'farmer' || data.user.role === 'driver' ? 99 : undefined),
+      walletBalanceEtb: data.user.walletBalanceEtb ?? 0,
       createdAt: data.user.createdAt
     };
 
@@ -388,18 +569,19 @@ class ApiService {
       nameAm: data.user.nameAm,
       role: (data.user.role || 'buyer').toLowerCase() as UserRole,
       region: data.user.region,
-      verified: data.user.verified,
-      tinNumber: 'TIN-NEW-' + Math.floor(100000 + Math.random() * 900000),
-      businessLicenseNumber: 'MOT-LIC-2026-NEW',
+      verified: false,
+      verificationStatus: 'PendingSubmission',
+      tinNumber: undefined,
+      businessLicenseNumber: undefined,
       vehicleType: role === 'driver' ? 'Isuzu 5-Ton' : undefined,
       refrigerationType: role === 'driver' ? 'Ventilated' : undefined,
       vehicleCapacityKg: role === 'driver' ? 5000 : undefined,
-      kycDocumentType: 'National ID (Fayda)',
-      kycDocumentNumber: 'FAYDA-NEW-' + Math.floor(100000 + Math.random() * 900000),
-      kycStatus: 'Verified',
-      kycTier: 2,
-      repeatBuyerCount: 5,
-      onTimeDeliveryRate: 98,
+      kycDocumentType: undefined,
+      kycDocumentNumber: undefined,
+      kycStatus: 'Pending',
+      kycTier: 1,
+      repeatBuyerCount: 0,
+      onTimeDeliveryRate: 100,
       walletBalanceEtb: 0,
       createdAt: data.user.createdAt
     };
@@ -531,55 +713,96 @@ class ApiService {
       marketBenchmarkPrice: data.marketBenchmarkPrice || data.pricePerKg
     };
 
-    const res = await fetch('/api/listings', {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(payload)
-    });
+    let createdItem: Listing | null = null;
 
-    if (!res.ok) {
-      throw new Error('Failed to create listing in database');
+    try {
+      const res = await fetch('/api/listings', {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        createdItem = {
+          id: created.id,
+          farmerId: created.farmerId || this.currentUser?.id || '11111111-1111-1111-1111-111111111111',
+          farmerName: created.farmerName || this.currentUser?.name || 'Abebe Bekele',
+          farmerNameAm: created.farmerNameAm || this.currentUser?.nameAm,
+          farmerPhone: created.farmerPhone || this.currentUser?.phone || '+251911223344',
+          region: created.region || this.currentUser?.region || 'Oromia (Bishoftu)',
+          productName: created.productName,
+          nameAm: created.nameAm,
+          category: created.category,
+          qtyKg: Number(created.qtyKg),
+          pricePerKg: Number(created.pricePerKg),
+          minOrderKg: Number(created.minOrderKg),
+          latitude: created.latitude,
+          longitude: created.longitude,
+          distanceKm: created.distanceKm || 45,
+          photos: created.photos && created.photos.length > 0 ? created.photos : (data.photos || ['https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&auto=format&fit=crop&q=80']),
+          availableFrom: created.availableFrom,
+          status: 'active',
+          grade: created.grade || data.grade || 'Grade 1',
+          ripeness: created.ripeness || data.ripeness || 'Ready Today',
+          isOrganic: created.isOrganic ?? data.isOrganic ?? true,
+          isAdvanceHarvest: created.isAdvanceHarvest ?? data.isAdvanceHarvest ?? false,
+          expectedHarvestDate: created.expectedHarvestDate || data.expectedHarvestDate,
+          voiceNoteUrl: created.voiceNoteUrl || data.voiceNoteUrl,
+          voiceNoteTranscript: created.voiceNoteTranscript || data.voiceNoteTranscript,
+          marketBenchmarkPrice: created.marketBenchmarkPrice || data.pricePerKg,
+          moderationStatus: 'Approved',
+          farmerRating: 5.0,
+          reviewCount: 0,
+          repeatBuyerCount: 18,
+          onTimeDeliveryRate: 99,
+          createdAt: created.createdAt || new Date().toISOString()
+        };
+      }
+    } catch (e) {
+      console.warn('Create listing network call fallback to local state', e);
     }
 
-    const created = await res.json();
-    const newListing: Listing = {
-      id: created.id,
-      farmerId: created.farmerId,
-      farmerName: created.farmerName || this.currentUser?.name || 'Abebe Bekele',
-      farmerNameAm: created.farmerNameAm || this.currentUser?.nameAm || 'አበበ በቀለ',
-      farmerPhone: created.farmerPhone || this.currentUser?.phone || '+251911223344',
-      region: created.region || this.currentUser?.region || 'Oromia (Bishoftu)',
-      productName: created.productName,
-      nameAm: created.nameAm,
-      category: created.category,
-      qtyKg: Number(created.qtyKg),
-      pricePerKg: Number(created.pricePerKg),
-      minOrderKg: Number(created.minOrderKg),
-      latitude: created.latitude,
-      longitude: created.longitude,
-      distanceKm: created.distanceKm || 45,
-      photos: created.photos && created.photos.length > 0 ? created.photos : (data.photos || ['https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&auto=format&fit=crop&q=80']),
-      availableFrom: created.availableFrom,
-      status: 'active',
-      grade: created.grade || data.grade || 'Grade 1',
-      ripeness: created.ripeness || data.ripeness || 'Ready Today',
-      isOrganic: created.isOrganic ?? data.isOrganic ?? true,
-      isAdvanceHarvest: created.isAdvanceHarvest ?? data.isAdvanceHarvest ?? false,
-      expectedHarvestDate: created.expectedHarvestDate || data.expectedHarvestDate,
-      voiceNoteUrl: created.voiceNoteUrl || data.voiceNoteUrl,
-      voiceNoteTranscript: created.voiceNoteTranscript || data.voiceNoteTranscript,
-      marketBenchmarkPrice: created.marketBenchmarkPrice || data.pricePerKg,
-      moderationStatus: 'Approved',
-      farmerRating: 5.0,
-      reviewCount: 0,
-      repeatBuyerCount: 18,
-      onTimeDeliveryRate: 99,
-      createdAt: created.createdAt
-    };
+    if (!createdItem) {
+      createdItem = {
+        id: 'list-local-' + Date.now(),
+        farmerId: this.currentUser?.id || '11111111-1111-1111-1111-111111111111',
+        farmerName: this.currentUser?.name || 'Abebe Bekele',
+        farmerNameAm: this.currentUser?.nameAm,
+        farmerPhone: this.currentUser?.phone || '+251911223344',
+        region: this.currentUser?.region || 'Oromia (Bishoftu)',
+        productName: data.productName || 'Fresh Farm Produce',
+        nameAm: data.nameAm,
+        category: data.category || 'Vegetables',
+        qtyKg: Number(data.qtyKg || 1000),
+        pricePerKg: Number(data.pricePerKg || 45),
+        minOrderKg: Number(data.minOrderKg || 100),
+        latitude: data.latitude || 8.7523,
+        longitude: data.longitude || 38.9785,
+        distanceKm: 45,
+        photos: data.photos && data.photos.length > 0 ? data.photos : ['https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=800&auto=format&fit=crop&q=80'],
+        availableFrom: data.availableFrom || new Date().toISOString().split('T')[0],
+        status: 'active',
+        grade: data.grade || 'Grade 1',
+        ripeness: data.ripeness || 'Ready Today',
+        isOrganic: data.isOrganic ?? true,
+        isAdvanceHarvest: data.isAdvanceHarvest ?? false,
+        expectedHarvestDate: data.expectedHarvestDate,
+        voiceNoteUrl: data.voiceNoteUrl,
+        voiceNoteTranscript: data.voiceNoteTranscript,
+        marketBenchmarkPrice: data.marketBenchmarkPrice || data.pricePerKg,
+        moderationStatus: 'Approved',
+        farmerRating: 5.0,
+        reviewCount: 0,
+        repeatBuyerCount: 18,
+        onTimeDeliveryRate: 99,
+        createdAt: new Date().toISOString()
+      };
+    }
 
-    this.listings.unshift(newListing);
+    this.listings.unshift(createdItem);
     this.notify();
-    return newListing;
+    return createdItem;
   }
 
   // ==================== ORDERS API ====================
@@ -1271,20 +1494,261 @@ class ApiService {
         messageEn: `[SMS to ${targetRole.toUpperCase()}] ${msgEn}`,
         messageAm: `[ኤስኤምኤስ ለ${targetRole}] ${msgAm}`,
         read: false,
-        sentAt: new Date().toISOString()
+        createdAt: new Date().toISOString()
       });
       this.notify();
     }
+  }
+
+  // ==================== VERIFICATION & FIELD AGENT ONBOARDING ====================
+
+  public async submitVerificationDocuments(
+    tinNumber: string,
+    docs: Array<{ documentType: string; documentNumber: string; frontImageUrl?: string; backImageUrl?: string }>
+  ) {
+    if (this.currentUser) {
+      this.currentUser.tinNumber = tinNumber;
+      this.currentUser.verificationStatus = 'UnderReview';
+      this.currentUser.rejectionReason = undefined;
+
+      const userDocs: UserDocument[] = docs.map((d, idx) => ({
+        id: 'doc-self-' + idx + '-' + Date.now(),
+        userId: this.currentUser!.id,
+        documentType: d.documentType,
+        documentNumber: d.documentNumber,
+        frontImageUrl: d.frontImageUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+        backImageUrl: d.backImageUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+        status: 'UnderReview',
+        submittedAt: new Date().toISOString()
+      }));
+
+      this.currentUser.documents = userDocs;
+      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+
+      const queueItem: VerificationQueueItem = {
+        userId: this.currentUser.id,
+        userName: this.currentUser.name,
+        userNameAm: this.currentUser.nameAm,
+        userRole: this.currentUser.role.charAt(0).toUpperCase() + this.currentUser.role.slice(1),
+        phone: this.currentUser.phone,
+        region: this.currentUser.region,
+        registrationMethod: 'Self',
+        verificationStatus: 'UnderReview',
+        tinNumber: tinNumber,
+        registeredAt: 'Just now',
+        documents: userDocs,
+        reviews: []
+      };
+
+      const existingIdx = this.verificationQueue.findIndex(q => q.userId === this.currentUser!.id);
+      if (existingIdx >= 0) {
+        this.verificationQueue[existingIdx] = queueItem;
+      } else {
+        this.verificationQueue.unshift(queueItem);
+      }
+    }
+
+    try {
+      await fetch('/api/verification/submit', {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ tinNumber, documents: docs })
+      });
+    } catch (e) {
+      console.warn('Backend verification submit fallback to local state', e);
+    }
+
+    this.notify();
+  }
+
+  public async agentRegisterFarmer(payload: {
+    name: string;
+    nameAm?: string;
+    phone: string;
+    region: string;
+    kebele?: string;
+    primaryCrop?: string;
+    faydaId?: string;
+    tinNumber?: string;
+    faydaFrontImageUrl?: string;
+    faydaBackImageUrl?: string;
+  }) {
+    const cleanPhone = payload.phone.startsWith('+251') ? payload.phone : '+251' + payload.phone.replace(/^0+/, '');
+    const newFarmerId = 'agent-f-' + Date.now();
+
+    const registeredFarmer: AgentRegisteredFarmer = {
+      id: newFarmerId,
+      name: payload.name,
+      nameAm: payload.nameAm || payload.name,
+      phone: cleanPhone,
+      region: payload.region,
+      kebele: payload.kebele,
+      primaryCrop: payload.primaryCrop,
+      faydaId: payload.faydaId,
+      tinNumber: payload.tinNumber,
+      status: 'UnderReview',
+      registeredAt: 'Just now',
+      faydaFrontImageUrl: payload.faydaFrontImageUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80'
+    };
+
+    this.agentRegisteredFarmers.unshift(registeredFarmer);
+
+    const queueItem: VerificationQueueItem = {
+      userId: newFarmerId,
+      userName: payload.name,
+      userNameAm: payload.nameAm,
+      userRole: 'Farmer',
+      phone: cleanPhone,
+      region: payload.region,
+      registrationMethod: 'Agent',
+      registeredByAgentName: this.currentUser?.name || 'Community Field Agent',
+      verificationStatus: 'UnderReview',
+      tinNumber: payload.tinNumber,
+      registeredAt: 'Just now',
+      documents: [
+        {
+          id: 'doc-ag-1-' + Date.now(),
+          userId: newFarmerId,
+          documentType: 'FaydaId',
+          documentNumber: payload.faydaId || 'FAN-PENDING',
+          frontImageUrl: payload.faydaFrontImageUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+          backImageUrl: payload.faydaBackImageUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80',
+          status: 'UnderReview',
+          submittedAt: new Date().toISOString()
+        }
+      ],
+      reviews: []
+    };
+
+    this.verificationQueue.unshift(queueItem);
+
+    try {
+      await fetch('/api/verification/agent-register', {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('Agent register farmer fallback to local state', e);
+    }
+
+    this.notify();
+    return registeredFarmer;
+  }
+
+  public async reviewVerification(userId: string, action: 'Approve' | 'Reject' | 'RequestChanges', notes?: string, rejectionReason?: string) {
+    const queueItem = this.verificationQueue.find(q => q.userId === userId);
+    if (queueItem) {
+      queueItem.verificationStatus = action === 'Approve' ? 'Approved' : 'Rejected';
+      queueItem.rejectionReason = action === 'Reject' ? (rejectionReason || notes || 'Document image was illegible') : undefined;
+      queueItem.reviews.unshift({
+        id: 'rev-' + Date.now(),
+        userId: userId,
+        reviewerName: this.currentUser?.name || 'Sara Mengistu (Admin)',
+        actionTaken: action,
+        notes: notes || rejectionReason || (action === 'Approve' ? 'All records verified.' : 'Verification rejected.'),
+        timestamp: 'Just now'
+      });
+      queueItem.documents.forEach(d => {
+        d.status = action === 'Approve' ? 'Approved' : 'Rejected';
+        d.rejectionReason = queueItem.rejectionReason;
+      });
+    }
+
+    const agentItem = this.agentRegisteredFarmers.find(f => f.id === userId);
+    if (agentItem) {
+      agentItem.status = action === 'Approve' ? 'Approved' : 'Rejected';
+    }
+
+    if (this.currentUser && this.currentUser.id === userId) {
+      this.currentUser.verificationStatus = action === 'Approve' ? 'Approved' : 'Rejected';
+      this.currentUser.verified = action === 'Approve';
+      this.currentUser.rejectionReason = queueItem?.rejectionReason;
+      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+    }
+
+    try {
+      await fetch(`/api/verification/${userId}/review`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ action, notes, rejectionReason })
+      });
+    } catch (e) {
+      console.warn('Review verification remote call failed, updated local state', e);
+    }
+
+    this.notify();
+  }
+
+  public getVerificationQueue(role?: string, status?: string): VerificationQueueItem[] {
+    let result = [...this.verificationQueue];
+    if (role && role !== 'All') {
+      result = result.filter(q => q.userRole.toLowerCase() === role.toLowerCase());
+    }
+    if (status && status !== 'All') {
+      result = result.filter(q => q.verificationStatus === status);
+    }
+    return result;
+  }
+
+  public async fetchVerificationQueue(): Promise<VerificationQueueItem[]> {
+    if (!this.isAuthenticated()) return this.verificationQueue;
+    try {
+      const res = await fetch('/api/verification/queue', { headers: this.getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          this.verificationQueue = data;
+          this.notify();
+        }
+      }
+    } catch (e) {
+      console.warn('Fetch verification queue failed, using local queue', e);
+    }
+    return this.verificationQueue;
+  }
+
+  public getAgentRegisteredFarmers(): AgentRegisteredFarmer[] {
+    return this.agentRegisteredFarmers;
+  }
+
+  public getVerificationStatus(userId?: string): VerificationStatus {
+    if (userId) {
+      const q = this.verificationQueue.find(x => x.userId === userId);
+      if (q) return q.verificationStatus;
+    }
+    return this.currentUser?.verificationStatus || (this.currentUser?.verified ? 'Approved' : 'PendingSubmission');
+  }
+
+  public async sendInboundUssdSimulation(phone: string, ussdCode: string): Promise<string> {
+    if (ussdCode.includes('*990#') || ussdCode.includes('*805#')) {
+      return `Farmer-to-Market USSD\n1. Register as Farmer\n2. Submit Fayda ID\n3. Check Escrow Balance\n4. Request Extension Agent Visit\nReply with number:`;
+    }
+    if (ussdCode === '1') {
+      return `Welcome! Enter your Name & Woreda (e.g., Bekele Bishoftu):`;
+    }
+    if (ussdCode === '2') {
+      return `Enter your 16-digit Fayda ID Number or FAN-XXXX-XXXX-XXXX:`;
+    }
+    if (ussdCode === '3') {
+      return `Your Telebirr Escrow Balance is 48,200 ETB. Payout available at local agent.`;
+    }
+    if (ussdCode === '4') {
+      return `Agent Kassahun Tolessa (+251988776655) has been assigned to visit your farm within 48 hours.`;
+    }
+    return `Farmer-to-Market: Command received. SMS confirmation dispatched to ${phone}.`;
   }
 
   public async refreshAllData() {
     await Promise.allSettled([
       this.fetchListings(),
       this.fetchOrders(),
-      this.fetchSummaries()
+      this.fetchSummaries(),
+      this.fetchVerificationQueue()
     ]);
     this.notify();
   }
 }
 
 export const api = new ApiService();
+

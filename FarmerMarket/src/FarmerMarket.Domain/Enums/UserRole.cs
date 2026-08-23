@@ -5,5 +5,6 @@ public enum UserRole
     Farmer,
     Buyer,
     Driver,
+    Agent,
     Admin
 }

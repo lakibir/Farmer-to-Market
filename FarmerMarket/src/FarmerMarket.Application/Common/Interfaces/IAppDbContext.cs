@@ -11,6 +11,8 @@ public interface IAppDbContext
     DbSet<Payment> Payments { get; }
     DbSet<Review> Reviews { get; }
     DbSet<Notification> Notifications { get; }
+    DbSet<UserDocument> UserDocuments { get; }
+    DbSet<VerificationReview> VerificationReviews { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

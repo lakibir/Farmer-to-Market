@@ -1,6 +1,32 @@
-export type UserRole = 'farmer' | 'buyer' | 'driver' | 'admin';
+export type UserRole = 'farmer' | 'buyer' | 'driver' | 'agent' | 'admin';
 export type OrderStatus = 'pending' | 'confirmed' | 'picked_up' | 'delivered' | 'disputed' | 'cancelled';
 export type ListingStatus = 'active' | 'sold_out' | 'expired' | 'inactive';
+export type VerificationStatus = 'PendingSubmission' | 'UnderReview' | 'Approved' | 'Rejected';
+export type RegistrationMethod = 'Self' | 'Agent';
+export type DocumentType = 'FaydaId' | 'TinCertificate' | 'BusinessLicense' | 'KebeleId' | 'CoopCertificate' | 'VehicleLogbook';
+
+export interface UserDocument {
+  id: string;
+  userId: string;
+  documentType: DocumentType | string;
+  documentNumber: string;
+  frontImageUrl?: string;
+  backImageUrl?: string;
+  fileUrl?: string;
+  status: VerificationStatus;
+  rejectionReason?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+}
+
+export interface VerificationReview {
+  id: string;
+  userId: string;
+  reviewerName: string;
+  actionTaken: 'Approved' | 'Rejected' | 'RequestedChanges' | string;
+  notes?: string;
+  timestamp: string;
+}
 
 export interface User {
   id: string;
@@ -10,6 +36,11 @@ export interface User {
   role: UserRole;
   region: string;
   verified: boolean;
+  registrationMethod?: RegistrationMethod;
+  registeredByAgentId?: string;
+  registeredByAgentName?: string;
+  verificationStatus?: VerificationStatus;
+  rejectionReason?: string;
   tinNumber?: string;
   businessLicenseNumber?: string;
   vehicleType?: string;
@@ -23,6 +54,8 @@ export interface User {
   onTimeDeliveryRate?: number;
   walletBalanceEtb?: number;
   createdAt: string;
+  documents?: UserDocument[];
+  verificationReviews?: VerificationReview[];
 }
 
 export interface Listing {
@@ -44,8 +77,8 @@ export interface Listing {
   photos: string[];
   availableFrom: string;
   status: ListingStatus;
-  grade?: string; // "Grade 1", "Grade 2", "Export Grade"
-  ripeness?: string; // "Ready Today", "Semi-Ripe", "Green / Storable"
+  grade?: string;
+  ripeness?: string;
   isOrganic?: boolean;
   isAdvanceHarvest?: boolean;
   expectedHarvestDate?: string;
@@ -84,31 +117,34 @@ export interface Order {
   driverCut: number;
   platformCut: number;
   driverSubsidyEtb?: number;
-  withholdingTaxEtb?: number; // 2% Withholding under Ethiopian Tax Proclamation
-  platformVatEtb?: number; // 15% VAT on 5% platform service
+  withholdingTaxEtb?: number;
+  platformVatEtb?: number;
   status: OrderStatus;
   escrowHeld: boolean;
   paymentRef?: string;
   invoiceNumber?: string;
   waybillNumber?: string;
   contractNumber?: string;
+  arbitrationDecreeNumber?: string;
   pickupPhoto?: string;
   deliveryPhoto?: string;
   deliveryGpsLat?: number;
   deliveryGpsLng?: number;
   deliveredAt?: string;
   deliveryAddress?: string;
-  deliveryNotes?: string;
   disputeReason?: string;
   disputePhoto?: string;
   requestedRefundPercent?: number;
-  disputeStatus?: string; // "None", "PendingReview", "ResolvedReleaseFarmer", "ResolvedRefundBuyer", "ResolvedPartialSplit"
+  disputeStatus?: string;
   disputeResolutionNotes?: string;
-  arbitrationDecreeNumber?: string;
   isRecurring?: boolean;
-  recurringFrequency?: string; // "Weekly", "Bi-Weekly"
-  confirmedAt?: string;
+  recurringFrequency?: string;
   createdAt: string;
+}
+
+export interface CartItem {
+  listing: Listing;
+  qtyKg: number;
 }
 
 export interface PaymentSummary {
@@ -117,13 +153,17 @@ export interface PaymentSummary {
   releasedEtb: number;
   completedOrdersCount: number;
   pendingOrdersCount: number;
-  totalWithholdingTaxPaidEtb?: number;
+  totalWithholdingTaxPaidEtb: number;
 }
+
+export type FarmerSummary = PaymentSummary;
 
 export interface DriverSummary {
   totalEarnedEtb: number;
-  pendingEtb: number;
+  pendingEtb?: number;
   deliveredTripsCount: number;
+  activeTripsCount?: number;
+  totalWeightDeliveredKg?: number;
   ruralBonusEtb?: number;
 }
 
@@ -138,45 +178,52 @@ export interface PlatformStats {
   totalPlatformCommissionEtb: number;
   activeEscrowHeldEtb: number;
   disputedOrdersCount: number;
+  totalMetricTonsDelivered?: number;
   totalMetricTonsMoved?: number;
+  middlemanSavingsEtb?: number;
   middlemanMarginSavedEtb?: number;
   totalVatRemittedEtb?: number;
   totalWithholdingReportedEtb?: number;
 }
 
-export interface CartItem {
-  listing: Listing;
-  qtyKg: number;
+export interface PriceBenchmark {
+  productName?: string;
+  cropName?: string;
+  nameAm?: string;
+  cropNameAm?: string;
+  marketName: string;
+  minPricePerKg?: number;
+  minPriceEtb?: number;
+  avgPricePerKg?: number;
+  avgPriceEtb?: number;
+  maxPricePerKg?: number;
+  maxPriceEtb?: number;
+  trend: 'Up' | 'Down' | 'Stable';
+  lastUpdated: string;
 }
 
 export interface NotificationItem {
   id: string;
   userId: string;
   type: string;
-  channel: string;
+  channel: 'sms' | 'in_app';
   messageEn: string;
   messageAm: string;
   read: boolean;
-  sentAt: string;
-}
-
-export interface PriceBenchmark {
-  cropName: string;
-  cropNameAm: string;
-  marketName: string;
-  minPriceEtb: number;
-  avgPriceEtb: number;
-  maxPriceEtb: number;
-  trend: 'Up' | 'Down' | 'Stable';
-  lastUpdated: string;
+  createdAt?: string;
+  sentAt?: string;
 }
 
 export interface StandingOrder {
   id: string;
+  buyerId?: string;
+  buyerName?: string;
+  buyerPhone?: string;
   listingId: string;
   productName: string;
   productNameAm?: string;
   farmerName: string;
+  farmerRegion?: string;
   qtyKg: number;
   pricePerKg: number;
   frequency: 'Weekly' | 'Bi-Weekly' | 'Monthly';
@@ -208,6 +255,38 @@ export interface KycVerificationItem {
   kycTier?: 1 | 2 | 3;
   status: 'Pending' | 'Verified' | 'Rejected';
   submittedAt: string;
+}
+
+export interface VerificationQueueItem {
+  userId: string;
+  userName: string;
+  userNameAm?: string;
+  userRole: string;
+  phone: string;
+  region: string;
+  registrationMethod: RegistrationMethod;
+  registeredByAgentName?: string;
+  verificationStatus: VerificationStatus;
+  rejectionReason?: string;
+  tinNumber?: string;
+  registeredAt: string;
+  documents: UserDocument[];
+  reviews: VerificationReview[];
+}
+
+export interface AgentRegisteredFarmer {
+  id: string;
+  name: string;
+  nameAm?: string;
+  phone: string;
+  region: string;
+  kebele?: string;
+  primaryCrop?: string;
+  faydaId?: string;
+  tinNumber?: string;
+  status: VerificationStatus;
+  registeredAt: string;
+  faydaFrontImageUrl?: string;
 }
 
 export interface RegionalAnalytics {
@@ -249,115 +328,142 @@ export interface OfflineAction {
   synced: boolean;
 }
 
-// ==================== LEGAL & COMPLIANCE DOCUMENT MODELS ====================
-
 export interface TaxInvoice {
   invoiceNumber: string;
+  issueDate?: string;
+  issuedDate?: string;
+  paymentRef?: string;
+  fiscalReceiptNumber?: string;
   orderId: string;
-  issueDate: string;
-  paymentRef: string;
-  
-  // Seller / Farmer Details
-  sellerName: string;
-  sellerTin: string;
-  sellerRegion: string;
-  sellerPhone: string;
-  sellerType: string;
-
-  // Buyer Details
+  sellerName?: string;
+  sellerType?: string;
+  sellerTin?: string;
+  sellerRegion?: string;
+  sellerPhone?: string;
+  supplierName?: string;
+  supplierNameAm?: string;
+  supplierPhone?: string;
+  supplierTin?: string;
+  supplierRegion?: string;
   buyerName: string;
+  buyerPhone?: string;
   buyerTin: string;
-  buyerRegion: string;
-  buyerPhone: string;
-
-  // Produce & Fiscal Line Items
+  buyerRegion?: string;
+  buyerAddress?: string;
+  carrierName?: string;
+  carrierPlateNumber?: string;
   productName: string;
   productNameAm?: string;
-  grade: string;
+  category?: string;
+  grade?: string;
   qtyKg: number;
   unitPriceEtb: number;
-  grossAmountEtb: number;
-  farmerPayoutEtb: number; // 90%
-  driverFreightEtb: number; // 5%
-  platformServiceFeeEtb: number; // 5%
-  platformVatEtb: number; // 15% VAT on platform fee
-  withholdingTaxEtb: number; // 2% Withholding
-  totalPaidViaTelebirr: number;
-  
-  // Regulatory & QR Code Verification
-  regulatoryAct: string;
-  qrVerificationCode: string;
-  isVatExemptAgriculturalGoods: boolean;
+  grossAmountEtb?: number;
+  goodsGrossTotalEtb?: number;
+  isAgricultureTaxExempt?: boolean;
+  isVatExemptAgriculturalGoods?: boolean;
+  withholdingTaxRatePercent?: number;
+  withholdingTaxAmountEtb?: number;
+  withholdingTaxEtb?: number;
+  platformServiceFeeEtb?: number;
+  platformVatRatePercent?: number;
+  platformVatAmountEtb?: number;
+  platformVatEtb?: number;
+  farmerPayoutEtb?: number;
+  driverFreightEtb?: number;
+  freightFeeEtb?: number;
+  netPayableToFarmerEtb?: number;
+  totalInvoiceAmountEtb?: number;
+  totalPaidViaTelebirr?: number;
+  qrVerificationCode?: string;
+  paymentMethod?: string;
+  morFiscalStamp?: string;
+  regulatoryAct?: string;
 }
 
 export interface TransportWaybill {
   waybillNumber: string;
   orderId: string;
-  dispatchDate: string;
-  
-  // Consignor & Consignee
+  issueDate?: string;
+  dispatchDate?: string;
   consignorName: string;
-  consignorFarmLocation: string;
-  consignorPhone: string;
+  consignorPhone?: string;
+  consignorFarmLocation?: string;
+  pickupLocation?: string;
   consigneeName: string;
-  consigneeDepotAddress: string;
-  consigneePhone: string;
-
-  // Carrier & Vehicle Specifications
-  carrierDriverName: string;
-  driverLicenseNumber: string;
+  consigneePhone?: string;
+  consigneeDestination?: string;
+  consigneeDepotAddress?: string;
+  deliveryLocation?: string;
+  carrierDriverName?: string;
+  transporterName?: string;
+  transporterPhone?: string;
+  driverLicenseNumber?: string;
   vehiclePlateNumber: string;
-  vehicleModel: string;
-  refrigerationStatus: string;
-  insurancePolicyNumber: string;
-
-  // Cargo & Weight Manifest
-  cargoDescription: string;
-  packageCount: number;
-  netWeightKg: number;
-  grossWeightKg: number;
-  tareWeightKg: number;
+  vehicleModel?: string;
+  vehicleType?: string;
+  refrigerationStatus?: string;
   temperatureLogCelsius?: number;
-
-  // Signatures & Timestamp Seals
-  farmerHandoffTimestamp: string;
-  driverSignatureRef: string;
+  cargoDescription?: string;
+  packageCount?: number;
+  netWeightKg?: number;
+  tareWeightKg?: number;
+  grossWeightKg?: number;
+  farmerHandoffTimestamp?: string;
   buyerReceivedTimestamp?: string;
-  transitStatus: 'Dispatched' | 'InTransit' | 'DeliveredWithGPS';
+  productName?: string;
+  cargoWeightGrossKg?: number;
+  cargoWeightTareKg?: number;
+  cargoWeightNetKg?: number;
+  cargoTemperatureAtDispatch?: string;
+  chainOfCustodyStatus?: string;
+  transitInsurancePolicyNumber?: string;
+  insurancePolicyNumber?: string;
+  transitStatus?: string;
+  driverSignatureRef?: string;
+  ftaPermitNumber?: string;
 }
 
 export interface LegalContract {
   contractNumber: string;
   orderId: string;
-  agreementDate: string;
-  effectiveDate: string;
-
-  // Parties
+  agreementDate?: string;
+  effectiveDate?: string;
+  executionDate?: string;
+  governingLaw?: string;
+  arbitrationVenue?: string;
   sellerName: string;
-  sellerIdNumber: string;
-  sellerLocation: string;
+  sellerIdNumber?: string;
+  sellerLocation?: string;
+  sellerTin?: string;
+  sellerPhone?: string;
   buyerName: string;
-  buyerTinNumber: string;
-  buyerLocation: string;
-
-  // Subject Matter
-  cropType: string;
-  contractedQuantityKg: number;
-  agreedPricePerKg: number;
+  buyerTinNumber?: string;
+  buyerLocation?: string;
+  buyerTin?: string;
+  buyerPhone?: string;
+  contractedQuantityKg?: number;
+  cropType?: string;
+  agreedPricePerKg?: number;
+  productDescription?: string;
+  quantityKg?: number;
+  unitPriceEtb?: number;
   totalContractValueEtb: number;
-  qualityStandardClause: string;
-  deliveryTimeline: string;
-  
-  // Binding Legal Clauses
-  escrowClauseText: string;
-  forceMajeureClauseText: string;
-  disputeJurisdiction: string;
-  eSignatures: {
-    sellerSigned: boolean;
-    sellerSignDate: string;
-    buyerSigned: boolean;
-    buyerSignDate: string;
-    platformWitnessHash: string;
+  qualityStandardClause?: string;
+  qualityStandardSpecification?: string;
+  escrowClauseText?: string;
+  paymentEscrowClause?: string;
+  deliveryTimeline?: string;
+  forceMajeureClauseText?: string;
+  disputeJurisdiction?: string;
+  disputeResolutionClause?: string;
+  forceMajeureClause?: string;
+  eSignatures?: {
+    sellerSignDate?: string;
+    sellerSigned?: boolean;
+    buyerSignDate?: string;
+    buyerSigned?: boolean;
+    platformWitnessHash?: string;
   };
 }
 
@@ -366,25 +472,30 @@ export interface DisputeMediationRecord {
   orderId: string;
   filingDate: string;
   resolutionDate?: string;
-  status: 'UnderInvestigation' | 'Settled';
-
-  // Parties
-  claimantBuyer: string;
-  respondentFarmer: string;
-  freightCarrier: string;
-  totalDisputedAmountEtb: number;
-
-  // Claims & Evidence
-  disputeReason: string;
-  claimedDefectPercentage: number;
-  inspectionReport: string;
+  status?: string;
+  totalDisputedAmountEtb?: number;
+  leadArbitratorName?: string;
+  claimantBuyer?: string;
+  claimedDefectPercentage?: number;
+  disputeReason?: string;
+  respondentFarmer?: string;
+  freightCarrier?: string;
+  inspectionReport?: string;
+  legalFindingSummary?: string;
+  arbitrationVerdict?: string;
+  farmerSettlementEtb?: number;
+  buyerRefundEtb?: number;
+  platformDecreeHash?: string;
   photoEvidenceUrl?: string;
-
-  // Arbitrator Legal Determination
-  leadArbitratorName: string;
-  legalFindingSummary: string;
-  arbitrationVerdict: 'FullReleaseToFarmer' | 'FullRefundToBuyer' | 'FiftyFiftySplit';
-  farmerSettlementEtb: number;
-  buyerRefundEtb: number;
-  platformDecreeHash: string;
+  complainantName?: string;
+  complainantRole?: string;
+  respondentName?: string;
+  respondentRole?: string;
+  disputeSubject?: string;
+  inspectionFindingNotes?: string;
+  arbitrationDetermination?: string;
+  financialRemedyDescription?: string;
+  arbitratorName?: string;
+  bindingEnforcementSeal?: string;
 }
+
