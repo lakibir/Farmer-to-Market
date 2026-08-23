@@ -18,12 +18,17 @@ export function renderNavbar(
     buyer: { label: 'Wholesale Buyer', labelAm: 'የጅምላ ገዢ', color: 'bg-blue-100 text-blue-900 border-blue-300', icon: 'fa-shopping-basket' },
     driver: { label: 'Freight Driver', labelAm: 'አጓጓዥ ሹፌር', color: 'bg-amber-100 text-amber-900 border-amber-300', icon: 'fa-truck-fast' },
     agent: { label: 'Field Extension Agent', labelAm: 'የግብርና ድጋፍ ኤጀንት', color: 'bg-teal-100 text-teal-900 border-teal-300', icon: 'fa-users-gear' },
-    admin: { label: 'Platform Admin', labelAm: 'አድሚን', color: 'bg-purple-100 text-purple-900 border-purple-300', icon: 'fa-shield-halved' }
+    admin: { label: 'Platform Admin', labelAm: 'አድሚን', color: 'bg-purple-100 text-purple-900 border-purple-300', icon: 'fa-shield-halved' },
+    superadmin: { label: 'Super Admin (Chief Platform Officer)', labelAm: 'ዋና አድሚን (Super Admin)', color: 'bg-rose-100 text-rose-900 border-rose-300', icon: 'fa-crown' }
   };
 
   const currentBadge = currentUser ? roleBadgeStyle[currentUser.role] || roleBadgeStyle.buyer : null;
+  const isImpersonating = currentUser ? localStorage.getItem('currentUser') && JSON.parse(localStorage.getItem('currentUser') || '{}').phone !== '+251900000001' && (window as any).isSuperAdminImpersonating : false;
 
   return `
+    <!-- Top Impersonation Banner if active -->
+    <div id="impersonationBannerContainer"></div>
+
     <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
       
       <!-- Top Utility & Trust Bar -->
@@ -180,6 +185,12 @@ export function renderNavbar(
                     ${currentUser.role === 'farmer' ? `
                       <button onclick="window.toggleCreateListingModal();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 hover:text-emerald-900 transition-colors flex items-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-plus-circle text-emerald-600"></i> Post New Produce Listing
+                      </button>
+                    ` : ''}
+
+                    ${currentUser.role === 'superadmin' ? `
+                      <button onclick="window.navigateTab('superadmin');" class="w-full text-left px-3 py-2 rounded-xl bg-rose-50 text-rose-950 hover:bg-rose-100 transition-colors flex items-center gap-2 cursor-pointer font-bold border border-rose-200">
+                        <i class="fa-solid fa-crown text-rose-600"></i> Super Admin Command Center
                       </button>
                     ` : ''}
 

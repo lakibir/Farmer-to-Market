@@ -293,7 +293,20 @@ public static class DbInitializer
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-1)
         };
 
-        context.Users.AddRange(farmerAbebe, farmerAlmaz, farmerChala, buyerBethlehem, driverDawit, adminSara, agentKassahun, farmerGirma);
+        var superAdminDawit = new User
+        {
+            Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            Phone = "+251900000001",
+            Name = "Dr. Dawit Haile (Super Admin)",
+            NameAm = "ዶ/ር ዳዊት ኃይሌ",
+            Role = UserRole.SuperAdmin,
+            Region = "Addis Ababa (Headquarters)",
+            Verified = true,
+            VerificationStatus = VerificationStatus.Approved,
+            CreatedAt = DateTimeOffset.UtcNow.AddYears(-1)
+        };
+
+        context.Users.AddRange(farmerAbebe, farmerAlmaz, farmerChala, buyerBethlehem, driverDawit, adminSara, agentKassahun, farmerGirma, superAdminDawit);
 
         var docGirmaFayda = new UserDocument
         {
@@ -591,6 +604,26 @@ public static class DbInitializer
 
     private static async Task EnsureEnrichedSeedDataAsync(AppDbContext context, ILogger logger)
     {
+        var superAdminId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var superAdminPhone = "+251900000001";
+        if (!await context.Users.AnyAsync(u => u.Id == superAdminId || u.Phone == superAdminPhone))
+        {
+            context.Users.Add(new User
+            {
+                Id = superAdminId,
+                Phone = superAdminPhone,
+                Name = "Dr. Dawit Haile (Super Admin)",
+                NameAm = "ዶ/ር ዳዊት ኃይሌ",
+                Role = UserRole.SuperAdmin,
+                Region = "Addis Ababa (Headquarters)",
+                Verified = true,
+                VerificationStatus = VerificationStatus.Approved,
+                CreatedAt = DateTimeOffset.UtcNow.AddYears(-1)
+            });
+            await context.SaveChangesAsync();
+            logger.LogInformation("Seeded Super Admin Dr. Dawit Haile (+251900000001).");
+        }
+
         var strawberryId = Guid.Parse("a1b2c3d4-0006-0000-0000-000000000006");
         if (!await context.Listings.AnyAsync(l => l.Id == strawberryId))
         {

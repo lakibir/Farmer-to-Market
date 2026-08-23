@@ -223,13 +223,25 @@ export function renderBuyerView(
         ` : `
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             ${listings.map(l => `
-              <div class="glass-card overflow-hidden flex flex-col justify-between">
+              <div class="glass-card overflow-hidden flex flex-col justify-between hover:shadow-xl hover:border-emerald-500/40 transition-all duration-300 transform hover:-translate-y-1">
                 
                 <div>
-                  <div class="h-48 w-full relative overflow-hidden group">
-                    <img src="${l.photos[0]}" alt="${l.productName}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <!-- Clickable Image with Hover Inspector Overlay -->
+                  <div 
+                    onclick="window.openProduceDetail('${l.id}')" 
+                    class="h-48 w-full relative overflow-hidden group cursor-pointer"
+                    title="${t.clickToEnlarge || 'Click to view full photos & produce details'}"
+                  >
+                    <img src="${l.photos[0]}" alt="${l.productName}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108" />
                     
-                    <div class="absolute top-3 left-3 flex flex-col gap-1">
+                    <!-- Hover Quick Preview Overlay -->
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+                      <span class="bg-white/95 backdrop-blur-md text-slate-900 text-xs font-black px-3.5 py-2 rounded-full shadow-xl flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                        <i class="fa-solid fa-eye text-emerald-600"></i> ${t.viewDetails}
+                      </span>
+                    </div>
+
+                    <div class="absolute top-3 left-3 flex flex-col gap-1 z-10 pointer-events-none">
                       ${l.isAdvanceHarvest ? `
                         <span class="advance-pill shadow-md">
                           <i class="fa-solid fa-calendar-check text-emerald-700"></i> Advance Harvest
@@ -242,13 +254,19 @@ export function renderBuyerView(
                       ` : ''}
                     </div>
 
-                    <span class="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md text-white text-xs font-black px-3 py-1 rounded-full shadow-md">
+                    <span class="absolute top-3 right-3 bg-slate-950/85 backdrop-blur-md text-white text-xs font-black px-3 py-1 rounded-full shadow-md z-10 pointer-events-none">
                       ${l.pricePerKg} ETB<span class="text-[10px] font-normal text-slate-300">/kg</span>
                     </span>
 
                     ${l.distanceKm ? `
-                      <span class="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">
+                      <span class="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs z-10 pointer-events-none">
                         <i class="fa-solid fa-route text-amber-600 mr-1"></i> ${l.distanceKm} km ${t.farmDistance}
+                      </span>
+                    ` : ''}
+
+                    ${l.photos.length > 1 ? `
+                      <span class="absolute bottom-3 right-3 bg-black/75 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs z-10 pointer-events-none">
+                        <i class="fa-solid fa-images text-emerald-400 mr-1"></i> ${l.photos.length} photos
                       </span>
                     ` : ''}
                   </div>
@@ -260,7 +278,10 @@ export function renderBuyerView(
                       <span class="text-slate-600 font-medium">${l.ripeness || 'Ready Today'}</span>
                     </div>
 
-                    <h3 class="font-extrabold text-slate-900 text-lg leading-snug ${lang === 'am' ? 'lang-am' : ''}">
+                    <h3 
+                      onclick="window.openProduceDetail('${l.id}')"
+                      class="font-extrabold text-slate-900 text-lg leading-snug hover:text-emerald-700 cursor-pointer transition-colors ${lang === 'am' ? 'lang-am' : ''}"
+                    >
                       ${lang === 'am' && l.nameAm ? l.nameAm : l.productName}
                     </h3>
 
@@ -278,9 +299,9 @@ export function renderBuyerView(
                     </div>
 
                     ${l.voiceNoteTranscript ? `
-                      <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-900 flex items-start gap-2">
+                      <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] text-emerald-900 flex items-start gap-2 cursor-pointer hover:bg-emerald-100/70 transition-colors" onclick="window.openProduceDetail('${l.id}')">
                         <i class="fa-solid fa-microphone-lines text-emerald-700 text-sm mt-0.5"></i>
-                        <span class="italic leading-tight">"${l.voiceNoteTranscript}"</span>
+                        <span class="italic leading-tight truncate">"${l.voiceNoteTranscript}"</span>
                       </div>
                     ` : ''}
 
@@ -292,10 +313,13 @@ export function renderBuyerView(
                   </div>
                 </div>
 
-                <!-- Add to Bulk Cart Button -->
-                <div class="p-5 pt-0">
-                  <button onclick="window.addToCart('${l.id}')" class="btn-primary w-full py-2.5 text-xs font-extrabold shadow-sm cursor-pointer">
-                    <i class="fa-solid fa-cart-plus mr-1.5"></i> ${t.addToCart}
+                <!-- Action Buttons: View Details & Add to Bulk Cart -->
+                <div class="p-5 pt-0 grid grid-cols-2 gap-2">
+                  <button onclick="window.openProduceDetail('${l.id}')" class="btn-secondary py-2.5 text-xs font-bold shadow-xs cursor-pointer hover:bg-slate-100">
+                    <i class="fa-solid fa-eye text-emerald-600 mr-1"></i> Details
+                  </button>
+                  <button onclick="window.addToCart('${l.id}')" class="btn-primary py-2.5 text-xs font-extrabold shadow-sm cursor-pointer">
+                    <i class="fa-solid fa-cart-plus mr-1"></i> ${t.addToCart}
                   </button>
                 </div>
 

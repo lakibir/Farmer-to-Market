@@ -6,5 +6,6 @@ public enum UserRole
     Buyer,
     Driver,
     Agent,
-    Admin
+    Admin,
+    SuperAdmin
 }

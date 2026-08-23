@@ -142,6 +142,15 @@ export function renderAuthModal(
                       </div>
                       <span class="text-[10px] text-purple-800 font-mono block mt-0.5">+251 900 112 233</span>
                     </button>
+
+                    <button type="button" onclick="window.quickFillPhone('900 000 001')" 
+                      class="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200 transition-all text-left cursor-pointer group col-span-1 sm:col-span-2">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-rose-950">👑 Dr. Dawit Haile (Chief Platform Officer)</span>
+                        <span class="text-[9px] font-black bg-rose-200 text-rose-900 px-1.5 py-0.5 rounded">SUPER ADMIN</span>
+                      </div>
+                      <span class="text-[10px] text-rose-800 font-mono block mt-0.5">+251 900 000 001 · Full Root & Impersonation Access</span>
+                    </button>
                   </div>
                 </div>
               </form>

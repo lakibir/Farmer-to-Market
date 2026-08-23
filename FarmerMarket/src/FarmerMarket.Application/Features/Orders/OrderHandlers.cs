@@ -141,6 +141,7 @@ public class GetOrdersHandler(IAppDbContext db) : IRequestHandler<GetOrdersQuery
                 q = q.Where(o => o.DriverId == req.UserId || (o.DriverId == null && o.Status == OrderStatus.Confirmed));
                 break;
             case UserRole.Admin:
+            case UserRole.SuperAdmin:
                 break;
         }
 

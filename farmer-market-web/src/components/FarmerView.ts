@@ -263,11 +263,21 @@ export function renderFarmerView(
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           ${listings.map(l => `
-            <div class="glass-card overflow-hidden">
-              <div class="h-44 w-full relative">
-                <img src="${l.photos[0]}" class="w-full h-full object-cover" />
+            <div 
+              onclick="window.openProduceDetail('${l.id}')"
+              class="glass-card overflow-hidden cursor-pointer hover:shadow-xl hover:border-emerald-500/40 transition-all duration-300 transform hover:-translate-y-1 group"
+              title="Click to view produce post details & photos"
+            >
+              <div class="h-44 w-full relative overflow-hidden">
+                <img src="${l.photos[0]}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 
-                <div class="absolute top-3 left-3 flex flex-col gap-1">
+                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span class="bg-white/95 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                    <i class="fa-solid fa-eye text-emerald-600 mr-1"></i> View Post Details
+                  </span>
+                </div>
+
+                <div class="absolute top-3 left-3 flex flex-col gap-1 z-10 pointer-events-none">
                   ${l.isAdvanceHarvest ? `
                     <span class="advance-pill shadow-xs">
                       <i class="fa-solid fa-calendar-days text-emerald-700"></i> Advance Harvest
@@ -280,7 +290,7 @@ export function renderFarmerView(
                   ` : ''}
                 </div>
 
-                <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-700 text-white shadow-xs">
+                <span class="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-700 text-white shadow-xs z-10 pointer-events-none">
                   ${l.status.toUpperCase()}
                 </span>
               </div>
@@ -290,7 +300,7 @@ export function renderFarmerView(
                   <span>${l.ripeness || 'Ready Today'}</span>
                 </div>
 
-                <h3 class="font-bold text-slate-900 text-base ${lang === 'am' ? 'lang-am' : ''}">
+                <h3 class="font-bold text-slate-900 text-base group-hover:text-emerald-700 transition-colors ${lang === 'am' ? 'lang-am' : ''}">
                   ${lang === 'am' && l.nameAm ? l.nameAm : l.productName}
                 </h3>
 

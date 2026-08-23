@@ -13,6 +13,9 @@ import { VerificationWizardModal } from './components/VerificationWizardModal';
 import { renderNotificationsModal } from './components/NotificationsModal';
 import { renderAuthModal } from './components/AuthModal';
 import { documentModal } from './components/DocumentModal';
+import { produceDetailModal } from './components/ProduceDetailModal';
+import { renderSuperAdminView, SuperAdminTab } from './components/SuperAdminView';
+import { renderSuperAdminModals } from './components/SuperAdminModals';
 
 // Toast Notification Manager
 function showToast(message: string, icon: string = 'fa-circle-check', color: string = 'border-emerald-500') {
@@ -51,6 +54,11 @@ class App {
   private activeTelebirrModal: { isOpen: boolean; totalEtb: number; listingId?: string; qtyKg?: number } | null = null;
   private activeDisputeModal: { isOpen: boolean; order: Order } | null = null;
 
+  // Produce Detail Post Modal State
+  private activeProduceModalId: string | null = null;
+  private activeProducePhotoIndex: number = 0;
+  private produceOrderQty: number = 50;
+
   // Legal & Official Document Modal State
   private activeLegalDocModal: { isOpen: boolean; type: 'invoice' | 'waybill' | 'contract' | 'arbitration'; orderId: string } | null = null;
 
@@ -65,6 +73,16 @@ class App {
   // Farmer & Admin Sub-Tabs
   private activeFarmerTab: 'listings' | 'wallet' | 'sms' = 'listings';
   private activeAdminTab: 'disputes' | 'anomalies' | 'kyc' | 'tax_compliance' | 'analytics' | 'sms' = 'disputes';
+
+  // Super Admin Governance State
+  private activeSuperAdminTab: SuperAdminTab = 'users';
+  private superAdminUserRoleFilter: string = 'all';
+  private superAdminAuditCategoryFilter: string = 'all';
+  private isSuperAdminCreateUserModalOpen: boolean = false;
+  private isSuperAdminEditUserModalOpen: boolean = false;
+  private editTargetUserId: string | null = null;
+  private isSuperAdminAddZoneModalOpen: boolean = false;
+  private isSuperAdminAddBlacklistModalOpen: boolean = false;
 
   // Voice Note State
   private isRecordingVoice: boolean = false;
@@ -113,7 +131,8 @@ class App {
     // Auto-navigate to role's home view if logged in
     const u = api.getCurrentUser();
     if (u) {
-      if (u.role === 'farmer') this.activeTab = 'farmer';
+      if (u.role === 'superadmin') this.activeTab = 'superadmin';
+      else if (u.role === 'farmer') this.activeTab = 'farmer';
       else if (u.role === 'driver') this.activeTab = 'driver';
       else if (u.role === 'admin') this.activeTab = 'admin';
       else this.activeTab = 'marketplace';
@@ -173,6 +192,13 @@ class App {
         api.getIsOfflineMode(),
         api.getOfflineQueue().length
       );
+    } else if (this.activeTab === 'superadmin' || (isAuthenticated && currentUser?.role === 'superadmin' && this.activeTab === 'superadmin')) {
+      viewHtml = renderSuperAdminView(
+        this.lang,
+        this.activeSuperAdminTab,
+        this.superAdminUserRoleFilter,
+        this.superAdminAuditCategoryFilter
+      );
     } else if (this.activeTab === 'admin' && isAuthenticated && currentUser?.role === 'admin') {
       const stats = api.getPlatformStats();
       const disputedOrders = api.getOrders().filter(o => o.status === 'disputed');
@@ -214,6 +240,24 @@ class App {
     }
 
     appEl.innerHTML = `
+      ${api.isImpersonating() ? `
+        <div class="bg-gradient-to-r from-rose-700 via-rose-600 to-slate-900 text-white py-2.5 px-4 sm:px-8 text-xs font-bold shadow-lg flex items-center justify-between z-50 sticky top-0 border-b border-rose-500 animate-fadeIn">
+          <div class="flex items-center gap-2.5">
+            <span class="px-2 py-0.5 rounded bg-white/20 text-white text-[10px] font-black tracking-wider uppercase">SUPER ADMIN IMPERSONATION</span>
+            <i class="fa-solid fa-user-secret text-rose-200"></i>
+            <span>
+              ${this.lang === 'am'
+                ? `በአሁኑ ወቅት በ<strong>${currentUser?.name}</strong> (${currentUser?.role.toUpperCase()}) ስም ገብተዋል። ሁሉም ክዋኔዎች በSuper Admin ኦዲት ይመዘገባሉ።`
+                : `Active Impersonation: Logged in as <strong>${currentUser?.name}</strong> (${currentUser?.role.toUpperCase()}). All actions are logged.`}
+            </span>
+          </div>
+          <button onclick="window.stopSuperAdminImpersonation()" class="px-3.5 py-1.5 bg-white text-rose-800 hover:bg-rose-50 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-1.5">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>${this.lang === 'am' ? 'ከተጠቃሚው ውጣ' : 'Exit Impersonation'}</span>
+          </button>
+        </div>
+      ` : ''}
+
       ${renderNavbar(this.lang, currentUser, isAuthenticated, this.activeTab, this.cart, unreadCount, this.searchQuery)}
       
       <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 w-full">
@@ -295,6 +339,17 @@ class App {
       <!-- Verification Wizard Modal Container -->
       <div id="verificationWizardModal"></div>
 
+      <!-- Produce Post & Farm Details Modal -->
+      ${(() => {
+        if (!this.activeProduceModalId) return '';
+        const activeListing = api.getListingById(this.activeProduceModalId);
+        if (!activeListing) return '';
+        produceDetailModal.setLanguage(this.lang);
+        produceDetailModal.setActivePhotoIndex(this.activeProducePhotoIndex);
+        produceDetailModal.setSelectedQtyKg(this.produceOrderQty);
+        return produceDetailModal.render(activeListing);
+      })()}
+
       <!-- Official Legal Document Viewer Modal -->
       ${this.activeLegalDocModal?.isOpen ? `
         <div class="modal-backdrop" onclick="if(event.target === this) window.closeLegalDocModal()">
@@ -325,11 +380,101 @@ class App {
           </div>
         </div>
       ` : ''}
+
+      <!-- Super Admin Governance Modals -->
+      ${renderSuperAdminModals(
+        this.lang,
+        this.isSuperAdminCreateUserModalOpen,
+        this.isSuperAdminEditUserModalOpen,
+        this.editTargetUserId,
+        this.isSuperAdminAddZoneModalOpen,
+        this.isSuperAdminAddBlacklistModalOpen
+      )}
     `;
   }
 
   private attachGlobalWindowHandlers() {
     const w = window as any;
+
+    // Produce Post Detail Modal Handlers
+    w.openProduceDetail = (id: string) => {
+      this.activeProduceModalId = id;
+      this.activeProducePhotoIndex = 0;
+      const item = api.getListingById(id);
+      this.produceOrderQty = item?.minOrderKg || 50;
+      this.render();
+    };
+
+    w.closeProduceDetail = () => {
+      this.activeProduceModalId = null;
+      this.render();
+    };
+
+    w.selectProducePhoto = (index: number) => {
+      this.activeProducePhotoIndex = index;
+      this.render();
+    };
+
+    w.setProduceOrderQty = (qty: number) => {
+      this.produceOrderQty = Math.max(1, qty);
+      this.render();
+    };
+
+    w.addProduceDetailToCart = (id: string, qty?: number) => {
+      const item = api.getListingById(id);
+      if (!item) return;
+      const finalQty = qty || this.produceOrderQty || item.minOrderKg || 50;
+      const existing = this.cart.find(c => c.listing.id === id);
+      if (existing) {
+        existing.qtyKg += finalQty;
+      } else {
+        this.cart.push({ listing: item, qtyKg: finalQty });
+      }
+      this.activeProduceModalId = null;
+      this.isCartOpen = true;
+      showToast(this.lang === 'am' ? `${finalQty} ኪ.ግ ${item.nameAm || item.productName} ወደ ጋሪ ተጨምሯል` : `Added ${finalQty} kg of ${item.productName} to bulk cart!`, 'fa-cart-plus');
+      this.render();
+    };
+
+    w.buyProduceNow = (id: string, qty: number) => {
+      const item = api.getListingById(id);
+      if (!item) return;
+      this.activeProduceModalId = null;
+      const finalQty = qty || this.produceOrderQty || item.minOrderKg || 50;
+      const totalEtb = finalQty * item.pricePerKg;
+      this.activeTelebirrModal = { isOpen: true, totalEtb, listingId: id, qtyKg: finalQty };
+      this.render();
+    };
+
+    w.shareProduceListing = (id: string) => {
+      const item = api.getListingById(id);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(window.location.href);
+      }
+      showToast(`Copied direct produce link for ${item?.productName || 'listing'}!`, 'fa-share-nodes', 'border-blue-500');
+    };
+
+    w.playSimulatedVoiceNote = (id: string) => {
+      const icon = document.getElementById('voicePlayIcon-' + id);
+      const text = document.getElementById('voicePlayText-' + id);
+      if (icon && text) {
+        icon.className = 'fa-solid fa-spinner fa-spin text-[10px]';
+        text.innerText = 'Playing Memo...';
+        setTimeout(() => {
+          icon.className = 'fa-solid fa-check text-[10px]';
+          text.innerText = 'Memo Played';
+          setTimeout(() => {
+            icon.className = 'fa-solid fa-play text-[10px]';
+            text.innerText = 'Play Voice Memo';
+          }, 2500);
+        }, 1800);
+      }
+      showToast('Playing farmer voice note recorded in Bishoftu farm hub.', 'fa-volume-high', 'border-emerald-500');
+    };
+
+    w.sendSmsInquiry = (phone: string, productName: string) => {
+      showToast(`Dispatched SMS inquiry for ${productName} to ${phone}`, 'fa-paper-plane', 'border-emerald-500');
+    };
 
     w.navigateTab = (tab: string) => {
       this.activeTab = tab;
@@ -776,7 +921,8 @@ class App {
         this.otpStep = false;
         this.authErrorMessage = '';
 
-        if (user.role === 'farmer') this.activeTab = 'farmer';
+        if (user.role === 'superadmin') this.activeTab = 'superadmin';
+        else if (user.role === 'farmer') this.activeTab = 'farmer';
         else if (user.role === 'driver') this.activeTab = 'driver';
         else if (user.role === 'admin') this.activeTab = 'admin';
         else this.activeTab = 'marketplace';
@@ -1118,6 +1264,423 @@ class App {
       } else {
         showToast(this.lang === 'am' ? 'ማረጋገጫው ውድቅ ተደርጓል፤ ምክንያቱ በኤስኤምኤስ ተልኳል።' : 'Verification rejected & reason SMS sent to user.', 'fa-triangle-exclamation', 'border-amber-500');
       }
+      this.render();
+    };
+
+    // ==================== SUPER ADMIN WINDOW HANDLERS ====================
+    w.setSuperAdminTab = (tab: SuperAdminTab) => {
+      this.activeSuperAdminTab = tab;
+      this.render();
+    };
+
+    w.setUserRoleFilter = (filter: string) => {
+      this.superAdminUserRoleFilter = filter;
+      this.render();
+    };
+
+    w.setAuditCategoryFilter = (cat: string) => {
+      this.superAdminAuditCategoryFilter = cat;
+      this.render();
+    };
+
+    w.openCreateUserModal = () => {
+      this.isSuperAdminCreateUserModalOpen = true;
+      this.render();
+    };
+
+    w.openEditUserModal = (userId: string) => {
+      this.editTargetUserId = userId;
+      this.isSuperAdminEditUserModalOpen = true;
+      this.render();
+    };
+
+    w.openAddZoneModal = () => {
+      this.isSuperAdminAddZoneModalOpen = true;
+      this.render();
+    };
+
+    w.openAddBlacklistModal = () => {
+      this.isSuperAdminAddBlacklistModalOpen = true;
+      this.render();
+    };
+
+    w.closeSuperAdminModal = () => {
+      this.isSuperAdminCreateUserModalOpen = false;
+      this.isSuperAdminEditUserModalOpen = false;
+      this.isSuperAdminAddZoneModalOpen = false;
+      this.isSuperAdminAddBlacklistModalOpen = false;
+      this.editTargetUserId = null;
+      this.render();
+    };
+
+    w.handleRoleChangeInModal = (role: string) => {
+      const container = document.getElementById('roleSpecificFields');
+      if (!container) return;
+
+      if (role === 'farmer') {
+        container.innerHTML = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Primary Produce / Crop</label>
+              <input type="text" id="newPrimaryCropInput" placeholder="e.g. Magna Teff, Fresh Tomatoes" class="input-field text-xs font-bold" />
+            </div>
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Kebele / Farm Location</label>
+              <input type="text" id="newKebeleInput" placeholder="e.g. Kebele 03 Farm Cluster" class="input-field text-xs font-bold" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">National ID (Fayda FAN)</label>
+              <input type="text" id="newFaydaInput" placeholder="FAN-XXXX-XXXX-XXXX" class="input-field text-xs font-bold font-mono" />
+            </div>
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Taxpayer ID (TIN Number)</label>
+              <input type="text" id="newTinInput" placeholder="10-digit TIN" class="input-field text-xs font-bold font-mono" />
+            </div>
+          </div>
+        `;
+      } else if (role === 'driver') {
+        container.innerHTML = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Vehicle Model & Type</label>
+              <input type="text" id="newVehicleTypeInput" placeholder="e.g. Isuzu 5-Ton FSR" value="Isuzu 5-Ton" class="input-field text-xs font-bold" />
+            </div>
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Payload Capacity (kg)</label>
+              <input type="number" id="newCapacityInput" placeholder="5000" value="5000" class="input-field text-xs font-bold" />
+            </div>
+          </div>
+          <div>
+            <label class="block mb-1 font-bold text-slate-700">Refrigeration / Cargo Mode</label>
+            <input type="text" id="newRefrigInput" placeholder="Ventilated, Insulated, or Active Refrigerated" value="Ventilated & Insulated" class="input-field text-xs font-bold" />
+          </div>
+        `;
+      } else if (role === 'buyer') {
+        container.innerHTML = `
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Business License Number</label>
+              <input type="text" id="newLicenseInput" placeholder="BL-AA-XXXXX" class="input-field text-xs font-bold font-mono" />
+            </div>
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Taxpayer ID (TIN)</label>
+              <input type="text" id="newTinInput" placeholder="10-digit TIN" class="input-field text-xs font-bold font-mono" />
+            </div>
+          </div>
+        `;
+      } else if (role === 'admin') {
+        container.innerHTML = `
+          <div>
+            <label class="block mb-2 font-bold text-slate-700">Admin Permissions Assigned</label>
+            <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-700">
+              <label class="flex items-center gap-1.5"><input type="checkbox" checked class="rounded text-purple-600" /> Manage Users & KYC</label>
+              <label class="flex items-center gap-1.5"><input type="checkbox" checked class="rounded text-purple-600" /> Arbitrate Disputes</label>
+              <label class="flex items-center gap-1.5"><input type="checkbox" checked class="rounded text-purple-600" /> Broadcast SMS</label>
+              <label class="flex items-center gap-1.5"><input type="checkbox" checked class="rounded text-purple-600" /> View Tax Reports</label>
+            </div>
+          </div>
+        `;
+      } else if (role === 'superadmin') {
+        container.innerHTML = `
+          <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-bold">
+            👑 Grants full unrestricted platform access, killswitches, impersonation engine, and escrow governance.
+          </div>
+        `;
+      }
+    };
+
+    w.handleCreateUserSubmit = (e: Event) => {
+      e.preventDefault();
+      const role = (document.getElementById('newRoleSelect') as HTMLSelectElement)?.value as UserRole;
+      const name = (document.getElementById('newNameInput') as HTMLInputElement)?.value;
+      const nameAm = (document.getElementById('newNameAmInput') as HTMLInputElement)?.value || undefined;
+      const phone = (document.getElementById('newPhoneInput') as HTMLInputElement)?.value;
+      const region = (document.getElementById('newRegionInput') as HTMLInputElement)?.value;
+      const verified = (document.getElementById('newVerifiedCheck') as HTMLInputElement)?.checked ?? true;
+
+      const primaryCrop = (document.getElementById('newPrimaryCropInput') as HTMLInputElement)?.value || undefined;
+      const kebele = (document.getElementById('newKebeleInput') as HTMLInputElement)?.value || undefined;
+      const faydaId = (document.getElementById('newFaydaInput') as HTMLInputElement)?.value || undefined;
+      const tinNumber = (document.getElementById('newTinInput') as HTMLInputElement)?.value || undefined;
+      const vehicleType = (document.getElementById('newVehicleTypeInput') as HTMLInputElement)?.value || undefined;
+      const vehicleCapacityKg = Number((document.getElementById('newCapacityInput') as HTMLInputElement)?.value) || undefined;
+      const refrigerationType = (document.getElementById('newRefrigInput') as HTMLInputElement)?.value || undefined;
+      const businessLicenseNumber = (document.getElementById('newLicenseInput') as HTMLInputElement)?.value || undefined;
+
+      const created = api.createUser({
+        role,
+        name,
+        nameAm,
+        phone,
+        region,
+        verified,
+        status: 'active',
+        primaryCrop,
+        kebele,
+        faydaId,
+        tinNumber,
+        vehicleType,
+        vehicleCapacityKg,
+        refrigerationType,
+        businessLicenseNumber
+      });
+
+      this.isSuperAdminCreateUserModalOpen = false;
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      showToast(this.lang === 'am' ? `አዲስ ${role.toUpperCase()} መለያ ተፈጥሯል: ${name}` : `Created ${role.toUpperCase()} account: ${name}!`, 'fa-user-check', 'border-rose-500');
+      this.render();
+    };
+
+    w.handleEditUserSubmit = (e: Event, userId: string) => {
+      e.preventDefault();
+      const name = (document.getElementById('editNameInput') as HTMLInputElement)?.value;
+      const phone = (document.getElementById('editPhoneInput') as HTMLInputElement)?.value;
+      const role = (document.getElementById('editRoleSelect') as HTMLSelectElement)?.value as UserRole;
+      const status = (document.getElementById('editStatusSelect') as HTMLSelectElement)?.value as 'active' | 'suspended';
+      const region = (document.getElementById('editRegionInput') as HTMLInputElement)?.value;
+      const faydaId = (document.getElementById('editFaydaInput') as HTMLInputElement)?.value || undefined;
+      const tinNumber = (document.getElementById('editTinInput') as HTMLInputElement)?.value || undefined;
+
+      api.updateUser(userId, { name, phone, role, status, region, faydaId, tinNumber });
+      this.isSuperAdminEditUserModalOpen = false;
+      this.editTargetUserId = null;
+      showToast(`Updated user profile: ${name}`, 'fa-user-pen', 'border-emerald-500');
+      this.render();
+    };
+
+    w.toggleUserSuspension = (userId: string) => {
+      const u = api.toggleUserSuspension(userId);
+      showToast(
+        u.status === 'suspended'
+          ? `Suspended account access for ${u.name}`
+          : `Reinstated account access for ${u.name}`,
+        u.status === 'suspended' ? 'fa-user-slash' : 'fa-user-check',
+        u.status === 'suspended' ? 'border-red-500' : 'border-emerald-500'
+      );
+      this.render();
+    };
+
+    w.deleteUserAccount = (userId: string) => {
+      const user = api.getUserById(userId);
+      if (!user) return;
+      if (!confirm(`Are you sure you want to permanently delete user '${user.name}' (${user.phone})? This action cannot be undone.`)) return;
+
+      api.deleteUser(userId);
+      showToast(`Permanently deleted user: ${user.name}`, 'fa-trash', 'border-red-500');
+      this.render();
+    };
+
+    w.startSuperAdminImpersonation = (userId: string) => {
+      const targetUser = api.startImpersonation(userId);
+      if (!targetUser) return;
+
+      (window as any).isSuperAdminImpersonating = true;
+      showToast(`Logged in as ${targetUser.name} (${targetUser.role.toUpperCase()})`, 'fa-user-secret', 'border-rose-500');
+
+      if (targetUser.role === 'farmer') this.activeTab = 'farmer';
+      else if (targetUser.role === 'driver') this.activeTab = 'driver';
+      else if (targetUser.role === 'admin') this.activeTab = 'admin';
+      else this.activeTab = 'marketplace';
+
+      this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    w.stopSuperAdminImpersonation = () => {
+      const original = api.stopImpersonation();
+      (window as any).isSuperAdminImpersonating = false;
+      showToast(`Exited impersonation. Returned to Super Admin dashboard.`, 'fa-crown', 'border-rose-500');
+      this.activeTab = 'superadmin';
+      this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    w.updateEscrowSliders = (source: string) => {
+      const farmerEl = document.getElementById('farmerShareInput') as HTMLInputElement;
+      const driverEl = document.getElementById('driverShareInput') as HTMLInputElement;
+      const platformEl = document.getElementById('platformShareInput') as HTMLInputElement;
+      if (!farmerEl || !driverEl || !platformEl) return;
+
+      let farmerVal = Number(farmerEl.value);
+      let driverVal = Number(driverEl.value);
+      let platformVal = Number(platformEl.value);
+
+      if (source === 'farmer') {
+        const remaining = 100 - farmerVal;
+        driverVal = Math.round(remaining / 2);
+        platformVal = remaining - driverVal;
+        driverEl.value = driverVal.toString();
+        platformEl.value = platformVal.toString();
+      }
+
+      document.getElementById('farmerShareDisplay')!.innerText = `${farmerEl.value}%`;
+      document.getElementById('driverShareDisplay')!.innerText = `${driverEl.value}%`;
+      document.getElementById('platformShareDisplay')!.innerText = `${platformEl.value}%`;
+    };
+
+    w.handleSaveSuperAdminConfig = (e: Event) => {
+      e.preventDefault();
+      const farmerSharePercent = Number((document.getElementById('farmerShareInput') as HTMLInputElement)?.value) || 90;
+      const driverSharePercent = Number((document.getElementById('driverShareInput') as HTMLInputElement)?.value) || 5;
+      const platformFeePercent = Number((document.getElementById('platformShareInput') as HTMLInputElement)?.value) || 5;
+      const withholdingTaxPercent = Number((document.getElementById('cfgWithholdingTax') as HTMLInputElement)?.value) || 2;
+      const highValuePayoutThresholdEtb = Number((document.getElementById('cfgHighValueThreshold') as HTMLInputElement)?.value) || 50000;
+      const telebirrAppId = (document.getElementById('cfgTelebirrAppId') as HTMLInputElement)?.value || '';
+      const telebirrShortCode = (document.getElementById('cfgTelebirrShortCode') as HTMLInputElement)?.value || '';
+      const telebirrApiKey = (document.getElementById('cfgTelebirrApiKey') as HTMLInputElement)?.value || '';
+      const twilioAccountSid = (document.getElementById('cfgTwilioSid') as HTMLInputElement)?.value || '';
+      const twilioAuthToken = (document.getElementById('cfgTwilioToken') as HTMLInputElement)?.value || '';
+      const twilioFromNumber = (document.getElementById('cfgTwilioFrom') as HTMLInputElement)?.value || '';
+
+      api.updatePlatformConfig({
+        farmerSharePercent,
+        driverSharePercent,
+        platformFeePercent,
+        withholdingTaxPercent,
+        highValuePayoutThresholdEtb,
+        telebirrAppId,
+        telebirrShortCode,
+        telebirrApiKey,
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioFromNumber
+      });
+
+      showToast('Platform configuration and escrow splits saved!', 'fa-floppy-disk', 'border-emerald-500');
+      this.render();
+    };
+
+    w.approveHighValuePayout = (id: string) => {
+      const user = api.getCurrentUser();
+      const success = api.approvePayout(id, user?.name || 'Dr. Dawit Haile (Super Admin)');
+      if (success) {
+        confetti({ particleCount: 90, spread: 60, origin: { y: 0.6 } });
+        showToast('High-value Telebirr payout approved & released!', 'fa-circle-check', 'border-emerald-500');
+        this.render();
+      }
+    };
+
+    w.rejectHighValuePayout = (id: string) => {
+      const user = api.getCurrentUser();
+      api.rejectPayout(id, user?.name || 'Dr. Dawit Haile (Super Admin)', 'Manual Super Admin audit flag');
+      showToast('Payout declined & flagged for compliance investigation.', 'fa-ban', 'border-red-500');
+      this.render();
+    };
+
+    w.toggleFeatureFlag = (key: string) => {
+      const flag = api.toggleFeatureFlag(key);
+      showToast(`${flag.name}: ${flag.enabled ? 'ENABLED' : 'DISABLED'}`, 'fa-toggle-on', flag.enabled ? 'border-emerald-500' : 'border-slate-500');
+      this.render();
+    };
+
+    w.toggleEmergencyEscrowFreeze = () => {
+      const current = api.getPlatformConfig();
+      const nextFrozen = !current.emergencyEscrowFrozen;
+      api.updatePlatformConfig({ emergencyEscrowFrozen: nextFrozen });
+
+      if (nextFrozen) {
+        alert('EMERGENCY ESCROW FREEZE ACTIVATED!\nAll automatic Telebirr payouts and order releases have been halted platform-wide.');
+        showToast('EMERGENCY ESCROW FREEZE ACTIVATED!', 'fa-lock', 'border-red-500');
+      } else {
+        showToast('Platform escrow unfrozen. Normal operations restored.', 'fa-lock-open', 'border-emerald-500');
+      }
+      this.render();
+    };
+
+    w.handleAddZoneSubmit = (e: Event) => {
+      e.preventDefault();
+      const name = (document.getElementById('zoneNameInput') as HTMLInputElement)?.value;
+      const clusterHubName = (document.getElementById('zoneHubInput') as HTMLInputElement)?.value;
+      const centerLatitude = Number((document.getElementById('zoneLatInput') as HTMLInputElement)?.value);
+      const centerLongitude = Number((document.getElementById('zoneLngInput') as HTMLInputElement)?.value);
+      const baseRadiusKm = Number((document.getElementById('zoneRadiusInput') as HTMLInputElement)?.value);
+      const ruralSubsidyEtb = Number((document.getElementById('zoneBonusInput') as HTMLInputElement)?.value);
+
+      api.addDeliveryZone({
+        name,
+        clusterHubName,
+        centerLatitude,
+        centerLongitude,
+        baseRadiusKm,
+        maxRadiusKm: baseRadiusKm * 2.5,
+        ruralSubsidyEtb,
+        active: true,
+        smallholdersCount: 500
+      });
+
+      this.isSuperAdminAddZoneModalOpen = false;
+      showToast(`Added regional delivery zone: ${name}`, 'fa-map-location-dot', 'border-teal-500');
+      this.render();
+    };
+
+    w.deleteZone = (id: string) => {
+      api.deleteDeliveryZone(id);
+      showToast('Delivery zone removed.', 'fa-trash', 'border-slate-500');
+      this.render();
+    };
+
+    w.handleAddBlacklistSubmit = (e: Event) => {
+      e.preventDefault();
+      const type = (document.getElementById('blTypeSelect') as HTMLSelectElement)?.value as any;
+      const value = (document.getElementById('blValueInput') as HTMLInputElement)?.value;
+      const reason = (document.getElementById('blReasonInput') as HTMLTextAreaElement)?.value;
+      const u = api.getCurrentUser();
+
+      api.addToBlacklist({
+        type,
+        value,
+        reason,
+        blacklistedBy: u?.name || 'Super Admin',
+        active: true
+      });
+
+      this.isSuperAdminAddBlacklistModalOpen = false;
+      showToast(`Entity blacklisted: ${value}`, 'fa-ban', 'border-red-500');
+      this.render();
+    };
+
+    w.removeFromBlacklist = (id: string) => {
+      api.removeFromBlacklist(id);
+      showToast('Entity removed from blacklist.', 'fa-circle-check', 'border-emerald-500');
+      this.render();
+    };
+
+    w.handleSaveBusinessRules = (e: Event) => {
+      e.preventDefault();
+      const minOrderKg = Number((document.getElementById('ruleMinOrderKg') as HTMLInputElement)?.value) || 10;
+      const maxOrderKg = Number((document.getElementById('ruleMaxOrderKg') as HTMLInputElement)?.value) || 50000;
+      const maxDistanceKm = Number((document.getElementById('ruleMaxDistanceKm') as HTMLInputElement)?.value) || 450;
+      const priceCeilingVariancePercent = Number((document.getElementById('rulePriceCeiling') as HTMLInputElement)?.value) || 250;
+
+      api.updateGlobalBusinessRules({
+        minOrderKg,
+        maxOrderKg,
+        maxDistanceKm,
+        priceCeilingVariancePercent
+      });
+
+      showToast('Global trading business rules saved!', 'fa-gavel', 'border-emerald-500');
+      this.render();
+    };
+
+    w.triggerDbBackup = () => {
+      const backup = api.triggerDatabaseBackup();
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+      showToast(`PostgreSQL backup snapshot generated (${backup.backupId})!`, 'fa-database', 'border-blue-500');
+      this.render();
+    };
+
+    w.exportPlatformData = (format: 'json' | 'csv') => {
+      const exp = api.exportPlatformData(format);
+      const link = document.createElement('a');
+      link.href = exp.dataUrl;
+      link.download = exp.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast(`Downloaded full platform data export (${format.toUpperCase()})!`, 'fa-download', 'border-emerald-500');
       this.render();
     };
   }

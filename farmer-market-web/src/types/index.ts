@@ -1,4 +1,4 @@
-export type UserRole = 'farmer' | 'buyer' | 'driver' | 'agent' | 'admin';
+export type UserRole = 'farmer' | 'buyer' | 'driver' | 'agent' | 'admin' | 'superadmin';
 export type OrderStatus = 'pending' | 'confirmed' | 'picked_up' | 'delivered' | 'disputed' | 'cancelled';
 export type ListingStatus = 'active' | 'sold_out' | 'expired' | 'inactive';
 export type VerificationStatus = 'PendingSubmission' | 'UnderReview' | 'Approved' | 'Rejected';
@@ -36,6 +36,7 @@ export interface User {
   role: UserRole;
   region: string;
   verified: boolean;
+  status?: 'active' | 'suspended' | 'blacklisted';
   registrationMethod?: RegistrationMethod;
   registeredByAgentId?: string;
   registeredByAgentName?: string;
@@ -54,6 +55,10 @@ export interface User {
   onTimeDeliveryRate?: number;
   walletBalanceEtb?: number;
   createdAt: string;
+  primaryCrop?: string;
+  kebele?: string;
+  faydaId?: string;
+  permissions?: string[];
   documents?: UserDocument[];
   verificationReviews?: VerificationReview[];
 }
@@ -67,6 +72,8 @@ export interface Listing {
   region: string;
   productName: string;
   nameAm?: string;
+  description?: string;
+  descriptionAm?: string;
   category: string;
   qtyKg: number;
   pricePerKg: number;
@@ -497,5 +504,129 @@ export interface DisputeMediationRecord {
   financialRemedyDescription?: string;
   arbitratorName?: string;
   bindingEnforcementSeal?: string;
+}
+
+// ==================== SUPER ADMIN GOVERNANCE INTERFACES ====================
+
+export interface AdminPermission {
+  id: string;
+  name: string;
+  category: 'User Management' | 'Financials' | 'Moderation' | 'Configuration' | 'Emergency';
+  description: string;
+}
+
+export interface PlatformConfig {
+  farmerSharePercent: number;        // Default: 90
+  driverSharePercent: number;        // Default: 5
+  platformFeePercent: number;        // Default: 5
+  withholdingTaxPercent: number;     // Default: 2
+  vatOnCommissionPercent: number;    // Default: 15
+  highValuePayoutThresholdEtb: number; // Default: 50,000
+  emergencyEscrowFrozen: boolean;
+  telebirrAppId: string;
+  telebirrShortCode: string;
+  telebirrApiKey: string;
+  telebirrEscrowVaultKey: string;
+  twilioAccountSid: string;
+  twilioAuthToken: string;
+  twilioFromNumber: string;
+  mapsGeocodingApiKey: string;
+  postgisSpatialIndexEnabled: boolean;
+}
+
+export interface SystemAuditLog {
+  id: string;
+  actorId: string;
+  actorName: string;
+  actorRole: UserRole | string;
+  action: string;
+  category: 'AUTH' | 'USER_CRUD' | 'FINANCE' | 'CONFIG' | 'DISPUTE' | 'EMERGENCY' | 'IMPERSONATION';
+  targetResource: string;
+  targetId?: string;
+  ipAddress: string;
+  userAgent: string;
+  details: string;
+  preState?: any;
+  postState?: any;
+  timestamp: string;
+}
+
+export interface DeliveryZoneConfig {
+  id: string;
+  name: string;
+  nameAm?: string;
+  centerLatitude: number;
+  centerLongitude: number;
+  baseRadiusKm: number;
+  maxRadiusKm: number;
+  ruralSubsidyEtb: number;
+  active: boolean;
+  clusterHubName: string;
+  smallholdersCount: number;
+}
+
+export interface FeatureFlag {
+  key: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  rolloutPercentage: number;
+  targetRegions: string[];
+  targetRoles: UserRole[];
+}
+
+export interface PayoutApprovalItem {
+  id: string;
+  recipientId: string;
+  recipientName: string;
+  recipientPhone: string;
+  recipientRole: UserRole;
+  amountEtb: number;
+  walletBalanceBefore: number;
+  riskScore: 'Low' | 'Medium' | 'High';
+  triggerReason: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  requestedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+}
+
+export interface GlobalBusinessRules {
+  minOrderKg: number;
+  maxOrderKg: number;
+  maxDistanceKm: number;
+  priceFloorVariancePercent: number;   // -30%
+  priceCeilingVariancePercent: number; // +250%
+  requireFaydaForOrdersAboveKg: number; // 500 kg
+  autoArbitrateAfterHours: number;      // 48 hours
+}
+
+export interface BlacklistEntry {
+  id: string;
+  type: 'Phone' | 'NationalId' | 'IpAddress' | 'TinNumber';
+  value: string;
+  reason: string;
+  blacklistedBy: string;
+  blacklistedAt: string;
+  active: boolean;
+}
+
+export interface CreateUserDto {
+  name: string;
+  nameAm?: string;
+  phone: string;
+  role: UserRole;
+  region: string;
+  verified?: boolean;
+  status?: 'active' | 'suspended';
+  tinNumber?: string;
+  businessLicenseNumber?: string;
+  vehicleType?: string;
+  refrigerationType?: string;
+  vehicleCapacityKg?: number;
+  primaryCrop?: string;
+  kebele?: string;
+  faydaId?: string;
+  permissions?: string[];
 }
 
