@@ -13,7 +13,7 @@ public record PlaceOrderCommand(Guid BuyerId, PlaceOrderDto Dto) : IRequest<Resu
 
 public class PlaceOrderHandler(
     IAppDbContext db,
-    ITelebirrService telebirr,
+    IPaymentGateway payment,
     ISmsService sms,
     ISignalRNotifier signalR) : IRequestHandler<PlaceOrderCommand, Result<PlaceOrderResultDto>>
 {
@@ -52,8 +52,8 @@ public class PlaceOrderHandler(
 
         var orderId = Guid.NewGuid();
 
-        // Initiate Telebirr Escrow Payment
-        var telebirrInit = await telebirr.InitiatePaymentAsync(orderId, totalEtb, buyer.Phone, ct);
+        // Initiate payment via configured gateway (Telebirr or Chapa)
+        var paymentInit = await payment.InitiatePaymentAsync(orderId, totalEtb, buyer.Phone, ct);
 
         var order = new Order
         {
@@ -64,16 +64,16 @@ public class PlaceOrderHandler(
             TotalEtb = totalEtb,
             Status = OrderStatus.Pending,
             EscrowHeld = true,
-            PaymentRef = telebirrInit.OutTradeNo,
+            PaymentRef = paymentInit.TransactionRef,
             DeliveryAddress = req.Dto.DeliveryAddress ?? buyer.Region,
             DeliveryNotes = req.Dto.DeliveryNotes,
             IsRecurring = req.Dto.IsRecurring,
             RecurringFrequency = req.Dto.RecurringFrequency,
-            DriverSubsidyEtb = 150m, // Rural route transit bonus
+            DriverSubsidyEtb = 150m,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-        var payment = new Payment
+        var payment2 = new Payment
         {
             Id = Guid.NewGuid(),
             OrderId = order.Id,
@@ -81,13 +81,13 @@ public class PlaceOrderHandler(
             FarmerCut = farmerCut,
             DriverCut = driverCut,
             PlatformCut = platformCut,
-            TelebirrRef = telebirrInit.OutTradeNo,
+            TelebirrRef = paymentInit.TransactionRef,
             Status = "Held",
             CreatedAt = DateTimeOffset.UtcNow
         };
 
         db.Orders.Add(order);
-        db.Payments.Add(payment);
+        db.Payments.Add(payment2);
 
         // Record Notification for Farmer
         db.Notifications.Add(new Notification
@@ -108,8 +108,8 @@ public class PlaceOrderHandler(
         return Result<PlaceOrderResultDto>.Success(new PlaceOrderResultDto(
             order.Id,
             totalEtb,
-            telebirrInit.PaymentUrl,
-            telebirrInit.OutTradeNo
+            paymentInit.PaymentUrl,
+            paymentInit.TransactionRef
         ));
     }
 }
@@ -293,12 +293,15 @@ public class ConfirmOrderHandler(IAppDbContext db, ISignalRNotifier signalR, ISm
 // 5. Pickup Order Command (Driver accepts or picks up)
 public record PickupOrderCommand(Guid OrderId, Guid DriverId, string? PickupPhoto) : IRequest<Result>;
 
-public class PickupOrderHandler(IAppDbContext db, ISignalRNotifier signalR) : IRequestHandler<PickupOrderCommand, Result>
+public class PickupOrderHandler(IAppDbContext db, ISignalRNotifier signalR, ISmsService sms)
+    : IRequestHandler<PickupOrderCommand, Result>
 {
     public async Task<Result> Handle(PickupOrderCommand req, CancellationToken ct)
     {
         var order = await db.Orders
             .Include(o => o.Listing)
+            .Include(o => o.Listing.Farmer)
+            .Include(o => o.Buyer)
             .FirstOrDefaultAsync(o => o.Id == req.OrderId, ct);
 
         if (order == null) return Result.Failure("Order not found.");
@@ -310,7 +313,22 @@ public class PickupOrderHandler(IAppDbContext db, ISignalRNotifier signalR) : IR
 
         await db.SaveChangesAsync(ct);
 
-        _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.PickedUp, "Produce picked up from farm. Out for delivery.", ct);
+        // Broadcast status to buyer AND farmer via SignalR order group
+        _ = signalR.NotifyOrderStatusChangedAsync(
+            order.Id, OrderStatus.PickedUp,
+            "Produce picked up from farm. Out for delivery.", ct);
+
+        // Notify farmer their produce has left the farm
+        _ = signalR.NotifyNewOrderForFarmerAsync(
+            order.Listing.FarmerId, order.Id,
+            order.Listing.ProductName, order.QtyKg, ct);
+
+        // SMS notifications to both buyer and farmer
+        _ = sms.NotifyBuyerOrderStatusAsync(
+            order.Buyer.Phone, order.Listing.ProductName, "PickedUp", "en", ct);
+        _ = sms.NotifyFarmerNewOrderAsync(
+            order.Listing.Farmer.Phone, order.Listing.ProductName,
+            order.QtyKg, order.TotalEtb, "am", ct);
 
         return Result.Success();
     }
@@ -321,7 +339,7 @@ public record DeliverOrderCommand(Guid OrderId, Guid BuyerId, DeliverOrderDto? P
 
 public class DeliverOrderHandler(
     IAppDbContext db,
-    ITelebirrService telebirr,
+    IPaymentGateway payment,
     ISignalRNotifier signalR,
     ISmsService sms) : IRequestHandler<DeliverOrderCommand, Result>
 {
@@ -354,7 +372,7 @@ public class DeliverOrderHandler(
         {
             order.Payment.Status = "Released";
             order.Payment.ReleasedAt = DateTimeOffset.UtcNow;
-            await telebirr.ReleaseEscrowAsync(order.Id, order.TotalEtb, ct);
+            await payment.ReleaseEscrowAsync(order.Id, order.TotalEtb, ct);
         }
 
         await db.SaveChangesAsync(ct);
@@ -365,8 +383,9 @@ public class DeliverOrderHandler(
         _ = signalR.NotifyDeliveryConfirmedAsync(order.Id, farmerCut, driverCut, ct);
         _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Delivered, "Delivery completed and payment released!", ct);
 
-        // SMS alert to Farmer
-        _ = sms.SendOtpAsync(order.Listing.Farmer.Phone, $"{farmerCut:N2} ETB has been deposited to your Telebirr wallet for order #{order.Id.ToString()[..6]}.", "am", ct);
+        // SMS notification to Farmer confirming payout
+        var payoutMsg = $"{farmerCut:N2} ETB released to your wallet for order #{order.Id.ToString()[..6].ToUpper()}.";
+        _ = sms.NotifyBuyerOrderStatusAsync(order.Listing.Farmer.Phone, order.Listing.ProductName, "Delivered", "am", ct);
 
         return Result.Success();
     }

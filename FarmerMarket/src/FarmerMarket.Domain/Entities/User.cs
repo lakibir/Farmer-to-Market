@@ -37,6 +37,26 @@ public class User
     public int? OnTimeDeliveryRate { get; set; } = 99; // Percentage e.g. 99%
     public decimal? WalletBalanceEtb { get; set; } = 0;
 
+    // Account Governance & Lifecycle
+    public string Status { get; set; } = "active"; // active, suspended, deleted
+    public string? PrimaryCrop { get; set; }
+    public string? Kebele { get; set; }
+    public string? FaydaId { get; set; }
+    public string? BusinessLicenseNumber { get; set; }
+
+    // Authentication
+    /// <summary>BCrypt/PBKDF2 hash of the user's password. Null if OTP-only auth is used.</summary>
+    public string? PasswordHash { get; set; }
+
+    // Profile & Preferences
+    public string? Email { get; set; }
+    /// <summary>Preferred UI language. "en" or "am". Defaults to "am".</summary>
+    public string LanguagePreference { get; set; } = "am";
+    /// <summary>Saved delivery address for checkout pre-fill.</summary>
+    public string? SavedDeliveryAddress { get; set; }
+    public double? DefaultDeliveryLat { get; set; }
+    public double? DefaultDeliveryLng { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     // Navigation properties

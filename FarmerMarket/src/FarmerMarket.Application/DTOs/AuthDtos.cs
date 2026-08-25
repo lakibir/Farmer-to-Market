@@ -19,7 +19,8 @@ public record RegisterUserDto(
     string Name,
     string? NameAm,
     UserRole Role,
-    string Region
+    string Region,
+    string? Password = null
 );
 
 public record AuthResponseDto(
@@ -46,7 +47,12 @@ public record UserDto(
 public record UpdateProfileDto(
     string Name,
     string? NameAm,
-    string Region
+    string Region,
+    string? Email = null,
+    string? LanguagePreference = null,
+    string? SavedDeliveryAddress = null,
+    double? DefaultDeliveryLat = null,
+    double? DefaultDeliveryLng = null
 );
 
 public record DemoUserDto(
@@ -56,3 +62,7 @@ public record DemoUserDto(
     UserRole Role,
     string Region
 );
+
+public record ChangePasswordDto(string CurrentPassword, string NewPassword);
+
+public record ResetPasswordDto(string Phone, string OtpCode, string NewPassword);

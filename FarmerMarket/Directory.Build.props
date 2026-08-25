@@ -1,0 +1,6 @@
+<Project>
+  <!-- Redirect ONLY the bin output outside OneDrive; keep obj in-tree -->
+  <PropertyGroup>
+    <OutputPath>C:\DevBuild\FarmerMarket\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+</Project>

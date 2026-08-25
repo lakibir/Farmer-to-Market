@@ -1,5 +1,7 @@
+using FarmerMarket.API.Authorization;
 using FarmerMarket.Application.DTOs;
 using FarmerMarket.Application.Features.Admin;
+using FarmerMarket.Application.Features.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +10,7 @@ namespace FarmerMarket.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "admin")]
+[Authorize(Policy = AuthorizationPolicies.AdminOrAbove)]
 public class AdminController(IMediator mediator) : ControllerBase
 {
     [HttpGet("stats")]
@@ -16,6 +18,32 @@ public class AdminController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new GetPlatformStatsQuery(), ct);
         return Ok(result.Value);
+    }
+
+    [HttpGet("all-users")]
+    public async Task<IActionResult> GetAllUsers(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetDemoUsersQuery(), ct);
+        return Ok(result);
+    }
+
+    [HttpDelete("users/{id:guid}")]
+    [Authorize(Policy = AuthorizationPolicies.SuperAdminOnly)] // Only SuperAdmin can permanently delete accounts
+    public async Task<IActionResult> DeleteUser(Guid id, CancellationToken ct)
+    {
+        var result = await mediator.Send(new DeleteUserCommand(id), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+
+        return Ok(new { message = $"User {id} deleted permanently from database." });
+    }
+
+    [HttpPut("users/{id:guid}/status")]
+    public async Task<IActionResult> UpdateUserStatus(Guid id, [FromBody] UpdateUserStatusDto dto, CancellationToken ct)
+    {
+        var result = await mediator.Send(new UpdateUserStatusCommand(id, dto.Status), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+
+        return Ok(new { message = $"User {id} status updated to {dto.Status} in database." });
     }
 
     [HttpPut("users/{id:guid}/verify")]

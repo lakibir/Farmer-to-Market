@@ -141,3 +141,52 @@ public class BroadcastSmsHandler(ISmsService sms) : IRequestHandler<BroadcastSms
         return Result<int>.Success(count);
     }
 }
+
+// 5. Delete User Account Command (Admin & Super Admin)
+public record DeleteUserCommand(Guid Id) : IRequest<Result<bool>>;
+
+public class DeleteUserHandler(IAppDbContext db) : IRequestHandler<DeleteUserCommand, Result<bool>>
+{
+    public async Task<Result<bool>> Handle(DeleteUserCommand req, CancellationToken ct)
+    {
+        var user = await db.Users
+            .Include(u => u.Listings)
+            .Include(u => u.Documents)
+            .FirstOrDefaultAsync(u => u.Id == req.Id, ct);
+
+        if (user == null)
+            return Result<bool>.Failure("User not found in database.");
+
+        if (user.Listings.Any())
+        {
+            db.Listings.RemoveRange(user.Listings);
+        }
+        if (user.Documents.Any())
+        {
+            db.UserDocuments.RemoveRange(user.Documents);
+        }
+
+        db.Users.Remove(user);
+        await db.SaveChangesAsync(ct);
+
+        return Result<bool>.Success(true);
+    }
+}
+
+// 6. Update User Status / Suspend Command (Admin & Super Admin)
+public record UpdateUserStatusCommand(Guid Id, string Status) : IRequest<Result<bool>>;
+
+public class UpdateUserStatusHandler(IAppDbContext db) : IRequestHandler<UpdateUserStatusCommand, Result<bool>>
+{
+    public async Task<Result<bool>> Handle(UpdateUserStatusCommand req, CancellationToken ct)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == req.Id, ct);
+        if (user == null)
+            return Result<bool>.Failure("User not found in database.");
+
+        user.Status = req.Status.ToLower();
+        await db.SaveChangesAsync(ct);
+
+        return Result<bool>.Success(true);
+    }
+}

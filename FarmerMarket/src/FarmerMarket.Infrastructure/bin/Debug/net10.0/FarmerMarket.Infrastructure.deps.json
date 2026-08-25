@@ -11,6 +11,8 @@
           "FarmerMarket.Application": "1.0.0",
           "FarmerMarket.Domain": "1.0.0",
           "Microsoft.EntityFrameworkCore.InMemory": "10.0.11",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.0",
+          "Microsoft.Extensions.Options.DataAnnotations": "10.0.0",
           "Microsoft.IdentityModel.Tokens": "8.22.0",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.3",
           "System.IdentityModel.Tokens.Jwt": "8.22.0"
@@ -123,6 +125,18 @@
           }
         }
       },
+      "Microsoft.Extensions.Configuration/10.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.4",
+          "Microsoft.Extensions.Primitives": "10.0.11"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.Configuration.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
       "Microsoft.Extensions.Configuration.Abstractions/10.0.4": {
         "dependencies": {
           "Microsoft.Extensions.Primitives": "10.0.11"
@@ -131,6 +145,18 @@
           "lib/net10.0/Microsoft.Extensions.Configuration.Abstractions.dll": {
             "assemblyVersion": "10.0.0.0",
             "fileVersion": "10.0.426.12010"
+          }
+        }
+      },
+      "Microsoft.Extensions.Configuration.Binder/10.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.Configuration": "10.0.0",
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.4"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.Configuration.Binder.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
           }
         }
       },
@@ -186,6 +212,33 @@
           "lib/net10.0/Microsoft.Extensions.Options.dll": {
             "assemblyVersion": "10.0.0.0",
             "fileVersion": "10.0.1126.37416"
+          }
+        }
+      },
+      "Microsoft.Extensions.Options.ConfigurationExtensions/10.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.4",
+          "Microsoft.Extensions.Configuration.Binder": "10.0.0",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Options": "10.0.11",
+          "Microsoft.Extensions.Primitives": "10.0.11"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.Options.ConfigurationExtensions.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
+      "Microsoft.Extensions.Options.DataAnnotations/10.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Options": "10.0.11"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.Options.DataAnnotations.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
           }
         }
       },
@@ -368,12 +421,26 @@
       "path": "microsoft.extensions.caching.memory/10.0.11",
       "hashPath": "microsoft.extensions.caching.memory.10.0.11.nupkg.sha512"
     },
+    "Microsoft.Extensions.Configuration/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-H4SWETCh/cC5L1WtWchHR6LntGk3rDTTznZMssr4cL8IbDmMWBxY+MOGDc/ASnqNolLKPIWHWeuC1ddiL/iNPw==",
+      "path": "microsoft.extensions.configuration/10.0.0",
+      "hashPath": "microsoft.extensions.configuration.10.0.0.nupkg.sha512"
+    },
     "Microsoft.Extensions.Configuration.Abstractions/10.0.4": {
       "type": "package",
       "serviceable": true,
       "sha512": "sha512-3x9X9SMAMdAoEwWxHfsT2a9dTBqEtfYfbEOFw+UPtBshEH2gHWJeazxrZ1FK1O18MoCbe1NxINg5qciB01pEcg==",
       "path": "microsoft.extensions.configuration.abstractions/10.0.4",
       "hashPath": "microsoft.extensions.configuration.abstractions.10.0.4.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Configuration.Binder/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tMF9wNh+hlyYDWB8mrFCQHQmWHlRosol1b/N2Jrefy1bFLnuTlgSYmPyHNmz8xVQgs7DpXytBRWxGhG+mSTp0g==",
+      "path": "microsoft.extensions.configuration.binder/10.0.0",
+      "hashPath": "microsoft.extensions.configuration.binder.10.0.0.nupkg.sha512"
     },
     "Microsoft.Extensions.DependencyInjection/10.0.11": {
       "type": "package",
@@ -409,6 +476,20 @@
       "sha512": "sha512-eY1GAKcTfD2maP27J84X9IovT3yjHJ2dVDzPmDg6/XqYvt3jMzJhtfQCLjG9pVsZGAd+8DQ2QrjaDcs2+VQLGw==",
       "path": "microsoft.extensions.options/10.0.11",
       "hashPath": "microsoft.extensions.options.10.0.11.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Options.ConfigurationExtensions/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tL9cSl3maS5FPzp/3MtlZI21ExWhni0nnUCF8HY4npTsINw45n9SNDbkKXBMtFyUFGSsQep25fHIDN4f/Vp3AQ==",
+      "path": "microsoft.extensions.options.configurationextensions/10.0.0",
+      "hashPath": "microsoft.extensions.options.configurationextensions.10.0.0.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Options.DataAnnotations/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-nwyF0pUubUWgzxw5y0g1Vsp2n/Psv4V7HekgUTlFK/pNlzZaQOBp56ww5GFeg4GpaMK8Lu+02XIEjqzoIcFJGw==",
+      "path": "microsoft.extensions.options.dataannotations/10.0.0",
+      "hashPath": "microsoft.extensions.options.dataannotations.10.0.0.nupkg.sha512"
     },
     "Microsoft.Extensions.Primitives/10.0.11": {
       "type": "package",

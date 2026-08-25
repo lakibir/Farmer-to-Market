@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UserDocument> UserDocuments => Set<UserDocument>();
     public DbSet<VerificationReview> VerificationReviews => Set<VerificationReview>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

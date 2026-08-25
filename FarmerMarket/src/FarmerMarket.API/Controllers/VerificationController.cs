@@ -1,4 +1,4 @@
-using System.Security.Claims;
+using FarmerMarket.API.Extensions;
 using FarmerMarket.Application.DTOs;
 using FarmerMarket.Application.Features.Verification;
 using MediatR;
@@ -9,12 +9,12 @@ namespace FarmerMarket.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class VerificationController(IMediator mediator) : ControllerBase
 {
     private Guid GetCurrentUserId()
     {
-        var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(idClaim, out var id) ? id : Guid.Parse("11111111-1111-1111-1111-111111111111");
+        return User.GetUserId();
     }
 
     [HttpPost("submit")]
@@ -38,6 +38,7 @@ public class VerificationController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("agent-register")]
+    [Authorize(Roles = "agent,admin,superadmin")]
     public async Task<IActionResult> AgentRegisterFarmer([FromBody] AgentRegisterFarmerDto dto, CancellationToken ct)
     {
         var agentId = GetCurrentUserId();
@@ -48,6 +49,7 @@ public class VerificationController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{targetUserId:guid}/review")]
+    [Authorize(Roles = "agent,admin,superadmin")]
     public async Task<IActionResult> ReviewVerification(Guid targetUserId, [FromBody] ReviewVerificationDto dto, CancellationToken ct)
     {
         var reviewerId = GetCurrentUserId();
@@ -58,6 +60,7 @@ public class VerificationController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("queue")]
+    [Authorize(Roles = "agent,admin,superadmin")]
     public async Task<IActionResult> GetVerificationQueue([FromQuery] string? role = null, [FromQuery] string? status = null, CancellationToken ct = default)
     {
         var result = await mediator.Send(new GetVerificationQueueQuery(role, status), ct);

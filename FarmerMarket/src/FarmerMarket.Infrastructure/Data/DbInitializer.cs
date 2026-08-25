@@ -90,6 +90,19 @@ public static class DbInitializer
                 @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""RepeatBuyerCount"" integer DEFAULT 0;",
                 @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""OnTimeDeliveryRate"" numeric DEFAULT 100;",
                 @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""WalletBalanceEtb"" numeric DEFAULT 0;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Status"" character varying(50) DEFAULT 'active';",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""PrimaryCrop"" character varying(200);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Kebele"" character varying(200);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""FaydaId"" character varying(100);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""BusinessLicenseNumber"" character varying(100);",
+
+                // Phase 6 & 7: Password auth + buyer profile fields
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""PasswordHash"" character varying(200);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""Email"" character varying(200);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""LanguagePreference"" character varying(10) DEFAULT 'am';",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""SavedDeliveryAddress"" character varying(500);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""DefaultDeliveryLat"" double precision;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""DefaultDeliveryLng"" double precision;",
 
                 // Listings table
                 @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""Grade"" character varying(50) DEFAULT 'Grade 1';",

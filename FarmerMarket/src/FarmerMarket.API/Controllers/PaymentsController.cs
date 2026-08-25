@@ -37,7 +37,8 @@ public class PaymentsController(IMediator mediator) : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetByOrderId(Guid orderId, CancellationToken ct)
     {
-        var result = await mediator.Send(new GetPaymentByOrderIdQuery(orderId), ct);
+        var result = await mediator.Send(
+            new GetPaymentByOrderIdQuery(orderId, User.GetUserId(), User.GetUserRole()), ct);
         if (!result.IsSuccess) return NotFound(new { error = result.Error });
 
         return Ok(result.Value);

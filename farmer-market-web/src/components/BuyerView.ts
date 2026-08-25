@@ -637,18 +637,48 @@ export function renderBuyerView(
 function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
   const t = translations[lang];
 
+  const statusSteps = [
+    { key: 'pending',    label: 'Order Placed',         icon: 'fa-lock',              active: ['pending','confirmed','PickedUp','picked_up','delivered'] },
+    { key: 'confirmed',  label: 'Farmer Confirmed',     icon: 'fa-tractor',           active: ['confirmed','PickedUp','picked_up','delivered'] },
+    { key: 'picked_up', label: 'In Transit',            icon: 'fa-truck',             active: ['PickedUp','picked_up','delivered'] },
+    { key: 'delivered',  label: 'Delivered',            icon: 'fa-hand-holding-dollar', active: ['delivered'] },
+  ];
+
+  function getStatusColor(status: string) {
+    const s = status?.toLowerCase();
+    if (s === 'delivered') return 'text-emerald-700 bg-emerald-100 border-emerald-300';
+    if (s === 'picked_up' || s === 'pickedup') return 'text-blue-700 bg-blue-100 border-blue-300';
+    if (s === 'confirmed') return 'text-amber-700 bg-amber-100 border-amber-300';
+    if (s === 'disputed') return 'text-red-700 bg-red-100 border-red-300';
+    return 'text-slate-600 bg-slate-100 border-slate-300';
+  }
+
+  function isActiveStep(stepActiveStatuses: string[], orderStatus: string) {
+    return stepActiveStatuses.some(s => s.toLowerCase() === orderStatus?.toLowerCase());
+  }
+
+  function isLiveOrder(status: string) {
+    const s = status?.toLowerCase();
+    return ['confirmed', 'picked_up', 'pickedup'].includes(s);
+  }
+
   return `
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
+      <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
-            <i class="fa-solid fa-receipt text-emerald-600 mr-2"></i> ${t.navOrders} & ${t.navLegalDocuments}
+            <i class="fa-solid fa-receipt text-emerald-600 mr-2"></i> ${t.navOrders} &amp; ${t.navLegalDocuments}
           </h2>
-          <p class="text-xs text-slate-500 font-medium">View commercial tax invoices, legal commodity contracts, and transport waybills.</p>
+          <p class="text-xs text-slate-500 font-medium">Live escrow tracking with Telebirr — funds held until you confirm delivery.</p>
         </div>
-        <span class="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-200">
-          ${orders.length} Verified Purchases
-        </span>
+        <div class="flex items-center gap-2">
+          <span id="signalr-status-badge" class="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border bg-slate-50 text-slate-500 border-slate-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block"></span> Connecting…
+          </span>
+          <span class="text-xs font-bold px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-200">
+            ${orders.length} Verified Purchases
+          </span>
+        </div>
       </div>
 
       ${orders.length === 0 ? `
@@ -657,39 +687,86 @@ function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
           <p>No past purchases yet. Browse the wholesale marketplace to order farm-fresh produce.</p>
         </div>
       ` : `
-        <div class="space-y-3">
+        <div class="space-y-4">
           ${orders.map(o => `
-            <div class="glass-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <span class="badge-status status-${o.status}">${o.status.toUpperCase()}</span>
-                  <span class="font-bold text-slate-900 text-sm">${o.productName}</span>
-                  <span class="text-xs text-slate-500">(${o.qtyKg} kg @ ${o.pricePerKg} ETB)</span>
+            <div class="glass-card p-5 space-y-4 ${isLiveOrder(o.status) ? 'ring-1 ring-blue-300 shadow-blue-100' : ''}">
+
+              <!-- Order Header -->
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  ${isLiveOrder(o.status) ? `
+                    <div class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-100 border border-blue-300 text-blue-800 text-[10px] font-extrabold">
+                      <span class="pulse-dot" style="background:rgb(59,130,246)"></span> LIVE
+                    </div>
+                  ` : ''}
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-extrabold px-2 py-0.5 rounded-full border ${getStatusColor(o.status)}">${o.status.toUpperCase()}</span>
+                      <span class="font-bold text-slate-900 text-sm">${o.productName}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                      ${o.qtyKg} kg · Farmer: <strong class="text-slate-700">${o.farmerName}</strong> ·
+                      <span class="text-emerald-800 font-bold">${o.totalEtb.toLocaleString()} ETB</span>
+                    </p>
+                  </div>
                 </div>
-                <p class="text-xs text-slate-600">
-                  Farmer: <strong class="text-slate-800">${o.farmerName}</strong> · Telebirr Total: <strong class="text-emerald-800">${o.totalEtb.toLocaleString()} ETB</strong>
-                </p>
-                <div class="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
-                  <span>INV: ${o.invoiceNumber || 'ET-INV-001'}</span>
-                  <span>·</span>
-                  <span>CONTR: ${o.contractNumber || 'AGR-ET-001'}</span>
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                  <button onclick="window.openInvoiceModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 cursor-pointer">
+                    <i class="fa-solid fa-file-invoice mr-1"></i> ${t.viewInvoiceBtn}
+                  </button>
+                  <button onclick="window.viewOrder('${o.id}')" class="btn-primary text-xs py-1.5 px-3.5 cursor-pointer">
+                    <i class="fa-solid fa-satellite-dish mr-1"></i> Details
+                  </button>
                 </div>
               </div>
 
-              <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <button onclick="window.openInvoiceModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 cursor-pointer">
-                  <i class="fa-solid fa-file-invoice mr-1"></i> ${t.viewInvoiceBtn}
-                </button>
-                <button onclick="window.openContractModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 cursor-pointer">
-                  <i class="fa-solid fa-file-contract mr-1"></i> ${t.viewContractBtn}
-                </button>
-                <button onclick="window.openWaybillModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 cursor-pointer">
-                  <i class="fa-solid fa-truck-fast mr-1"></i> ${t.viewWaybillBtn}
-                </button>
-                <button onclick="window.viewOrder('${o.id}')" class="btn-primary text-xs py-1.5 px-3.5 cursor-pointer">
-                  <i class="fa-solid fa-satellite-dish mr-1"></i> Track
-                </button>
+              <!-- Status Timeline -->
+              <div class="relative flex items-start gap-0">
+                ${statusSteps.map((step, idx) => {
+                  const active = isActiveStep(step.active, o.status);
+                  const isLast = idx === statusSteps.length - 1;
+                  return `
+                    <div class="flex-1 flex flex-col items-center">
+                      <!-- Step circle -->
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-sm transition-all
+                        ${active ? 'bg-emerald-600 text-white ring-2 ring-emerald-200' : 'bg-slate-100 text-slate-400 border border-slate-200'}">
+                        <i class="fa-solid ${step.icon} text-[11px]"></i>
+                      </div>
+                      <!-- Connector line -->
+                      ${!isLast ? `
+                        <div class="absolute top-4 left-0 right-0 h-0.5 -z-10" style="left:calc(${(idx * 100 / (statusSteps.length - 1))}% + 16px); width:calc(${(100 / (statusSteps.length - 1))}% - 32px)">
+                          <div class="h-full ${active && isActiveStep(statusSteps[idx + 1]?.active ?? [], o.status) ? 'bg-emerald-400' : 'bg-slate-200'} rounded-full"></div>
+                        </div>
+                      ` : ''}
+                      <!-- Step label -->
+                      <span class="text-[9px] font-semibold mt-1.5 text-center leading-tight ${active ? 'text-emerald-800' : 'text-slate-400'}">
+                        ${step.label}
+                      </span>
+                    </div>
+                  `;
+                }).join('')}
               </div>
+
+              <!-- Driver ETA (for in-transit orders) -->
+              ${(o.status?.toLowerCase() === 'picked_up' || o.status?.toLowerCase() === 'pickedup') ? `
+                <div class="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs">
+                  <i class="fa-solid fa-location-dot text-blue-600 text-base"></i>
+                  <div>
+                    <span class="font-bold text-blue-900">Driver is en route</span>
+                    <span class="text-blue-700 ml-1.5">· ETA updates via live GPS</span>
+                  </div>
+                  <span id="eta-${o.id}" class="ml-auto font-extrabold text-blue-800">—</span>
+                </div>
+              ` : ''}
+
+              <!-- Doc numbers footer -->
+              <div class="flex items-center gap-3 text-[10px] text-slate-400 font-mono pt-1 border-t border-slate-100">
+                <span>INV: ${o.invoiceNumber || 'ET-INV-001'}</span>
+                <span>·</span>
+                <span>CONTR: ${o.contractNumber || 'AGR-ET-001'}</span>
+                ${o.paymentRef ? `<span>·</span><span>REF: ${o.paymentRef}</span>` : ''}
+              </div>
+
             </div>
           `).join('')}
         </div>

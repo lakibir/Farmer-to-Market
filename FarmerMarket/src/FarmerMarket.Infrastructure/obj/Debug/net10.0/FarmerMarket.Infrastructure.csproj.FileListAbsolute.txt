@@ -1,10 +1,6 @@
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\bin\Debug\net10.0\FarmerMarket.Infrastructure.deps.json
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\bin\Debug\net10.0\FarmerMarket.Infrastructure.dll
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\bin\Debug\net10.0\FarmerMarket.Infrastructure.pdb
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\bin\Debug\net10.0\FarmerMarket.Application.dll
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\bin\Debug\net10.0\FarmerMarket.Domain.dll
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\bin\Debug\net10.0\FarmerMarket.Domain.pdb
-C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\bin\Debug\net10.0\FarmerMarket.Application.pdb
+C:\DevBuild\FarmerMarket\bin\FarmerMarket.Infrastructure\Debug\net10.0\FarmerMarket.Infrastructure.deps.json
+C:\DevBuild\FarmerMarket\bin\FarmerMarket.Infrastructure\Debug\net10.0\FarmerMarket.Infrastructure.dll
+C:\DevBuild\FarmerMarket\bin\FarmerMarket.Infrastructure\Debug\net10.0\FarmerMarket.Infrastructure.pdb
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\obj\Debug\net10.0\FarmerMarket.Infrastructure.csproj.AssemblyReference.cache
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\obj\Debug\net10.0\FarmerMarket.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\obj\Debug\net10.0\FarmerMarket.Infrastructure.AssemblyInfoInputs.cache
@@ -16,3 +12,6 @@ C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Inf
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\obj\Debug\net10.0\refint\FarmerMarket.Infrastructure.dll
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\obj\Debug\net10.0\FarmerMarket.Infrastructure.pdb
 C:\Users\lakbr\OneDrive\Documents\framemarket1\FarmerMarket\src\FarmerMarket.Infrastructure\obj\Debug\net10.0\ref\FarmerMarket.Infrastructure.dll
+C:\DevBuild\FarmerMarket\bin\FarmerMarket.Infrastructure\net10.0\FarmerMarket.Infrastructure.deps.json
+C:\DevBuild\FarmerMarket\bin\FarmerMarket.Infrastructure\net10.0\FarmerMarket.Infrastructure.dll
+C:\DevBuild\FarmerMarket\bin\FarmerMarket.Infrastructure\net10.0\FarmerMarket.Infrastructure.pdb

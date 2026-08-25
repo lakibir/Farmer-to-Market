@@ -111,15 +111,87 @@ class App {
 
     // Connect to SignalR Order Hub
     signalRService.startConnection(api.getToken() || undefined);
+
+    // ── Order Status Changes (buyer + farmer + driver views) ──────
     signalRService.onOrderStatusChanged(async (orderId, status, message) => {
-      console.log(`[SignalR Live Status Update] Order ${orderId} -> ${status}: ${message}`);
+      console.log(`[SignalR] Order ${orderId} → ${status}: ${message}`);
       if (this.activeOrderModal && this.activeOrderModal.id === orderId) {
         this.activeOrderModal.status = status;
       }
-      showToast(`Live Update: Order #${orderId.slice(0, 8).toUpperCase()} is now ${status.toUpperCase()}`, 'fa-bolt', 'border-blue-500');
+      showToast(
+        `Order #${orderId.slice(0, 8).toUpperCase()} → ${status.toUpperCase()}`,
+        'fa-bolt', 'border-blue-500'
+      );
       await api.refreshAllData();
       this.render();
     });
+
+    // ── New Order Notification for Farmers ─────────────────────────
+    signalRService.onNewFarmerOrder((orderId, productName, qtyKg) => {
+      showToast(
+        `🌾 New order! ${qtyKg}kg of ${productName} — check your dashboard`,
+        'fa-basket-shopping', 'border-amber-500'
+      );
+      api.refreshAllData().then(() => this.render());
+    });
+
+    // ── Delivery Confirmed (escrow released) ──────────────────────
+    signalRService.onDeliveryConfirmed((orderId, farmerCut, driverCut) => {
+      const user = api.getCurrentUser();
+      if (user?.role === 'farmer') {
+        showToast(
+          `💰 ${farmerCut.toLocaleString()} ETB released to your wallet!`,
+          'fa-hand-holding-dollar', 'border-emerald-500'
+        );
+      } else if (user?.role === 'driver') {
+        showToast(
+          `💰 ${driverCut.toLocaleString()} ETB delivery fee credited!`,
+          'fa-hand-holding-dollar', 'border-emerald-500'
+        );
+      }
+      api.refreshAllData().then(() => this.render());
+    });
+
+    // ── Polling Fallback (when SignalR disconnects) ────────────────
+    signalRService.setPollingCallback(async (_orderId: string) => {
+      await api.refreshAllData();
+      this.render();
+    });
+
+    // Auto-join farmer channel if logged in as farmer
+    const currentUser = api.getCurrentUser();
+    if (currentUser && currentUser.role === 'farmer') {
+      // Farmer will receive real-time new order pings
+    }
+
+    // ── Live GPS / ETA updates ─────────────────────────────────────
+    signalRService.onOrderTracking((event) => {
+      // Update driver ETA badge on the orders list without a full re-render
+      const etaEl = document.getElementById(`eta-${event.orderId}`);
+      if (etaEl && event.estimatedArrivalMin != null && event.estimatedArrivalMin > 0) {
+        etaEl.textContent = `~${event.estimatedArrivalMin} min`;
+      }
+    });
+
+    // ── SignalR connection state badge ────────────────────────────
+    const updateConnectionBadge = () => {
+      const badge = document.getElementById('signalr-status-badge');
+      if (!badge) return;
+      const state = signalRService.getConnectionState();
+      const configs: Record<string, { dot: string; label: string; cls: string }> = {
+        connected:    { dot: 'bg-emerald-500', label: 'Live',       cls: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+        reconnecting: { dot: 'bg-amber-400',   label: 'Reconnecting', cls: 'bg-amber-50 text-amber-800 border-amber-300' },
+        polling:      { dot: 'bg-sky-400',     label: 'Polling',    cls: 'bg-sky-50 text-sky-800 border-sky-300' },
+        disconnected: { dot: 'bg-slate-400',   label: 'Offline',    cls: 'bg-slate-50 text-slate-500 border-slate-200' },
+      };
+      const cfg = configs[state] || configs['disconnected'];
+      badge.className = `flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${cfg.cls}`;
+      badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${cfg.dot} inline-block"></span> ${cfg.label}`;
+    };
+
+    // Poll the connection state every 3s to keep badge current
+    setInterval(updateConnectionBadge, 3000);
+    updateConnectionBadge();
 
     api.subscribe(() => {
       this.render();
@@ -247,8 +319,8 @@ class App {
             <i class="fa-solid fa-user-secret text-rose-200"></i>
             <span>
               ${this.lang === 'am'
-                ? `በአሁኑ ወቅት በ<strong>${currentUser?.name}</strong> (${currentUser?.role.toUpperCase()}) ስም ገብተዋል። ሁሉም ክዋኔዎች በSuper Admin ኦዲት ይመዘገባሉ።`
-                : `Active Impersonation: Logged in as <strong>${currentUser?.name}</strong> (${currentUser?.role.toUpperCase()}). All actions are logged.`}
+          ? `በአሁኑ ወቅት በ<strong>${currentUser?.name}</strong> (${currentUser?.role.toUpperCase()}) ስም ገብተዋል። ሁሉም ክዋኔዎች በSuper Admin ኦዲት ይመዘገባሉ።`
+          : `Active Impersonation: Logged in as <strong>${currentUser?.name}</strong> (${currentUser?.role.toUpperCase()}). All actions are logged.`}
             </span>
           </div>
           <button onclick="window.stopSuperAdminImpersonation()" class="px-3.5 py-1.5 bg-white text-rose-800 hover:bg-rose-50 rounded-xl text-xs font-black transition-all cursor-pointer shadow-md flex items-center gap-1.5">
@@ -323,15 +395,15 @@ class App {
 
       <!-- Authentication Modal -->
       ${this.isAuthModalOpen ? renderAuthModal(
-      this.lang,
-      this.authMode,
-      this.otpStep,
-      this.pendingPhone,
-      this.lastSentCode,
-      this.matchedUserName,
-      this.matchedUserRole,
-      this.authErrorMessage
-    ) : ''}
+            this.lang,
+            this.authMode,
+            this.otpStep,
+            this.pendingPhone,
+            this.lastSentCode,
+            this.matchedUserName,
+            this.matchedUserRole,
+            this.authErrorMessage
+          ) : ''}
       
       <!-- Notifications Modal -->
       ${this.isNotificationsModalOpen ? renderNotificationsModal(this.lang, notifications) : ''}
@@ -373,9 +445,9 @@ class App {
 
             <div class="max-h-[75vh] overflow-y-auto pr-1">
               ${this.activeLegalDocModal.type === 'invoice' ? documentModal.renderInvoice(api.getTaxInvoice(this.activeLegalDocModal.orderId)) :
-                this.activeLegalDocModal.type === 'waybill' ? documentModal.renderWaybill(api.getTransportWaybill(this.activeLegalDocModal.orderId)) :
-                this.activeLegalDocModal.type === 'contract' ? documentModal.renderContract(api.getLegalContract(this.activeLegalDocModal.orderId)) :
-                documentModal.renderArbitration(api.getDisputeMediationRecord(this.activeLegalDocModal.orderId))}
+          this.activeLegalDocModal.type === 'waybill' ? documentModal.renderWaybill(api.getTransportWaybill(this.activeLegalDocModal.orderId)) :
+            this.activeLegalDocModal.type === 'contract' ? documentModal.renderContract(api.getLegalContract(this.activeLegalDocModal.orderId)) :
+              documentModal.renderArbitration(api.getDisputeMediationRecord(this.activeLegalDocModal.orderId))}
             </div>
           </div>
         </div>
@@ -383,13 +455,13 @@ class App {
 
       <!-- Super Admin Governance Modals -->
       ${renderSuperAdminModals(
-        this.lang,
-        this.isSuperAdminCreateUserModalOpen,
-        this.isSuperAdminEditUserModalOpen,
-        this.editTargetUserId,
-        this.isSuperAdminAddZoneModalOpen,
-        this.isSuperAdminAddBlacklistModalOpen
-      )}
+                this.lang,
+                this.isSuperAdminCreateUserModalOpen,
+                this.isSuperAdminEditUserModalOpen,
+                this.editTargetUserId,
+                this.isSuperAdminAddZoneModalOpen,
+                this.isSuperAdminAddBlacklistModalOpen
+              )}
     `;
   }
 

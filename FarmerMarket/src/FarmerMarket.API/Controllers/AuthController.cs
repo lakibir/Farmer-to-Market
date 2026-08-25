@@ -66,4 +66,32 @@ public class AuthController(IMediator mediator) : ControllerBase
 
         return Ok(result.Value);
     }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto, CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+        var result = await mediator.Send(new ChangePasswordCommand(userId, dto.CurrentPassword, dto.NewPassword), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { message = "Password updated successfully." });
+    }
+
+    /// <summary>Sends a password-reset OTP to the given phone number.</summary>
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] RequestOtpDto dto, CancellationToken ct)
+    {
+        var result = await mediator.Send(new RequestOtpCommand(dto.Phone), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        // Don't leak OTP demo code in forgot-password flow
+        return Ok(new { message = "If an account exists with this number, a reset code has been sent." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto, CancellationToken ct)
+    {
+        var result = await mediator.Send(new ResetPasswordCommand(dto.Phone, dto.OtpCode, dto.NewPassword), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+        return Ok(new { message = "Password reset successfully. You can now sign in with your new password." });
+    }
 }

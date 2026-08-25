@@ -167,6 +167,14 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHa
             CreatedAt = DateTimeOffset.UtcNow
         };
 
+        // Hash password if provided (optional — OTP-only remains the default)
+        if (!string.IsNullOrWhiteSpace(dto.Password))
+        {
+            if (dto.Password.Length < 8)
+                return Result<AuthResponseDto>.Failure("Password must be at least 8 characters long.");
+            user.PasswordHash = PasswordHelper.HashPassword(dto.Password);
+        }
+
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);
 
@@ -235,6 +243,18 @@ public class UpdateProfileHandler(IAppDbContext db) : IRequestHandler<UpdateProf
         user.NameAm = req.Dto.NameAm?.Trim();
         user.Region = req.Dto.Region.Trim();
 
+        // Buyer-specific profile fields (only update if provided)
+        if (req.Dto.Email != null)
+            user.Email = req.Dto.Email.Trim();
+        if (req.Dto.LanguagePreference != null)
+            user.LanguagePreference = req.Dto.LanguagePreference;
+        if (req.Dto.SavedDeliveryAddress != null)
+            user.SavedDeliveryAddress = req.Dto.SavedDeliveryAddress.Trim();
+        if (req.Dto.DefaultDeliveryLat.HasValue)
+            user.DefaultDeliveryLat = req.Dto.DefaultDeliveryLat.Value;
+        if (req.Dto.DefaultDeliveryLng.HasValue)
+            user.DefaultDeliveryLng = req.Dto.DefaultDeliveryLng.Value;
+
         await db.SaveChangesAsync(ct);
 
         return Result<UserDto>.Success(new UserDto(
@@ -273,5 +293,53 @@ public class GetDemoUsersHandler(IAppDbContext db) : IRequestHandler<GetDemoUser
                 u.Region
             ))
             .ToListAsync(ct);
+    }
+}
+
+// 7. Change Password Command (for logged-in users)
+public record ChangePasswordCommand(Guid UserId, string CurrentPassword, string NewPassword) : IRequest<Result>;
+
+public class ChangePasswordHandler(IAppDbContext db) : IRequestHandler<ChangePasswordCommand, Result>
+{
+    public async Task<Result> Handle(ChangePasswordCommand req, CancellationToken ct)
+    {
+        if (req.NewPassword.Length < 8)
+            return Result.Failure("New password must be at least 8 characters long.");
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == req.UserId, ct);
+        if (user == null) return Result.Failure("User not found.");
+
+        if (!string.IsNullOrWhiteSpace(user.PasswordHash))
+        {
+            if (!PasswordHelper.VerifyPassword(req.CurrentPassword, user.PasswordHash))
+                return Result.Failure("Current password is incorrect.");
+        }
+
+        user.PasswordHash = PasswordHelper.HashPassword(req.NewPassword);
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+}
+
+// 8. Reset Password Command (after OTP verification — no current password needed)
+public record ResetPasswordCommand(string Phone, string OtpCode, string NewPassword) : IRequest<Result>;
+
+public class ResetPasswordHandler(IAppDbContext db, IOtpService otpService) : IRequestHandler<ResetPasswordCommand, Result>
+{
+    public async Task<Result> Handle(ResetPasswordCommand req, CancellationToken ct)
+    {
+        if (req.NewPassword.Length < 8)
+            return Result.Failure("New password must be at least 8 characters long.");
+
+        var phone = PhoneHelper.Normalize(req.Phone);
+        if (!otpService.ValidateOtp(phone, req.OtpCode.Trim()))
+            return Result.Failure("Invalid or expired OTP code. Please request a new code.");
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == phone, ct);
+        if (user == null) return Result.Failure("User not found.");
+
+        user.PasswordHash = PasswordHelper.HashPassword(req.NewPassword);
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
     }
 }

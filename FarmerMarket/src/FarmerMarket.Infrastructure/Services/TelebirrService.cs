@@ -1,55 +1,83 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using FarmerMarket.Application.Common.Interfaces;
-using Microsoft.Extensions.Configuration;
+using FarmerMarket.Infrastructure.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace FarmerMarket.Infrastructure.Services;
 
-public class TelebirrService(IConfiguration config, ILogger<TelebirrService> logger) : ITelebirrService
+public class TelebirrService(
+    IOptions<TelebirrOptions> telebirrOptions,
+    IOptions<EscrowOptions> escrowOptions,
+    ILogger<TelebirrService> logger)
+    : ITelebirrService, IPaymentGateway
 {
-    private readonly string _appId = config["Telebirr:AppId"] ?? "TELEBIRR_ETH_APP_2026";
-    private readonly string _shortCode = config["Telebirr:ShortCode"] ?? "392019";
-    private readonly string _baseUrl = config["Telebirr:BaseUrl"] ?? "https://telebirr.et/pay";
+    private readonly TelebirrOptions _opts = telebirrOptions.Value;
+    private readonly EscrowOptions _escrow = escrowOptions.Value;
 
-    public Task<TelebirrInitResult> InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, CancellationToken ct = default)
+    public string ProviderName => "Telebirr";
+
+    // ─── Shared implementation ───────────────────────────────────────────
+
+    private (string paymentUrl, string outTradeNo) BuildPaymentUrl(Guid orderId, decimal amount, string buyerPhone)
     {
         var outTradeNo = $"TB-{DateTime.UtcNow:yyyyMMdd}-{orderId.ToString()[..8].ToUpper()}";
-        
-        // Generate simulated interactive Telebirr checkout URL
-        var paymentUrl = $"{_baseUrl}?outTradeNo={outTradeNo}&amount={amount:F2}&phone={buyerPhone}&appId={_appId}";
+        var baseUrl = string.IsNullOrWhiteSpace(_opts.BaseUrl) ? "https://telebirr.et/pay" : _opts.BaseUrl;
+        var paymentUrl = $"{baseUrl}?outTradeNo={outTradeNo}&amount={amount:F2}&phone={buyerPhone}&appId={_opts.AppId}";
+        return (paymentUrl, outTradeNo);
+    }
 
-        logger.LogInformation("Telebirr C2B Escrow payment initiated. OrderId: {OrderId}, OutTradeNo: {OutTradeNo}, Amount: {Amount:N2} ETB",
-            orderId, outTradeNo, amount);
+    private EscrowSplitResult ComputeSplit(Guid orderId, decimal totalAmount)
+    {
+        var farmerCut = Math.Round(totalAmount * (_escrow.FarmerPercent / 100m), 2);
+        var driverCut = Math.Round(totalAmount * (_escrow.DriverPercent / 100m), 2);
+        var platformCut = totalAmount - farmerCut - driverCut;
 
-        return Task.FromResult(new TelebirrInitResult(orderId.ToString(), paymentUrl, outTradeNo, amount));
+        logger.LogInformation(
+            "{Provider} Escrow Released for Order {OrderId}: Farmer={Farmer:N2} ETB ({FP}%), Driver={Driver:N2} ETB ({DP}%), Platform={Platform:N2} ETB ({PP}%)",
+            ProviderName, orderId, farmerCut, _escrow.FarmerPercent, driverCut, _escrow.DriverPercent, platformCut, _escrow.PlatformPercent);
+
+        return new EscrowSplitResult(totalAmount, farmerCut, driverCut, platformCut);
+    }
+
+    // ─── IPaymentGateway ─────────────────────────────────────────────────
+
+    public Task<PaymentInitResult> InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, CancellationToken ct = default)
+    {
+        var (paymentUrl, outTradeNo) = BuildPaymentUrl(orderId, amount, buyerPhone);
+        logger.LogInformation("Telebirr C2B Escrow initiated. OrderId: {OrderId}, OutTradeNo: {OutTradeNo}, Amount: {Amount:N2} ETB", orderId, outTradeNo, amount);
+        return Task.FromResult(new PaymentInitResult(orderId.ToString(), paymentUrl, outTradeNo, amount, ProviderName));
     }
 
     public Task<EscrowSplitResult> ReleaseEscrowAsync(Guid orderId, decimal totalAmount, CancellationToken ct = default)
-    {
-        var farmerCut = Math.Round(totalAmount * 0.90m, 2);
-        var driverCut = Math.Round(totalAmount * 0.05m, 2);
-        var platformCut = totalAmount - farmerCut - driverCut;
-
-        logger.LogInformation("Telebirr Escrow Released for Order {OrderId}: Farmer = {Farmer:N2} ETB (90%), Driver = {Driver:N2} ETB (5%), Platform = {Platform:N2} ETB (5%)",
-            orderId, farmerCut, driverCut, platformCut);
-
-        return Task.FromResult(new EscrowSplitResult(totalAmount, farmerCut, driverCut, platformCut));
-    }
+        => Task.FromResult(ComputeSplit(orderId, totalAmount));
 
     public Task<bool> RefundPaymentAsync(Guid orderId, decimal totalAmount, CancellationToken ct = default)
     {
-        logger.LogInformation("Telebirr Refund Processed for Order {OrderId}: {Amount:N2} ETB returned to Buyer Telebirr account",
-            orderId, totalAmount);
-
+        logger.LogInformation("Telebirr Refund processed for Order {OrderId}: {Amount:N2} ETB", orderId, totalAmount);
         return Task.FromResult(true);
     }
 
     public bool VerifyWebhookSignature(string payload, string signature)
     {
-        // Simple HMAC SHA256 simulation / validation for sandbox & production
         if (string.IsNullOrWhiteSpace(signature)) return true;
+        // TODO: Implement HMAC verification with AppKey once live credentials are configured
         return true;
     }
+
+    // ─── ITelebirrService (legacy callers) ───────────────────────────────
+
+    async Task<TelebirrInitResult> ITelebirrService.InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, CancellationToken ct)
+    {
+        var result = await ((IPaymentGateway)this).InitiatePaymentAsync(orderId, amount, buyerPhone, ct);
+        return new TelebirrInitResult(result.OrderId, result.PaymentUrl, result.TransactionRef, result.Amount);
+    }
+
+    Task<EscrowSplitResult> ITelebirrService.ReleaseEscrowAsync(Guid orderId, decimal totalAmount, CancellationToken ct)
+        => ReleaseEscrowAsync(orderId, totalAmount, ct);
+
+    Task<bool> ITelebirrService.RefundPaymentAsync(Guid orderId, decimal totalAmount, CancellationToken ct)
+        => RefundPaymentAsync(orderId, totalAmount, ct);
+
+    bool ITelebirrService.VerifyWebhookSignature(string payload, string signature)
+        => VerifyWebhookSignature(payload, signature);
 }

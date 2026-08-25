@@ -3,20 +3,19 @@ using System.Security.Claims;
 using System.Text;
 using FarmerMarket.Application.Common.Interfaces;
 using FarmerMarket.Domain.Entities;
-using Microsoft.Extensions.Configuration;
+using FarmerMarket.Infrastructure.Options;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace FarmerMarket.Infrastructure.Services;
 
-public class JwtService(IConfiguration config) : IJwtService
+public class JwtService(IOptions<JwtOptions> jwtOptions) : IJwtService
 {
-    private readonly string _secret = config["Jwt:Key"] ?? "FarmerMarket_Secret_Key_For_Ethiopia_Telebirr_Escrow_2026_Secure_JWT_Token_Key!";
-    private readonly string _issuer = config["Jwt:Issuer"] ?? "FarmerMarket.API";
-    private readonly string _audience = config["Jwt:Audience"] ?? "FarmerMarket.Client";
+    private readonly JwtOptions _opts = jwtOptions.Value;
 
     public string GenerateToken(User user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secret));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opts.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
@@ -30,15 +29,13 @@ public class JwtService(IConfiguration config) : IJwtService
         };
 
         if (!string.IsNullOrWhiteSpace(user.NameAm))
-        {
             claims.Add(new("name_am", user.NameAm));
-        }
 
         var token = new JwtSecurityToken(
-            issuer: _issuer,
-            audience: _audience,
+            issuer: _opts.Issuer,
+            audience: _opts.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddDays(_opts.ExpiryDays),
             signingCredentials: creds
         );
 
@@ -50,16 +47,16 @@ public class JwtService(IConfiguration config) : IJwtService
         try
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_secret);
+            var key = Encoding.UTF8.GetBytes(_opts.Key);
 
             tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(key),
                 ValidateIssuer = true,
-                ValidIssuer = _issuer,
+                ValidIssuer = _opts.Issuer,
                 ValidateAudience = true,
-                ValidAudience = _audience,
+                ValidAudience = _opts.Audience,
                 ClockSkew = TimeSpan.Zero
             }, out var validatedToken);
 

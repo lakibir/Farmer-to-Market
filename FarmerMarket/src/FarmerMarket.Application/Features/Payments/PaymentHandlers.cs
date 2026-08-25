@@ -75,7 +75,7 @@ public class GetDriverSummaryHandler(IAppDbContext db) : IRequestHandler<GetDriv
 }
 
 // 3. Get Payment By Order Id Query
-public record GetPaymentByOrderIdQuery(Guid OrderId) : IRequest<Result<PaymentDto>>;
+public record GetPaymentByOrderIdQuery(Guid OrderId, Guid UserId, UserRole Role) : IRequest<Result<PaymentDto>>;
 
 public class GetPaymentByOrderIdHandler(IAppDbContext db) : IRequestHandler<GetPaymentByOrderIdQuery, Result<PaymentDto>>
 {
@@ -83,6 +83,18 @@ public class GetPaymentByOrderIdHandler(IAppDbContext db) : IRequestHandler<GetP
     {
         var p = await db.Payments.AsNoTracking().FirstOrDefaultAsync(x => x.OrderId == req.OrderId, ct);
         if (p == null) return Result<PaymentDto>.Failure("Payment not found.");
+
+        var order = await db.Orders.AsNoTracking()
+            .Include(x => x.Listing)
+            .FirstOrDefaultAsync(x => x.Id == req.OrderId, ct);
+        if (order == null) return Result<PaymentDto>.Failure("Payment not found.");
+
+        var isAdministrator = req.Role is UserRole.Admin or UserRole.SuperAdmin;
+        var isParticipant = order.BuyerId == req.UserId
+            || order.Listing.FarmerId == req.UserId
+            || order.DriverId == req.UserId;
+        if (!isAdministrator && !isParticipant)
+            return Result<PaymentDto>.Failure("Payment not found.");
 
         return Result<PaymentDto>.Success(new PaymentDto(
             p.Id,

@@ -13,6 +13,7 @@ public interface IAppDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<UserDocument> UserDocuments { get; }
     DbSet<VerificationReview> VerificationReviews { get; }
+    DbSet<AuditLog> AuditLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

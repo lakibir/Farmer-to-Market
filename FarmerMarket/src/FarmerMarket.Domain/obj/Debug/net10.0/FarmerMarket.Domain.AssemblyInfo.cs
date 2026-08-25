@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FarmerMarket.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+021d8dc15a12f877aeb623b54fa5644e79ca57b5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+78dfb550b28fc5b220f60f13f9ebc4eb20affe4b")]
 [assembly: System.Reflection.AssemblyProductAttribute("FarmerMarket.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FarmerMarket.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

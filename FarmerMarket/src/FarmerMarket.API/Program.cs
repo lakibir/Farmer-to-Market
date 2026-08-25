@@ -1,4 +1,5 @@
 using System.Text;
+using FarmerMarket.API.Authorization;
 using FarmerMarket.API.Hubs;
 using FarmerMarket.API.Middleware;
 using FarmerMarket.API.Services;
@@ -6,34 +7,36 @@ using FarmerMarket.Application;
 using FarmerMarket.Application.Common.Interfaces;
 using FarmerMarket.Infrastructure;
 using FarmerMarket.Infrastructure.Data;
+using FarmerMarket.Infrastructure.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Clean Architecture Layers
+// ── 1. Clean Architecture Layers ─────────────────────────────────────────────
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
+// Infrastructure registers IOptions<JwtOptions> with ValidateOnStart — startup
+// will throw OptionsValidationException immediately if Jwt:Key is missing or too short.
 
-// Register API SignalR Notifier
+// Register API-layer SignalR notifier (overrides the infrastructure fallback)
 builder.Services.AddScoped<ISignalRNotifier, SignalRNotifier>();
 
-// 2. SignalR
+// ── 2. SignalR ────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
 
-// 3. Controllers
+// ── 3. Controllers ────────────────────────────────────────────────────────────
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// 4. JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Key"] ?? "FarmerMarket_Secret_Key_For_Ethiopia_Telebirr_Escrow_2026_Secure_JWT_Token_Key!";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "FarmerMarket.API";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "FarmerMarket.Client";
-
+// ── 4. JWT Authentication (reads from IOptions<JwtOptions>) ──────────────────
+// We build the service provider temporarily to resolve typed options so that
+// the JWT middleware uses the same validated key as JwtService.
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -41,14 +44,21 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    // Resolve typed options at runtime so middleware uses the validated key
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        // Key is resolved lazily via IssuerSigningKeyResolver to avoid building the SP twice
+        IssuerSigningKeyResolver = (token, securityToken, kid, validationParameters) =>
+        {
+            var config = builder.Configuration;
+            var key = config["Jwt:Key"] ?? string.Empty;
+            return new[] { new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)) };
+        },
         ValidateIssuer = true,
-        ValidIssuer = jwtIssuer,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "FarmerMarket.API",
         ValidateAudience = true,
-        ValidAudience = jwtAudience,
+        ValidAudience = builder.Configuration["Jwt:Audience"] ?? "FarmerMarket.Client",
         ClockSkew = TimeSpan.Zero
     };
 
@@ -60,17 +70,16 @@ builder.Services.AddAuthentication(options =>
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-            {
                 context.Token = accessToken;
-            }
             return Task.CompletedTask;
         }
     };
 });
 
-builder.Services.AddAuthorization();
+// ── 5. Authorization Policies (RBAC) ─────────────────────────────────────────
+builder.Services.AddAuthorization(AuthorizationPolicies.ConfigurePolicies);
 
-// 5. CORS
+// ── 6. CORS ───────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins", policy =>
@@ -82,7 +91,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 6. Swagger OpenAPI with JWT Bearer
+// ── 7. Swagger / OpenAPI ──────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -90,7 +99,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Farmer-to-Market Direct Produce Exchange API",
         Version = "v1",
-        Description = "Ethiopian B2B Agricultural Marketplace connecting smallholder farmers directly with wholesale buyers via Telebirr Escrow."
+        Description = "Ethiopian B2B Agricultural Marketplace connecting smallholder farmers directly with wholesale buyers via Telebirr/Chapa Escrow."
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -107,11 +116,7 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
             Array.Empty<string>()
         }
@@ -120,7 +125,7 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Seed Database
+// ── Database Seed ─────────────────────────────────────────────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -137,10 +142,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Global Exception Handler
+// ── Middleware Pipeline ───────────────────────────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-// Configure HTTP request pipeline
 if (app.Environment.IsDevelopment() || true)
 {
     app.UseSwagger();
@@ -153,10 +157,8 @@ if (app.Environment.IsDevelopment() || true)
 
 app.UseRouting();
 app.UseCors("AllowAllOrigins");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 app.MapHub<OrderHub>("/hubs/orders");
 

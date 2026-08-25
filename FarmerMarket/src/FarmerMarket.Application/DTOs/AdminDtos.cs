@@ -36,6 +36,10 @@ public record UpdateUserRoleDto(
     bool? Verified
 );
 
+public record UpdateUserStatusDto(
+    string Status
+);
+
 public record AdminPaymentDto(
     Guid Id,
     Guid OrderId,

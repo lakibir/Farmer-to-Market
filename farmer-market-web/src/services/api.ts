@@ -42,14 +42,17 @@ class ApiService {
     vatOnCommissionPercent: 15,
     highValuePayoutThresholdEtb: 50000,
     emergencyEscrowFrozen: false,
-    telebirrAppId: "ET-TELEBIRR-PROD-98124",
-    telebirrShortCode: "88990",
-    telebirrApiKey: "tb_live_k98a72b109cc4981adfe781290",
-    telebirrEscrowVaultKey: "vault_sec_99182348190283419082",
-    twilioAccountSid: "AC998124801928419208341920834192",
-    twilioAuthToken: "tw_auth_881920381029381029381029",
-    twilioFromNumber: "+251911009900",
-    mapsGeocodingApiKey: "pk.eyJ1IjoiZmFybW1hcmtldCIsImEiOiJjbDkyOTF4In0.8812904",
+    // IMPORTANT: Payment credentials are NEVER stored in the frontend.
+    // These are managed server-side only. SuperAdmin can view configured
+    // provider names (not keys) via GET /api/superadmin/platform-config.
+    telebirrAppId: "",
+    telebirrShortCode: "",
+    telebirrApiKey: "",
+    telebirrEscrowVaultKey: "",
+    twilioAccountSid: "",
+    twilioAuthToken: "",
+    twilioFromNumber: "",
+    mapsGeocodingApiKey: "",
     postgisSpatialIndexEnabled: true
   };
   private systemAuditLogs: SystemAuditLog[] = [];

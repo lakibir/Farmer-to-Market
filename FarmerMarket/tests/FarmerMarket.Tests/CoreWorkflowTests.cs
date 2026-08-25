@@ -154,14 +154,14 @@ public class CoreWorkflowTests
         db.Listings.Add(listing);
         await db.SaveChangesAsync();
 
-        var mockTelebirr = new Mock<ITelebirrService>();
-        mockTelebirr.Setup(x => x.InitiatePaymentAsync(It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<string>(), default))
-            .ReturnsAsync(new TelebirrInitResult("ord1", "https://telebirr.et/pay?test", "TB-TEST-001", 4500m));
+        var mockPayment = new Mock<IPaymentGateway>();
+        mockPayment.Setup(x => x.InitiatePaymentAsync(It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<string>(), default))
+            .ReturnsAsync(new PaymentInitResult("ord1", "https://telebirr.et/pay?test", "TB-TEST-001", 4500m, "Telebirr"));
 
         var mockSms = new Mock<ISmsService>();
         var mockSignalR = new Mock<ISignalRNotifier>();
 
-        var handler = new PlaceOrderHandler(db, mockTelebirr.Object, mockSms.Object, mockSignalR.Object);
+        var handler = new PlaceOrderHandler(db, mockPayment.Object, mockSms.Object, mockSignalR.Object);
 
         // Act: Buyer orders 100 kg at 45 ETB/kg = 4,500 ETB
         var result = await handler.Handle(new PlaceOrderCommand(buyer.Id, new PlaceOrderDto(listing.Id, 100m)), default);
@@ -242,11 +242,11 @@ public class CoreWorkflowTests
         db.Payments.Add(payment);
         await db.SaveChangesAsync();
 
-        var mockTelebirr = new Mock<ITelebirrService>();
+        var mockPayment = new Mock<IPaymentGateway>();
         var mockSignalR = new Mock<ISignalRNotifier>();
         var mockSms = new Mock<ISmsService>();
 
-        var handler = new DeliverOrderHandler(db, mockTelebirr.Object, mockSignalR.Object, mockSms.Object);
+        var handler = new DeliverOrderHandler(db, mockPayment.Object, mockSignalR.Object, mockSms.Object);
 
         // Act
         var result = await handler.Handle(new DeliverOrderCommand(order.Id, buyer.Id), default);
