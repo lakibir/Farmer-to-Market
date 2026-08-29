@@ -506,7 +506,7 @@ function renderFarmerSmsSection(lang: Language): string {
   `;
 }
 
-function renderCreateListingModal(lang: Language, benchmarks: PriceBenchmark[]): string {
+export function renderCreateListingModal(lang: Language, benchmarks: PriceBenchmark[]): string {
   const t = translations[lang];
 
   return `

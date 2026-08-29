@@ -14,6 +14,12 @@ public interface IAppDbContext
     DbSet<UserDocument> UserDocuments { get; }
     DbSet<VerificationReview> VerificationReviews { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<SavedAddress> SavedAddresses { get; }
+    DbSet<PaymentMethod> PaymentMethods { get; }
+    DbSet<Coupon> Coupons { get; }
+    DbSet<NotificationPreference> NotificationPreferences { get; }
+    DbSet<UserSession> UserSessions { get; }
+    DbSet<TwoFactorSetting> TwoFactorSettings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

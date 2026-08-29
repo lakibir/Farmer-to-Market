@@ -406,7 +406,7 @@ export function renderBuyerView(
               </div>
 
               <button onclick="window.openTelebirrModal(${cartTotal})" class="btn-primary w-full py-3.5 text-xs font-extrabold shadow-md cursor-pointer">
-                <i class="fa-solid fa-shield-halved mr-1.5"></i> ${t.checkoutTelebirr}
+                <i class="fa-solid fa-arrow-right mr-1.5"></i> Choose shipping & payment
               </button>
             `}
 
@@ -423,8 +423,8 @@ export function renderBuyerView(
               <div class="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl font-bold mx-auto shadow-lg">
                 <i class="fa-solid fa-building-columns"></i>
               </div>
-              <h3 class="text-xl font-extrabold text-slate-900">${t.telebirrTitle}</h3>
-              <p class="text-xs text-slate-500">${t.telebirrDesc}</p>
+              <h3 class="text-xl font-extrabold text-slate-900">Checkout</h3>
+              <p class="text-xs text-slate-500">Choose where to deliver and how to pay before placing your order.</p>
             </div>
 
             <div class="p-4 rounded-2xl bg-blue-50 border border-blue-100 text-center space-y-1">
@@ -434,19 +434,19 @@ export function renderBuyerView(
             </div>
 
             <form onsubmit="window.handleTelebirrSubmit(event)" class="space-y-4">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">${t.enterPhone}</label>
-                <input type="text" id="telePhone" required value="+251955667788" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              <div class="space-y-2">
+                <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">1. Shipping address</label><button type="button" onclick="window.navigateTab('account'); window.setBuyerAccountTab('addresses')" class="text-[10px] font-bold text-emerald-700">Add address</button></div>
+                ${api.getAccountData().addresses.length ? `<select id="checkoutAddress" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"><option value="">Select a saved address</option>${api.getAccountData().addresses.map((address: any) => `<option value="${address.id}">${address.name} · ${address.street}, ${address.city}${address.isDefaultShipping ? ' · Default' : ''}</option>`).join('')}</select>` : `<div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">Add a saved address before checkout. <button type="button" onclick="window.navigateTab('account'); window.setBuyerAccountTab('addresses')" class="font-black underline">Manage addresses</button></div>`}
               </div>
 
-              <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">${t.enterPin}</label>
-                <input type="password" id="telePin" required value="1234" maxlength="4" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold tracking-widest text-center focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              <div class="space-y-2">
+                <label class="block text-xs font-bold text-slate-700">2. Payment method</label>
+                <div class="space-y-2">${api.getAccountData().paymentMethods.length ? api.getAccountData().paymentMethods.map((method: any) => `<label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-blue-400"><input type="radio" name="checkoutPayment" value="${method.id}" ${method.isPrimary ? 'checked' : ''} required /><span class="text-xs font-bold">${method.provider} · ${method.maskedDisplay || 'Provider wallet'}${method.isPrimary ? ' · Primary' : ''}</span></label>`).join('') : `<label class="flex items-center gap-3 p-3 rounded-xl border border-blue-300 bg-blue-50 cursor-pointer"><input type="radio" name="checkoutPayment" value="telebirr-wallet" checked required /><span class="text-xs font-bold">Telebirr wallet · ${api.getCurrentUser()?.phone || 'linked account'}</span></label><p class="text-[10px] text-slate-500">Payment is securely authorized by the configured gateway.</p>`}</div>
               </div>
 
               <div class="pt-2">
                 <button type="submit" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-lg transition-colors cursor-pointer">
-                  <i class="fa-solid fa-lock mr-1.5"></i> ${t.payNow}
+                  <i class="fa-solid fa-lock mr-1.5"></i> Pay and place order
                 </button>
               </div>
             </form>
@@ -556,7 +556,11 @@ export function renderBuyerView(
                 <i class="fa-solid fa-truck-fast mr-1 text-sky-600"></i> ${t.viewWaybillBtn}
               </button>
 
-              ${activeOrderModal.status === 'disputed' ? `
+              ${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? `
+                <div class="w-full p-3 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs text-center">
+                  <i class="fa-solid fa-money-bill-transfer text-emerald-700 mr-1"></i> Refund approved and returned through the original payment method.
+                </div>
+              ` : activeOrderModal.status === 'disputed' ? `
                 <button onclick="window.openArbitrationModal('${activeOrderModal.id}')" class="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 font-bold text-xs shadow-xs cursor-pointer">
                   <i class="fa-solid fa-scale-balanced mr-1 text-red-600"></i> ${t.viewArbitrationBtn}
                 </button>
@@ -600,21 +604,29 @@ export function renderBuyerView(
                   <i class="fa-solid fa-hand-holding-dollar"></i>
                 </div>
                 <div>
-                  <h5 class="text-sm font-bold text-slate-900">Delivery Confirmation & Escrow Release</h5>
-                  <p class="text-xs text-slate-500">${activeOrderModal.status === 'delivered' ? '90% released to farmer, 5% to driver' : 'Confirm on receipt to release funds'}</p>
+                  <h5 class="text-sm font-bold text-slate-900">${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? 'Refund Completed & Order Closed' : 'Delivery Confirmation & Escrow Release'}</h5>
+                  <p class="text-xs text-slate-500">${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? 'Refund returned through the original payment method.' : activeOrderModal.status === 'delivered' ? '90% released to farmer, 5% to driver' : 'Confirm on receipt to release funds'}</p>
                 </div>
               </div>
             </div>
 
             <!-- Actions -->
             <div class="pt-4 border-t border-slate-200 flex items-center gap-3">
-              ${activeOrderModal.status !== 'delivered' && activeOrderModal.status !== 'disputed' ? `
+              ${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? `
+                <div class="w-full p-3 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs text-center flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-money-bill-transfer text-emerald-700"></i> Refund completed. Order closed.
+                </div>
+              ` : activeOrderModal.status !== 'delivered' && activeOrderModal.status !== 'disputed' ? `
                 <button onclick="window.confirmDelivery('${activeOrderModal.id}')" class="btn-primary flex-1 py-3 text-xs cursor-pointer">
                   <i class="fa-solid fa-circle-check"></i> ${t.confirmDeliveryBtn}
                 </button>
                 <button onclick="window.openDisputeModal('${activeOrderModal.id}')" class="btn-secondary py-3 text-xs text-red-600 border-red-200 hover:bg-red-50 cursor-pointer">
                   <i class="fa-solid fa-triangle-exclamation"></i> ${t.disputeBtn}
                 </button>
+              ` : activeOrderModal.disputeStatus?.startsWith('Resolved') ? `
+                <div class="w-full p-3 rounded-xl bg-slate-100 text-slate-800 font-bold text-xs text-center">
+                  <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i> Dispute resolved: ${activeOrderModal.disputeStatus.replace('Resolved', '').replace('Buyer', ' Buyer').replace('Farmer', ' Farmer').replace('PartialSplit', ' Partial Split')}.
+                </div>
               ` : activeOrderModal.status === 'disputed' ? `
                 <div class="w-full p-3 rounded-xl bg-red-100 text-red-900 font-bold text-xs text-center">
                   <i class="fa-solid fa-triangle-exclamation text-red-700 mr-1"></i> Dispute Active: Escrow Frozen Under Admin Arbitration

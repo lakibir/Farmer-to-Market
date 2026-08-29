@@ -23,6 +23,9 @@ public class PlaceOrderHandler(
         if (buyer == null)
             return Result<PlaceOrderResultDto>.Failure("Buyer account not found.");
 
+        if (req.Dto.PaymentMethodId.HasValue && !await db.PaymentMethods.AnyAsync(x => x.Id == req.Dto.PaymentMethodId.Value && x.UserId == req.BuyerId, ct))
+            return Result<PlaceOrderResultDto>.Failure("Selected payment method was not found for this buyer.");
+
         var listing = await db.Listings
             .Include(l => l.Farmer)
             .FirstOrDefaultAsync(l => l.Id == req.Dto.ListingId, ct);
@@ -77,6 +80,7 @@ public class PlaceOrderHandler(
         {
             Id = Guid.NewGuid(),
             OrderId = order.Id,
+            PaymentMethodId = req.Dto.PaymentMethodId,
             AmountEtb = totalEtb,
             FarmerCut = farmerCut,
             DriverCut = driverCut,

@@ -130,6 +130,78 @@ public static class DbInitializer
                 @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""RecurringFrequency"" character varying(50);",
                 @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""DriverSubsidyEtb"" numeric DEFAULT 150;",
 
+                // Account features added after databases were initialized with EnsureCreated
+                @"CREATE TABLE IF NOT EXISTS ""SavedAddresses"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL REFERENCES ""Users""(""Id"") ON DELETE CASCADE,
+                    ""Name"" character varying(200) NOT NULL,
+                    ""Phone"" character varying(30) NOT NULL,
+                    ""Street"" character varying(300) NOT NULL,
+                    ""City"" character varying(100) NOT NULL,
+                    ""Region"" character varying(100) NOT NULL,
+                    ""PostalCode"" character varying(30),
+                    ""Country"" character varying(100) NOT NULL DEFAULT 'Ethiopia',
+                    ""IsDefaultShipping"" boolean NOT NULL DEFAULT false,
+                    ""IsDefaultBilling"" boolean NOT NULL DEFAULT false
+                );",
+                @"CREATE INDEX IF NOT EXISTS ""IX_SavedAddresses_UserId"" ON ""SavedAddresses"" (""UserId"");",
+                @"CREATE TABLE IF NOT EXISTS ""PaymentMethods"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL REFERENCES ""Users""(""Id"") ON DELETE CASCADE,
+                    ""Provider"" character varying(50) NOT NULL,
+                    ""ProviderToken"" character varying(500) NOT NULL,
+                    ""MaskedDisplay"" character varying(100),
+                    ""Brand"" character varying(50),
+                    ""ExpiryMonth"" integer,
+                    ""ExpiryYear"" integer,
+                    ""IsPrimary"" boolean NOT NULL DEFAULT false,
+                    ""CreatedAt"" timestamp with time zone NOT NULL
+                );",
+                @"CREATE INDEX IF NOT EXISTS ""IX_PaymentMethods_UserId"" ON ""PaymentMethods"" (""UserId"");",
+                @"ALTER TABLE ""Payments"" ADD COLUMN IF NOT EXISTS ""PaymentMethodId"" uuid REFERENCES ""PaymentMethods""(""Id"") ON DELETE SET NULL;",
+                @"CREATE TABLE IF NOT EXISTS ""Coupons"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid REFERENCES ""Users""(""Id"") ON DELETE SET NULL,
+                    ""Code"" character varying(100) NOT NULL,
+                    ""Source"" character varying(50) NOT NULL DEFAULT 'Platform',
+                    ""Value"" numeric NOT NULL,
+                    ""DiscountType"" character varying(20) NOT NULL DEFAULT 'Percent',
+                    ""MinimumSpendEtb"" numeric NOT NULL DEFAULT 0,
+                    ""ApplicableScope"" character varying(200) NOT NULL DEFAULT 'All produce',
+                    ""ExpiresAt"" timestamp with time zone NOT NULL,
+                    ""UsedAt"" timestamp with time zone
+                );",
+                @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Coupons_Code"" ON ""Coupons"" (""Code"");",
+                @"CREATE TABLE IF NOT EXISTS ""NotificationPreferences"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL REFERENCES ""Users""(""Id"") ON DELETE CASCADE,
+                    ""EventType"" character varying(100) NOT NULL,
+                    ""SmsEnabled"" boolean NOT NULL DEFAULT true,
+                    ""InAppEnabled"" boolean NOT NULL DEFAULT true,
+                    ""EmailEnabled"" boolean NOT NULL DEFAULT false
+                );",
+                @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_NotificationPreferences_UserId_EventType"" ON ""NotificationPreferences"" (""UserId"", ""EventType"");",
+                @"CREATE TABLE IF NOT EXISTS ""UserSessions"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL REFERENCES ""Users""(""Id"") ON DELETE CASCADE,
+                    ""Device"" character varying(100) NOT NULL,
+                    ""Browser"" character varying(100) NOT NULL,
+                    ""OperatingSystem"" character varying(100) NOT NULL,
+                    ""IpAddress"" character varying(64) NOT NULL,
+                    ""LastActiveAt"" timestamp with time zone NOT NULL,
+                    ""RevokedAt"" timestamp with time zone
+                );",
+                @"CREATE INDEX IF NOT EXISTS ""IX_UserSessions_UserId"" ON ""UserSessions"" (""UserId"");",
+                @"CREATE TABLE IF NOT EXISTS ""TwoFactorSettings"" (
+                    ""Id"" uuid PRIMARY KEY,
+                    ""UserId"" uuid NOT NULL REFERENCES ""Users""(""Id"") ON DELETE CASCADE,
+                    ""Method"" character varying(30) NOT NULL DEFAULT 'Sms',
+                    ""IsEnabled"" boolean NOT NULL DEFAULT false,
+                    ""SecretReference"" character varying(500),
+                    ""EnabledAt"" timestamp with time zone
+                );",
+                @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_TwoFactorSettings_UserId"" ON ""TwoFactorSettings"" (""UserId"");",
+
                 // Populate null values on existing rows
                 @"UPDATE ""Users"" SET ""VehicleCapacityKg"" = 5000 WHERE ""VehicleCapacityKg"" IS NULL AND ""Role"" = 'Driver';",
                 @"UPDATE ""Users"" SET ""KycStatus"" = 'Verified' WHERE ""KycStatus"" IS NULL;",

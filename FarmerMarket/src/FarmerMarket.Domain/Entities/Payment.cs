@@ -6,6 +6,8 @@ public class Payment
 
     public Guid OrderId { get; set; }
     public Order Order { get; set; } = null!;
+    public Guid? PaymentMethodId { get; set; }
+    public PaymentMethod? PaymentMethod { get; set; }
 
     public decimal AmountEtb { get; set; }
     public decimal FarmerCut { get; set; } // 90%

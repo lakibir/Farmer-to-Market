@@ -16,6 +16,8 @@ import { documentModal } from './components/DocumentModal';
 import { produceDetailModal } from './components/ProduceDetailModal';
 import { renderSuperAdminView, SuperAdminTab } from './components/SuperAdminView';
 import { renderSuperAdminModals } from './components/SuperAdminModals';
+import { renderBuyerAccountView, BuyerAccountTab } from './components/BuyerAccountView';
+import { renderFarmerAccountView, FarmerAccountTab } from './components/FarmerAccountView';
 
 // Toast Notification Manager
 function showToast(message: string, icon: string = 'fa-circle-check', color: string = 'border-emerald-500') {
@@ -69,6 +71,8 @@ class App {
   private organicOnly: boolean = false;
   private advanceOnly: boolean = false;
   private activeBuyerSubTab: 'marketplace' | 'orders' | 'standing_orders' = 'marketplace';
+  private activeBuyerAccountTab: BuyerAccountTab = 'overview';
+  private activeFarmerAccountTab: FarmerAccountTab = 'overview';
 
   // Farmer & Admin Sub-Tabs
   private activeFarmerTab: 'listings' | 'wallet' | 'sms' = 'listings';
@@ -238,7 +242,9 @@ class App {
     );
 
     let viewHtml = '';
-    if (this.activeTab === 'farmer' && isAuthenticated && currentUser?.role === 'farmer') {
+    if (this.activeTab === 'farmer-account' && isAuthenticated && currentUser?.role === 'farmer') {
+      viewHtml = renderFarmerAccountView(this.lang, currentUser, api.getListings().filter(listing => listing.farmerId === currentUser.id), api.getOrders('farmer'), this.activeFarmerAccountTab, this.isCreateListingModalOpen, api.getPriceBenchmarks());
+    } else if (this.activeTab === 'farmer' && isAuthenticated && currentUser?.role === 'farmer') {
       const farmerListings = api.getListings().filter(l => l.farmerId === currentUser.id);
       const farmerOrders = api.getOrders('farmer');
       const summary = api.getFarmerSummary();
@@ -273,7 +279,7 @@ class App {
       );
     } else if (this.activeTab === 'admin' && isAuthenticated && currentUser?.role === 'admin') {
       const stats = api.getPlatformStats();
-      const disputedOrders = api.getOrders().filter(o => o.status === 'disputed');
+      const disputedOrders = api.getOrders().filter(o => o.status === 'disputed' && !o.disputeStatus?.startsWith('Resolved'));
       viewHtml = renderAdminView(
         this.lang,
         stats,
@@ -286,6 +292,8 @@ class App {
     } else if (this.activeTab === 'agent' || (isAuthenticated && currentUser?.role === 'agent')) {
       this.agentView.setLanguage(this.lang);
       viewHtml = this.agentView.render();
+    } else if (this.activeTab === 'account' && isAuthenticated && currentUser?.role === 'buyer') {
+      viewHtml = renderBuyerAccountView(this.lang, currentUser, api.getOrders('buyer'), this.activeBuyerAccountTab, api.getAccountData());
     } else {
       // Default Wholesale Produce Marketplace (for Buyers or Logged Out Guests)
       const buyerOrders = api.getOrders('buyer');
@@ -511,6 +519,10 @@ class App {
     w.buyProduceNow = (id: string, qty: number) => {
       const item = api.getListingById(id);
       if (!item) return;
+      if (!api.isAuthenticated()) {
+        w.openAuthModal('login');
+        return;
+      }
       this.activeProduceModalId = null;
       const finalQty = qty || this.produceOrderQty || item.minOrderKg || 50;
       const totalEtb = finalQty * item.pricePerKg;
@@ -552,6 +564,167 @@ class App {
       this.activeTab = tab;
       this.render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    w.setBuyerAccountTab = (tab: BuyerAccountTab) => {
+      this.activeBuyerAccountTab = tab;
+      this.activeTab = 'account';
+      api.fetchAccountData().then(() => this.render()).catch((error: any) => showToast(error.message || 'Could not load account data.', 'fa-circle-xmark', 'border-rose-500'));
+      this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    w.setFarmerAccountTab = (tab: FarmerAccountTab) => {
+      this.activeFarmerAccountTab = tab;
+      this.activeTab = 'farmer-account';
+      this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    w.deleteFarmerListing = async (id: string) => {
+      if (!window.confirm('Delete this produce post? It will no longer be available for new orders.')) return;
+      try {
+        await api.deleteListing(id);
+        showToast('Produce post deleted.', 'fa-trash');
+        this.render();
+      } catch (error: any) {
+        showToast(error.message || 'Could not delete the produce post.', 'fa-circle-xmark', 'border-rose-500');
+      }
+    };
+
+    w.changeFarmerPassword = async () => {
+      const form = document.querySelector<HTMLFormElement>('.account-form');
+      if (!form) return;
+      const values = new FormData(form);
+      try {
+        await api.changePassword(String(values.get('currentPassword') || ''), String(values.get('newPassword') || ''));
+        showToast('Password changed successfully.', 'fa-shield-check');
+        form.reset();
+      } catch (error: any) {
+        showToast(error.message || 'Could not change your password.', 'fa-circle-xmark', 'border-rose-500');
+      }
+    };
+
+    w.saveFarmerProfile = async () => {
+      const form = document.querySelector<HTMLFormElement>('.account-form');
+      if (!form) return;
+      const values = new FormData(form);
+      try {
+        await api.updateProfile({
+          name: String(values.get('name') || ''),
+          nameAm: String(values.get('nameAm') || ''),
+          region: String(values.get('region') || ''),
+          email: String(values.get('email') || ''),
+          languagePreference: String(values.get('languagePreference') || ''),
+          savedDeliveryAddress: String(values.get('savedDeliveryAddress') || ''),
+          defaultDeliveryLat: form.dataset.defaultLat ? Number(form.dataset.defaultLat) : undefined,
+          defaultDeliveryLng: form.dataset.defaultLng ? Number(form.dataset.defaultLng) : undefined
+        });
+        showToast('Farmer profile saved to your account.', 'fa-circle-check');
+        this.render();
+      } catch (error: any) {
+        showToast(error.message || 'Could not save farmer profile.', 'fa-circle-xmark', 'border-rose-500');
+      }
+    };
+
+    w.captureFarmerLocation = () => {
+      if (!navigator.geolocation) {
+        showToast('Location is not available in this browser.', 'fa-location-dot', 'border-rose-500');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(position => {
+        const form = document.querySelector<HTMLFormElement>('.account-form');
+        if (form) {
+          form.dataset.defaultLat = String(position.coords.latitude);
+          form.dataset.defaultLng = String(position.coords.longitude);
+        }
+        showToast('Farm location captured. Save profile to persist it.', 'fa-location-crosshairs');
+      }, () => showToast('Location permission was not granted.', 'fa-location-dot', 'border-rose-500'));
+    };
+
+    w.showAccountToast = (message: string, icon: string = 'fa-circle-check') => {
+      showToast(message, icon, 'border-emerald-500');
+    };
+
+    w.saveBuyerProfile = async () => {
+      const form = document.querySelector<HTMLFormElement>('.account-form');
+      if (!form) return;
+      const values = new FormData(form);
+      try {
+        await api.updateProfile({
+          name: String(values.get('name') || ''),
+          nameAm: String(values.get('nameAm') || ''),
+          region: String(values.get('region') || ''),
+          email: String(values.get('email') || ''),
+          languagePreference: String(values.get('languagePreference') || ''),
+          savedDeliveryAddress: String(values.get('savedDeliveryAddress') || ''),
+          defaultDeliveryLat: form.dataset.defaultLat ? Number(form.dataset.defaultLat) : undefined,
+          defaultDeliveryLng: form.dataset.defaultLng ? Number(form.dataset.defaultLng) : undefined
+        });
+        showToast('Profile changes saved to your account.', 'fa-circle-check');
+        this.render();
+      } catch (error: any) {
+        showToast(error.message || 'Could not save your profile.', 'fa-circle-xmark', 'border-rose-500');
+      }
+    };
+
+    w.captureBuyerLocation = () => {
+      if (!navigator.geolocation) {
+        showToast('Location is not available in this browser.', 'fa-location-dot', 'border-rose-500');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(position => {
+        const form = document.querySelector<HTMLFormElement>('.account-form');
+        if (form) form.dataset.defaultLat = String(position.coords.latitude);
+        if (form) form.dataset.defaultLng = String(position.coords.longitude);
+        showToast('Location captured. Save changes to persist it.', 'fa-location-crosshairs');
+      }, () => showToast('Location permission was not granted.', 'fa-location-dot', 'border-rose-500'));
+    };
+
+    w.changeBuyerPassword = async () => {
+      const form = document.querySelector<HTMLFormElement>('.account-form');
+      if (!form) return;
+      const values = new FormData(form);
+      try {
+        await api.changePassword(String(values.get('currentPassword') || ''), String(values.get('newPassword') || ''));
+        showToast('Password changed successfully.', 'fa-shield-check');
+        form.reset();
+      } catch (error: any) {
+        showToast(error.message || 'Could not change your password.', 'fa-circle-xmark', 'border-rose-500');
+      }
+    };
+
+    const accountAction = async (action: () => Promise<void>, success: string) => {
+      try { await action(); showToast(success, 'fa-circle-check'); this.render(); }
+      catch (error: any) { showToast(error.message || 'Account action failed.', 'fa-circle-xmark', 'border-rose-500'); }
+    };
+    w.addBuyerAddress = () => {
+      const form = document.querySelector<HTMLFormElement>('.account-form'); if (!form) return;
+      const values = new FormData(form);
+      accountAction(() => api.saveAddress({ name: String(values.get('name') || ''), phone: String(values.get('phone') || ''), street: String(values.get('street') || ''), city: String(values.get('city') || ''), region: String(values.get('region') || ''), postalCode: String(values.get('postalCode') || '') || null, country: String(values.get('country') || 'Ethiopia'), isDefaultShipping: values.has('isDefaultShipping'), isDefaultBilling: false }), 'Address added.');
+    };
+    w.deleteBuyerAddress = (id: string) => accountAction(() => api.deleteAddress(id), 'Address deleted.');
+    w.addBuyerPayment = () => {
+      const form = document.querySelector<HTMLFormElement>('.account-form'); if (!form) return;
+      const values = new FormData(form);
+      accountAction(() => api.addPaymentMethod({ provider: String(values.get('provider') || ''), providerToken: String(values.get('providerToken') || ''), maskedDisplay: String(values.get('maskedDisplay') || ''), brand: String(values.get('brand') || '') || null, expiryMonth: Number(values.get('expiryMonth')) || null, expiryYear: Number(values.get('expiryYear')) || null, isPrimary: values.has('isPrimary') }), 'Payment method linked.');
+    };
+    w.setPrimaryBuyerPayment = (id: string) => accountAction(() => api.setPrimaryPaymentMethod(id), 'Primary payment method updated.');
+    w.deleteBuyerPayment = (id: string) => accountAction(() => api.deletePaymentMethod(id), 'Payment method removed.');
+    w.submitBuyerDispute = (orderId: string) => {
+      const reason = window.prompt('Reason: Item not received, Damaged, Wrong item, or Quality issue');
+      if (!reason) return;
+      accountAction(() => api.disputeOrder(orderId, reason, undefined, 100), 'Dispute submitted for review.');
+    };
+
+    w.revokeBuyerSessions = async () => {
+      try {
+        await api.revokeOtherSessions();
+        showToast('Other sessions have been revoked.', 'fa-shield-check');
+        this.render();
+      } catch (error: any) {
+        showToast(error.message || 'Could not revoke sessions.', 'fa-circle-xmark', 'border-rose-500');
+      }
     };
 
     w.toggleLanguage = () => {
@@ -1122,16 +1295,35 @@ class App {
     w.handleTelebirrSubmit = async (e: Event) => {
       e.preventDefault();
       try {
+        const addressSelect = document.getElementById('checkoutAddress') as HTMLSelectElement | null;
+        const payment = document.querySelector<HTMLInputElement>('input[name="checkoutPayment"]:checked');
+        const addressId = addressSelect?.value;
+        const address = api.getAccountData().addresses.find((item: any) => item.id === addressId);
+        if (!address || !payment) {
+          showToast('Choose a shipping address and payment method first.', 'fa-circle-exclamation', 'border-amber-500');
+          return;
+        }
+        const deliveryAddress = `${address.street}, ${address.city}, ${address.region}, ${address.country}`;
+        const checkoutItems = this.cart.length
+          ? this.cart
+          : this.activeTelebirrModal?.listingId
+            ? [{ listing: api.getListingById(this.activeTelebirrModal.listingId), qtyKg: this.activeTelebirrModal.qtyKg || 0 }]
+            : [];
+        if (!checkoutItems.length || !checkoutItems[0].listing) {
+          throw new Error('The selected produce is no longer available.');
+        }
         let placedOrder: Order | null = null;
-        for (const item of this.cart) {
-          placedOrder = await api.placeOrder(item.listing.id, item.qtyKg);
+        for (const item of checkoutItems) {
+          const listing = item.listing;
+          if (!listing) throw new Error('The selected produce is no longer available.');
+          placedOrder = await api.placeOrder(listing.id, item.qtyKg, deliveryAddress, false, 'Weekly', payment.value === 'telebirr-wallet' ? undefined : payment.value);
         }
         this.cart = [];
         this.isCartOpen = false;
         this.activeTelebirrModal = null;
 
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-        showToast('Payment Authorized! Funds locked in Telebirr Escrow. Order Dispatched.', 'fa-lock', 'border-blue-500');
+        showToast(`Payment authorized via ${payment.value === 'telebirr-wallet' ? 'Telebirr' : 'your selected provider'}. Farmer notified; driver follows after farmer confirmation.`, 'fa-lock', 'border-blue-500');
 
         if (placedOrder) {
           this.activeOrderModal = placedOrder;
@@ -1171,9 +1363,13 @@ class App {
     };
 
     w.adminResolveDispute = async (orderId: string, resolution: 'ReleaseToFarmer' | 'RefundBuyer' | 'PartialSplit') => {
-      await api.resolveDispute(orderId, resolution);
-      showToast(`Dispute resolved: ${resolution}. Decree generated.`, 'fa-gavel', 'border-purple-500');
-      this.render();
+      try {
+        await api.resolveDispute(orderId, resolution);
+        showToast(`Dispute resolved: ${resolution}. Buyer and farmer records updated.`, 'fa-gavel', 'border-purple-500');
+        this.render();
+      } catch (error: any) {
+        showToast(error.message || 'Could not resolve the dispute.', 'fa-circle-xmark', 'border-rose-500');
+      }
     };
 
     w.toggleCreateListingModal = () => {

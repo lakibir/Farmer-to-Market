@@ -33,6 +33,11 @@ export interface User {
   phone: string;
   name: string;
   nameAm?: string;
+  email?: string;
+  languagePreference?: string;
+  savedDeliveryAddress?: string;
+  defaultDeliveryLat?: number;
+  defaultDeliveryLng?: number;
   role: UserRole;
   region: string;
   verified: boolean;

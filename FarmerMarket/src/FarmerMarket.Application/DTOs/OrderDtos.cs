@@ -53,7 +53,8 @@ public record PlaceOrderDto(
     string? DeliveryAddress = null,
     string? DeliveryNotes = null,
     bool IsRecurring = false,
-    string? RecurringFrequency = null
+    string? RecurringFrequency = null,
+    Guid? PaymentMethodId = null
 );
 
 public record PlaceOrderResultDto(

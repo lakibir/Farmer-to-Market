@@ -178,6 +178,20 @@ export function renderNavbar(
                       <i class="fa-solid fa-arrow-right text-[10px] text-slate-400"></i>
                     </button>
 
+                    ${currentUser.role === 'farmer' ? `
+                      <button onclick="window.navigateTab('farmer-account');" class="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 hover:text-emerald-900 transition-colors flex items-center justify-between cursor-pointer">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-user-gear text-emerald-600"></i> Account center</span>
+                        <i class="fa-solid fa-arrow-right text-[10px] text-slate-400"></i>
+                      </button>
+                    ` : ''}
+
+                    ${currentUser.role === 'buyer' ? `
+                      <button onclick="window.navigateTab('account');" class="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 hover:text-emerald-900 transition-colors flex items-center justify-between cursor-pointer">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-user-gear text-emerald-600"></i> Account center</span>
+                        <i class="fa-solid fa-arrow-right text-[10px] text-slate-400"></i>
+                      </button>
+                    ` : ''}
+
                     <button onclick="window.openVerificationWizard();" class="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-50 hover:text-emerald-900 transition-colors flex items-center gap-2 cursor-pointer">
                       <i class="fa-solid fa-id-card text-emerald-600"></i> ${lang === 'am' ? 'የፋይዳ / የታክስ ማረጋገጫ' : 'Fayda & TIN Verification'}
                     </button>

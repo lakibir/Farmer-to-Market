@@ -31,6 +31,7 @@ class ApiService {
   private priceBenchmarks: PriceBenchmark[] = [];
   private offlineQueue: OfflineAction[] = [];
   private isOfflineMode: boolean = false;
+  private accountData = { addresses: [] as any[], paymentMethods: [] as any[], coupons: [] as any[], notificationPreferences: [] as any[], sessions: [] as any[], twoFactor: null as any };
 
   // Super Admin governance state
   private allUsers: User[] = [];
@@ -123,6 +124,7 @@ class ApiService {
       await this.fetchMe();
     }
     await this.refreshAllData();
+    if (this.token) await this.fetchAccountData();
   }
 
   private initDefaultData() {
@@ -744,6 +746,11 @@ class ApiService {
           phone: data.phone,
           name: data.name,
           nameAm: data.nameAm,
+          email: data.email,
+          languagePreference: data.languagePreference,
+          savedDeliveryAddress: data.savedDeliveryAddress,
+          defaultDeliveryLat: data.defaultDeliveryLat,
+          defaultDeliveryLng: data.defaultDeliveryLng,
           role: (data.role || 'buyer').toLowerCase() as UserRole,
           region: data.region,
           verified: data.verified ?? (vStatus === 'Approved'),
@@ -776,6 +783,76 @@ class ApiService {
     }
     return this.currentUser;
   }
+
+  public async updateProfile(dto: {
+    name: string;
+    nameAm?: string;
+    region: string;
+    email?: string;
+    languagePreference?: string;
+    savedDeliveryAddress?: string;
+    defaultDeliveryLat?: number;
+    defaultDeliveryLng?: number;
+  }): Promise<User> {
+    if (!this.token) throw new Error('You must be signed in to update your profile.');
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({
+        Name: dto.name,
+        NameAm: dto.nameAm || null,
+        Region: dto.region,
+        Email: dto.email || null,
+        LanguagePreference: dto.languagePreference || null,
+        SavedDeliveryAddress: dto.savedDeliveryAddress || null,
+        DefaultDeliveryLat: dto.defaultDeliveryLat ?? null,
+        DefaultDeliveryLng: dto.defaultDeliveryLng ?? null
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not save your profile.');
+    await this.fetchMe();
+    return this.currentUser as User;
+  }
+
+  public async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    if (!this.token) throw new Error('You must be signed in to change your password.');
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not change your password.');
+  }
+
+  private async accountRequest(path: string, init?: RequestInit): Promise<any> {
+    const res = await fetch(`/api/account/${path}`, { ...init, headers: { ...this.getAuthHeaders(), ...(init?.headers || {}) } });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || 'Account request failed.');
+    return data;
+  }
+
+  public async fetchAccountData(): Promise<typeof this.accountData> {
+    if (!this.token) return this.accountData;
+    const [addresses, paymentMethods, coupons, notificationPreferences, sessions, twoFactor] = await Promise.all([
+      this.accountRequest('addresses'), this.accountRequest('payment-methods'), this.accountRequest('coupons'),
+      this.accountRequest('notification-preferences'), this.accountRequest('sessions'), this.accountRequest('two-factor')
+    ]);
+    this.accountData = { addresses, paymentMethods, coupons, notificationPreferences, sessions, twoFactor };
+    return this.accountData;
+  }
+
+  public getAccountData() { return this.accountData; }
+  public async saveAddress(address: any) { const result = await this.accountRequest('addresses', { method: 'POST', body: JSON.stringify(address) }); await this.fetchAccountData(); return result; }
+  public async updateAddress(id: string, address: any) { const result = await this.accountRequest(`addresses/${id}`, { method: 'PUT', body: JSON.stringify(address) }); await this.fetchAccountData(); return result; }
+  public async deleteAddress(id: string) { await this.accountRequest(`addresses/${id}`, { method: 'DELETE' }); await this.fetchAccountData(); }
+  public async addPaymentMethod(method: any) { const result = await this.accountRequest('payment-methods', { method: 'POST', body: JSON.stringify(method) }); await this.fetchAccountData(); return result; }
+  public async setPrimaryPaymentMethod(id: string) { await this.accountRequest(`payment-methods/${id}/primary`, { method: 'PUT' }); await this.fetchAccountData(); }
+  public async deletePaymentMethod(id: string) { await this.accountRequest(`payment-methods/${id}`, { method: 'DELETE' }); await this.fetchAccountData(); }
+  public async setNotificationPreference(preference: any) { const result = await this.accountRequest('notification-preferences', { method: 'PUT', body: JSON.stringify(preference) }); await this.fetchAccountData(); return result; }
+  public async updateTwoFactor(setting: any) { const result = await this.accountRequest('two-factor', { method: 'PUT', body: JSON.stringify(setting) }); await this.fetchAccountData(); return result; }
+  public async revokeOtherSessions() { await this.accountRequest('sessions/revoke-others', { method: 'POST' }); await this.fetchAccountData(); }
 
   public async requestOtp(phone: string): Promise<{ demoCode?: string; message: string; phone: string; userName?: string; role?: string }> {
     const cleanPhone = phone.startsWith('+251') ? phone.replace(/\s+/g, '') : '+251' + phone.replace(/^0+/, '').replace(/\s+/g, '');
@@ -1199,6 +1276,13 @@ class ApiService {
     return createdItem;
   }
 
+  public async deleteListing(id: string): Promise<void> {
+    const res = await fetch(`/api/listings/${id}`, { method: 'DELETE', headers: this.getAuthHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not delete the listing.');
+    await this.fetchListings();
+  }
+
   // ==================== ORDERS API ====================
 
   public async fetchOrders(): Promise<Order[]> {
@@ -1287,7 +1371,7 @@ class ApiService {
     return this.orders; // Admin
   }
 
-  public async placeOrder(listingId: string, qtyKg: number, deliveryAddress?: string, isRecurring = false, frequency = 'Weekly'): Promise<Order> {
+  public async placeOrder(listingId: string, qtyKg: number, deliveryAddress?: string, isRecurring = false, frequency = 'Weekly', paymentMethodId?: string): Promise<Order> {
     const listing = this.listings.find(l => l.id === listingId);
     if (!listing) throw new Error("Listing not found");
 
@@ -1298,6 +1382,7 @@ class ApiService {
         listingId,
         qtyKg,
         deliveryAddress: deliveryAddress || this.currentUser?.region || 'Addis Ababa (Bole)',
+        paymentMethodId: paymentMethodId || null,
         isRecurring,
         recurringFrequency: isRecurring ? frequency : null
       })
@@ -1362,7 +1447,7 @@ class ApiService {
   }
 
   public async disputeOrder(orderId: string, reason: string, photo?: string, refundPercent = 50) {
-    await fetch(`/api/orders/${orderId}/dispute`, {
+    const res = await fetch(`/api/orders/${orderId}/dispute`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -1371,11 +1456,13 @@ class ApiService {
         requestedRefundPercent: refundPercent
       })
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not submit the dispute.');
     await this.fetchOrders();
   }
 
   public async resolveDispute(orderId: string, resolution: 'ReleaseToFarmer' | 'RefundBuyer' | 'PartialSplit', farmerShare = 50, buyerRefund = 50) {
-    await fetch(`/api/admin/orders/${orderId}/resolve-dispute`, {
+    const res = await fetch(`/api/admin/orders/${orderId}/resolve-dispute`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -1385,6 +1472,8 @@ class ApiService {
         buyerRefundPercent: buyerRefund
       })
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Could not resolve the dispute.');
     await this.fetchOrders();
   }
 
