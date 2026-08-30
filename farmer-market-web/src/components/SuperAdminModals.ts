@@ -8,7 +8,11 @@ export function renderSuperAdminModals(
   isEditUserModalOpen: boolean = false,
   editTargetUserId: string | null = null,
   isAddZoneModalOpen: boolean = false,
-  isAddBlacklistModalOpen: boolean = false
+  isAddBlacklistModalOpen: boolean = false,
+  isBannerModalOpen: boolean = false,
+  editTargetBannerId: string | null = null,
+  isListingEditModalOpen: boolean = false,
+  editTargetListingId: string | null = null
 ): string {
   const t = translations[lang];
 
@@ -290,5 +294,279 @@ export function renderSuperAdminModals(
         </div>
       </div>
     ` : ''}
+
+    <!-- Create / Edit Banner Modal -->
+    ${isBannerModalOpen ? (() => {
+      const banner = editTargetBannerId ? api.getBannerById(editTargetBannerId) : null;
+      return `
+        <div class="modal-backdrop" onclick="if(event.target === this) window.closeSuperAdminModal()">
+          <div class="glass-card max-w-2xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col">
+            <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950 p-6 text-white relative">
+              <button onclick="window.closeSuperAdminModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                <i class="fa-solid fa-xmark text-sm"></i>
+              </button>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center text-xl font-black">
+                  <i class="fa-solid fa-panorama"></i>
+                </div>
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400/90">Promotions & Bulletins</span>
+                  <h3 class="text-lg font-black text-white">${banner ? 'Edit Promotional Banner' : 'Create Promotional Banner'}</h3>
+                </div>
+              </div>
+            </div>
+
+            <form onsubmit="window.handleSaveBannerSubmit(event, '${editTargetBannerId || ''}')" class="p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Banner Title (English) *</label>
+                  <input type="text" id="bannerTitleInput" required value="${banner ? banner.title : ''}" placeholder="e.g. Fresh Harvest Direct From Bishoftu" class="input-field text-xs font-bold" />
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Banner Title (Amharic)</label>
+                  <input type="text" id="bannerTitleAmInput" value="${banner?.titleAm || ''}" placeholder="የቢሾፍቱ አዳዲስ ምርቶች በቀጥታ ከእርሻ" class="input-field text-xs font-bold" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Subtitle / Description (English)</label>
+                  <textarea id="bannerSubtitleInput" rows="2" placeholder="Brief announcement details..." class="input-field text-xs">${banner?.subtitle || ''}</textarea>
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Subtitle / Description (Amharic)</label>
+                  <textarea id="bannerSubtitleAmInput" rows="2" placeholder="የማስታወቂያው ዝርዝር..." class="input-field text-xs">${banner?.subtitleAm || ''}</textarea>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Target Audience</label>
+                  <select id="bannerAudienceSelect" class="input-field text-xs font-bold">
+                    <option value="All" ${banner?.targetAudience === 'All' ? 'selected' : ''}>🌐 All Portals</option>
+                    <option value="Buyer" ${banner?.targetAudience === 'Buyer' ? 'selected' : ''}>🛒 Wholesale Buyers</option>
+                    <option value="Farmer" ${banner?.targetAudience === 'Farmer' ? 'selected' : ''}>🌾 Farmers & Producers</option>
+                    <option value="Driver" ${banner?.targetAudience === 'Driver' ? 'selected' : ''}>🚚 Logistics Drivers</option>
+                    <option value="Agent" ${banner?.targetAudience === 'Agent' ? 'selected' : ''}>👥 Extension Agents</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Target Region</label>
+                  <select id="bannerRegionSelect" class="input-field text-xs font-bold">
+                    <option value="All" ${banner?.targetRegion === 'All' ? 'selected' : ''}>All Regions</option>
+                    <option value="Addis Ababa" ${banner?.targetRegion === 'Addis Ababa' ? 'selected' : ''}>Addis Ababa</option>
+                    <option value="Oromia" ${banner?.targetRegion === 'Oromia' ? 'selected' : ''}>Oromia</option>
+                    <option value="Amhara" ${banner?.targetRegion === 'Amhara' ? 'selected' : ''}>Amhara</option>
+                    <option value="Sidama" ${banner?.targetRegion === 'Sidama' ? 'selected' : ''}>Sidama</option>
+                    <option value="SNNPR" ${banner?.targetRegion === 'SNNPR' ? 'selected' : ''}>SNNPR</option>
+                    <option value="Tigray" ${banner?.targetRegion === 'Tigray' ? 'selected' : ''}>Tigray</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Display Priority (1-10)</label>
+                  <input type="number" id="bannerPriorityInput" min="1" max="10" value="${banner ? banner.priority : 5}" class="input-field text-xs font-bold" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Badge Text (e.g. Harvest 2026)</label>
+                  <input type="text" id="bannerBadgeInput" value="${banner?.badgeText || ''}" placeholder="e.g. Special Promotion" class="input-field text-xs" />
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Badge Text (Amharic)</label>
+                  <input type="text" id="bannerBadgeAmInput" value="${banner?.badgeTextAm || ''}" placeholder="e.g. ልዩ ቅናሽ" class="input-field text-xs" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">CTA Button Text</label>
+                  <input type="text" id="bannerCtaTextInput" value="${banner?.ctaText || 'Browse Marketplace'}" placeholder="e.g. Order Now" class="input-field text-xs font-bold" />
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">CTA Target Action / Tab</label>
+                  <select id="bannerCtaLinkSelect" class="input-field text-xs font-bold">
+                    <option value="marketplace" ${banner?.ctaLink === 'marketplace' ? 'selected' : ''}>🛒 Marketplace (Buyer)</option>
+                    <option value="farmer" ${banner?.ctaLink === 'farmer' ? 'selected' : ''}>🌾 Farmer Portal</option>
+                    <option value="driver" ${banner?.ctaLink === 'driver' ? 'selected' : ''}>🚚 Driver Logistics</option>
+                    <option value="agent" ${banner?.ctaLink === 'agent' ? 'selected' : ''}>👥 Agent Directory</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Banner Background Image URL</label>
+                <input type="url" id="bannerImageUrlInput" value="${banner?.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200'}" class="input-field text-xs font-mono" />
+                <div class="flex flex-wrap gap-2 pt-1.5">
+                  <button type="button" onclick="document.getElementById('bannerImageUrlInput').value='https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200'" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer">🌾 Fresh Harvest</button>
+                  <button type="button" onclick="document.getElementById('bannerImageUrlInput').value='https://images.unsplash.com/photo-1592417817098-8f3d6910a711?auto=format&fit=crop&q=80&w=1200'" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer">🛡️ Fayda & ID</button>
+                  <button type="button" onclick="document.getElementById('bannerImageUrlInput').value='https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1200'" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer">🚚 Cold Chain Logistics</button>
+                  <button type="button" onclick="document.getElementById('bannerImageUrlInput').value='https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&q=80&w=1200'" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer">🏪 Wholesale Market</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Theme Gradient Style</label>
+                <select id="bannerGradientSelect" class="input-field text-xs font-bold">
+                  <option value="from-emerald-900 via-teal-900 to-slate-900" ${banner?.themeGradient?.includes('emerald') ? 'selected' : ''}>🍃 Emerald & Teal (Agriculture/Harvest)</option>
+                  <option value="from-blue-900 via-indigo-950 to-slate-900" ${banner?.themeGradient?.includes('blue') ? 'selected' : ''}>🔷 Royal Blue & Indigo (Legal/Fayda)</option>
+                  <option value="from-amber-900 via-orange-950 to-slate-900" ${banner?.themeGradient?.includes('amber') ? 'selected' : ''}>🔶 Amber & Orange (Freight Logistics)</option>
+                  <option value="from-rose-950 via-slate-900 to-purple-950" ${banner?.themeGradient?.includes('rose') ? 'selected' : ''}>👑 Rose & Purple (Super Admin Spotlight)</option>
+                </select>
+              </div>
+
+              <div class="flex items-center gap-2 pt-2">
+                <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input type="checkbox" id="bannerIsActiveCheck" ${banner ? (banner.isActive ? 'checked' : '') : 'checked'} class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500" />
+                  <span>Activate Banner Immediately Upon Saving</span>
+                </label>
+              </div>
+
+              <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="window.closeSuperAdminModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" class="btn-primary py-2 px-5 font-bold shadow-md cursor-pointer">
+                  ${banner ? 'Save Changes' : 'Publish Banner'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    })() : ''}
+
+    <!-- Moderate / Edit Produce Listing Modal -->
+    ${isListingEditModalOpen && editTargetListingId ? (() => {
+      const listing = api.getListings().find(l => l.id === editTargetListingId);
+      if (!listing) return '';
+      return `
+        <div class="modal-backdrop" onclick="if(event.target === this) window.closeSuperAdminModal()">
+          <div class="glass-card max-w-2xl w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col">
+            <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-purple-950 p-6 text-white relative">
+              <button onclick="window.closeSuperAdminModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                <i class="fa-solid fa-xmark text-sm"></i>
+              </button>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-400/30 text-purple-400 flex items-center justify-center text-xl font-black">
+                  <i class="fa-solid fa-gavel"></i>
+                </div>
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-widest text-purple-400/90">Post & Listing Governance</span>
+                  <h3 class="text-lg font-black text-white">Moderate Listing: ${listing.productName}</h3>
+                </div>
+              </div>
+            </div>
+
+            <form onsubmit="window.handleAdminEditListingSubmit(event, '${listing.id}')" class="p-6 space-y-4 text-xs overflow-y-auto flex-1">
+              <!-- Farmer Info Card -->
+              <div class="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-100 flex items-center justify-between">
+                <div>
+                  <p class="font-bold text-slate-800">${listing.farmerName} <span class="text-slate-400 font-normal">(${listing.farmerPhone})</span></p>
+                  <p class="text-[11px] text-slate-500">${listing.region}</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-full bg-white text-purple-800 border border-purple-200 text-[10px] font-bold">
+                  Listing ID: ${listing.id.slice(0, 8)}...
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Product Name (English) *</label>
+                  <input type="text" id="listingNameInput" required value="${listing.productName}" class="input-field text-xs font-bold" />
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Product Name (Amharic)</label>
+                  <input type="text" id="listingNameAmInput" value="${listing.nameAm || ''}" class="input-field text-xs font-bold" />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Produce Category</label>
+                  <select id="listingCategorySelect" class="input-field text-xs font-bold">
+                    <option value="Vegetables" ${listing.category === 'Vegetables' ? 'selected' : ''}>Vegetables</option>
+                    <option value="Cereals" ${listing.category === 'Cereals' ? 'selected' : ''}>Cereals / Grains</option>
+                    <option value="Fruits" ${listing.category === 'Fruits' ? 'selected' : ''}>Fruits</option>
+                    <option value="Pulses" ${listing.category === 'Pulses' ? 'selected' : ''}>Pulses</option>
+                    <option value="Spices" ${listing.category === 'Spices' ? 'selected' : ''}>Spices</option>
+                    <option value="Oilseeds" ${listing.category === 'Oilseeds' ? 'selected' : ''}>Oilseeds</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Grade / Quality</label>
+                  <select id="listingGradeSelect" class="input-field text-xs font-bold">
+                    <option value="Grade 1 (Premium / Export)" ${listing.grade?.includes('1') ? 'selected' : ''}>Grade 1 (Premium / Export)</option>
+                    <option value="Grade 2 (Standard Wholesale)" ${listing.grade?.includes('2') || !listing.grade ? 'selected' : ''}>Grade 2 (Standard Wholesale)</option>
+                    <option value="Grade 3 (Processing / Bulk)" ${listing.grade?.includes('3') ? 'selected' : ''}>Grade 3 (Processing / Bulk)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Moderation Status</label>
+                  <select id="listingModerationStatusSelect" class="input-field text-xs font-bold ${listing.moderationStatus === 'Flagged' ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'}">
+                    <option value="Approved" ${listing.moderationStatus === 'Approved' || !listing.moderationStatus ? 'selected' : ''}>✅ Approved (Live on Marketplace)</option>
+                    <option value="PendingReview" ${listing.moderationStatus === 'PendingReview' ? 'selected' : ''}>⏳ Pending Review (Hidden)</option>
+                    <option value="Flagged" ${listing.moderationStatus === 'Flagged' ? 'selected' : ''}>⚠️ Flagged (Price Anomaly / Review)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Price per Kg (ETB) *</label>
+                  <input type="number" step="0.5" id="listingPriceInput" required value="${listing.pricePerKg}" class="input-field text-xs font-bold font-mono" />
+                  <span class="text-[10px] text-slate-400">Benchmark: ${listing.marketBenchmarkPrice || 50} ETB/kg</span>
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Total Available Stock (Kg) *</label>
+                  <input type="number" id="listingQtyInput" required value="${listing.qtyKg}" class="input-field text-xs font-bold font-mono" />
+                </div>
+                <div>
+                  <label class="block mb-1 font-bold text-slate-700">Minimum Order Quantity (Kg)</label>
+                  <input type="number" id="listingMinOrderInput" value="${listing.minOrderKg || 50}" class="input-field text-xs font-bold font-mono" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Region / Woreda Farm Location</label>
+                <input type="text" id="listingRegionInput" value="${listing.region}" class="input-field text-xs font-bold" />
+              </div>
+
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Listing Description</label>
+                <textarea id="listingDescInput" rows="3" placeholder="Produce harvest details, packaging, shelf life..." class="input-field text-xs">${listing.description || ''}</textarea>
+              </div>
+
+              <div class="flex items-center gap-4 pt-1">
+                <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input type="checkbox" id="listingOrganicCheck" ${listing.isOrganic ? 'checked' : ''} class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500" />
+                  <span>Certified Organic Produce</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input type="checkbox" id="listingAdvanceHarvestCheck" ${listing.isAdvanceHarvest ? 'checked' : ''} class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500" />
+                  <span>Advance / Pre-Harvest Contract</span>
+                </label>
+              </div>
+
+              <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" onclick="window.adminDeleteListing('${listing.id}')" class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold border border-red-200 flex items-center gap-1.5 cursor-pointer">
+                  <i class="fa-solid fa-trash"></i> Delete Post
+                </button>
+                <div class="flex items-center gap-2.5">
+                  <button type="button" onclick="window.closeSuperAdminModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer">
+                    Cancel
+                  </button>
+                  <button type="submit" class="btn-primary py-2 px-5 font-bold shadow-md cursor-pointer">
+                    Save Moderation Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    })() : ''}
   `;
 }
+

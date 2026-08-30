@@ -78,7 +78,7 @@ class App {
   private activeFarmerTab: 'listings' | 'wallet' | 'sms' = 'listings';
   private activeAdminTab: 'disputes' | 'anomalies' | 'kyc' | 'tax_compliance' | 'analytics' | 'sms' = 'disputes';
 
-  // Super Admin Governance State
+  // Super Admin & Admin Governance State
   private activeSuperAdminTab: SuperAdminTab = 'users';
   private superAdminUserRoleFilter: string = 'all';
   private superAdminAuditCategoryFilter: string = 'all';
@@ -87,6 +87,10 @@ class App {
   private editTargetUserId: string | null = null;
   private isSuperAdminAddZoneModalOpen: boolean = false;
   private isSuperAdminAddBlacklistModalOpen: boolean = false;
+  private isSuperAdminBannerModalOpen: boolean = false;
+  private editTargetBannerId: string | null = null;
+  private isListingEditModalOpen: boolean = false;
+  private editTargetListingId: string | null = null;
 
   // Voice Note State
   private isRecordingVoice: boolean = false;
@@ -183,10 +187,10 @@ class App {
       if (!badge) return;
       const state = signalRService.getConnectionState();
       const configs: Record<string, { dot: string; label: string; cls: string }> = {
-        connected:    { dot: 'bg-emerald-500', label: 'Live',       cls: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
-        reconnecting: { dot: 'bg-amber-400',   label: 'Reconnecting', cls: 'bg-amber-50 text-amber-800 border-amber-300' },
-        polling:      { dot: 'bg-sky-400',     label: 'Polling',    cls: 'bg-sky-50 text-sky-800 border-sky-300' },
-        disconnected: { dot: 'bg-slate-400',   label: 'Offline',    cls: 'bg-slate-50 text-slate-500 border-slate-200' },
+        connected: { dot: 'bg-emerald-500', label: 'Live', cls: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+        reconnecting: { dot: 'bg-amber-400', label: 'Reconnecting', cls: 'bg-amber-50 text-amber-800 border-amber-300' },
+        polling: { dot: 'bg-sky-400', label: 'Polling', cls: 'bg-sky-50 text-sky-800 border-sky-300' },
+        disconnected: { dot: 'bg-slate-400', label: 'Offline', cls: 'bg-slate-50 text-slate-500 border-slate-200' },
       };
       const cfg = configs[state] || configs['disconnected'];
       badge.className = `flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${cfg.cls}`;
@@ -463,13 +467,17 @@ class App {
 
       <!-- Super Admin Governance Modals -->
       ${renderSuperAdminModals(
-                this.lang,
-                this.isSuperAdminCreateUserModalOpen,
-                this.isSuperAdminEditUserModalOpen,
-                this.editTargetUserId,
-                this.isSuperAdminAddZoneModalOpen,
-                this.isSuperAdminAddBlacklistModalOpen
-              )}
+        this.lang,
+        this.isSuperAdminCreateUserModalOpen,
+        this.isSuperAdminEditUserModalOpen,
+        this.editTargetUserId,
+        this.isSuperAdminAddZoneModalOpen,
+        this.isSuperAdminAddBlacklistModalOpen,
+        this.isSuperAdminBannerModalOpen,
+        this.editTargetBannerId,
+        this.isListingEditModalOpen,
+        this.editTargetListingId
+      )}
     `;
   }
 
@@ -1572,12 +1580,178 @@ class App {
       this.render();
     };
 
+    w.openCreateBannerModal = () => {
+      this.editTargetBannerId = null;
+      this.isSuperAdminBannerModalOpen = true;
+      this.render();
+    };
+
+    w.openEditBannerModal = (bannerId: string) => {
+      this.editTargetBannerId = bannerId;
+      this.isSuperAdminBannerModalOpen = true;
+      this.render();
+    };
+
+    w.handleSaveBannerSubmit = (e: Event, bannerId?: string) => {
+      e.preventDefault();
+      const title = (document.getElementById('bannerTitleInput') as HTMLInputElement)?.value;
+      const titleAm = (document.getElementById('bannerTitleAmInput') as HTMLInputElement)?.value || undefined;
+      const subtitle = (document.getElementById('bannerSubtitleInput') as HTMLTextAreaElement)?.value || undefined;
+      const subtitleAm = (document.getElementById('bannerSubtitleAmInput') as HTMLTextAreaElement)?.value || undefined;
+      const targetAudience = (document.getElementById('bannerAudienceSelect') as HTMLSelectElement)?.value as any;
+      const targetRegion = (document.getElementById('bannerRegionSelect') as HTMLSelectElement)?.value || 'All';
+      const priority = Number((document.getElementById('bannerPriorityInput') as HTMLInputElement)?.value) || 5;
+      const badgeText = (document.getElementById('bannerBadgeInput') as HTMLInputElement)?.value || undefined;
+      const badgeTextAm = (document.getElementById('bannerBadgeAmInput') as HTMLInputElement)?.value || undefined;
+      const ctaText = (document.getElementById('bannerCtaTextInput') as HTMLInputElement)?.value || 'Browse Marketplace';
+      const ctaLink = (document.getElementById('bannerCtaLinkSelect') as HTMLSelectElement)?.value || 'marketplace';
+      const imageUrl = (document.getElementById('bannerImageUrlInput') as HTMLInputElement)?.value;
+      const themeGradient = (document.getElementById('bannerGradientSelect') as HTMLSelectElement)?.value;
+      const isActive = (document.getElementById('bannerIsActiveCheck') as HTMLInputElement)?.checked ?? true;
+
+      if (bannerId) {
+        api.updateBanner(bannerId, {
+          title,
+          titleAm,
+          subtitle,
+          subtitleAm,
+          targetAudience,
+          targetRegion,
+          priority,
+          badgeText,
+          badgeTextAm,
+          ctaText,
+          ctaLink,
+          imageUrl,
+          themeGradient,
+          isActive
+        });
+        showToast(`Updated promotional banner: "${title}"`, 'fa-panorama', 'border-emerald-500');
+      } else {
+        api.createBanner({
+          title,
+          titleAm,
+          subtitle,
+          subtitleAm,
+          targetAudience,
+          targetRegion,
+          priority,
+          badgeText,
+          badgeTextAm,
+          ctaText,
+          ctaLink,
+          imageUrl,
+          themeGradient,
+          isActive
+        });
+        confetti({ particleCount: 90, spread: 60, origin: { y: 0.6 } });
+        showToast(`Published new banner: "${title}"!`, 'fa-panorama', 'border-emerald-500');
+      }
+
+      this.isSuperAdminBannerModalOpen = false;
+      this.editTargetBannerId = null;
+      this.render();
+    };
+
+    w.toggleBannerStatus = (bannerId: string) => {
+      const banner = api.getBannerById(bannerId);
+      if (!banner) return;
+      const nextActive = !banner.isActive;
+      api.toggleBannerStatus(bannerId, nextActive);
+      showToast(nextActive ? `Activated banner: "${banner.title}"` : `Paused banner: "${banner.title}"`, 'fa-panorama', nextActive ? 'border-emerald-500' : 'border-slate-500');
+      this.render();
+    };
+
+    w.deleteBanner = (bannerId: string) => {
+      const banner = api.getBannerById(bannerId);
+      if (!banner) return;
+      if (!confirm(`Are you sure you want to delete banner "${banner.title}"?`)) return;
+      api.deleteBanner(bannerId);
+      showToast(`Deleted banner: "${banner.title}"`, 'fa-trash', 'border-red-500');
+      this.render();
+    };
+
+    w.openAdminEditListingModal = (listingId: string) => {
+      this.editTargetListingId = listingId;
+      this.isListingEditModalOpen = true;
+      this.render();
+    };
+
+    w.handleAdminEditListingSubmit = (e: Event, listingId: string) => {
+      e.preventDefault();
+      const productName = (document.getElementById('listingNameInput') as HTMLInputElement)?.value;
+      const nameAm = (document.getElementById('listingNameAmInput') as HTMLInputElement)?.value || undefined;
+      const category = (document.getElementById('listingCategorySelect') as HTMLSelectElement)?.value;
+      const grade = (document.getElementById('listingGradeSelect') as HTMLSelectElement)?.value;
+      const moderationStatus = (document.getElementById('listingModerationStatusSelect') as HTMLSelectElement)?.value as any;
+      const pricePerKg = Number((document.getElementById('listingPriceInput') as HTMLInputElement)?.value);
+      const qtyKg = Number((document.getElementById('listingQtyInput') as HTMLInputElement)?.value);
+      const minOrderKg = Number((document.getElementById('listingMinOrderInput') as HTMLInputElement)?.value) || 50;
+      const region = (document.getElementById('listingRegionInput') as HTMLInputElement)?.value;
+      const description = (document.getElementById('listingDescInput') as HTMLTextAreaElement)?.value || undefined;
+      const isOrganic = (document.getElementById('listingOrganicCheck') as HTMLInputElement)?.checked ?? false;
+      const isAdvanceHarvest = (document.getElementById('listingAdvanceHarvestCheck') as HTMLInputElement)?.checked ?? false;
+
+      api.adminUpdateListing(listingId, {
+        productName,
+        nameAm,
+        category,
+        grade,
+        moderationStatus,
+        pricePerKg,
+        qtyKg,
+        minOrderKg,
+        region,
+        description,
+        isOrganic,
+        isAdvanceHarvest
+      });
+
+      this.isListingEditModalOpen = false;
+      this.editTargetListingId = null;
+      showToast(`Saved moderation changes for "${productName}"!`, 'fa-gavel', 'border-purple-500');
+      this.render();
+    };
+
+    w.adminDeleteListing = (listingId: string) => {
+      const listing = api.getListings().find(l => l.id === listingId);
+      if (!listing) return;
+
+      const reason = prompt(
+        this.lang === 'am' ? 'እባክዎ የተሰረዘበትን ምክንያት ያስገቡ:' : 'Please enter the reason for removing this listing post:',
+        'Violates marketplace quality & pricing policies'
+      );
+      if (reason === null) return;
+
+      const success = api.adminDeleteListing(listingId, reason);
+      if (success) {
+        this.isListingEditModalOpen = false;
+        this.editTargetListingId = null;
+        showToast(`Deleted produce post: "${listing.productName}"`, 'fa-trash', 'border-red-500');
+      } else {
+        showToast('Failed to delete produce post', 'fa-triangle-exclamation', 'border-red-500');
+      }
+      this.render();
+    };
+
+    w.flagListingAnomaly = (listingId: string) => {
+      const listing = api.getListings().find(l => l.id === listingId);
+      if (!listing) return;
+      api.flagListingAnomaly(listingId, 'Manual Admin Anomaly Flag');
+      showToast(`Flagged "${listing.productName}" for price/quality inspection!`, 'fa-flag', 'border-amber-500');
+      this.render();
+    };
+
     w.closeSuperAdminModal = () => {
       this.isSuperAdminCreateUserModalOpen = false;
       this.isSuperAdminEditUserModalOpen = false;
       this.isSuperAdminAddZoneModalOpen = false;
       this.isSuperAdminAddBlacklistModalOpen = false;
+      this.isSuperAdminBannerModalOpen = false;
+      this.isListingEditModalOpen = false;
       this.editTargetUserId = null;
+      this.editTargetBannerId = null;
+      this.editTargetListingId = null;
       this.render();
     };
 
@@ -1719,24 +1893,42 @@ class App {
     };
 
     w.toggleUserSuspension = (userId: string) => {
-      const u = api.toggleUserSuspension(userId);
-      showToast(
-        u.status === 'suspended'
-          ? `Suspended account access for ${u.name}`
-          : `Reinstated account access for ${u.name}`,
-        u.status === 'suspended' ? 'fa-user-slash' : 'fa-user-check',
-        u.status === 'suspended' ? 'border-red-500' : 'border-emerald-500'
-      );
+      try {
+        const u = api.toggleUserSuspension(userId);
+        const isSuspended = u.status === 'suspended';
+        showToast(
+          isSuspended
+            ? (this.lang === 'am' ? `የተጠቃሚ ${u.name} መለያ ታግዷል` : `Suspended account access for ${u.name}`)
+            : (this.lang === 'am' ? `የተጠቃሚ ${u.name} መለያ እገዳ ተነስቷል` : `Reinstated account access for ${u.name}`),
+          isSuspended ? 'fa-user-slash' : 'fa-user-check',
+          isSuspended ? 'border-red-500' : 'border-emerald-500'
+        );
+      } catch (err: any) {
+        showToast(err.message || 'Error updating user status', 'fa-triangle-exclamation', 'border-red-500');
+      }
       this.render();
     };
 
     w.deleteUserAccount = (userId: string) => {
       const user = api.getUserById(userId);
       if (!user) return;
-      if (!confirm(`Are you sure you want to permanently delete user '${user.name}' (${user.phone})? This action cannot be undone.`)) return;
+      
+      const confirmMsg = this.lang === 'am'
+        ? `ተጠቃሚ '${user.name}' (${user.phone})ን በቋሚነት መሰረዝ ይፈልጋሉ? ይህ እርምጃ ሊመለስ አይችልም።`
+        : `Are you sure you want to permanently delete user '${user.name}' (${user.phone})? This action cannot be undone.`;
 
-      api.deleteUser(userId);
-      showToast(`Permanently deleted user: ${user.name}`, 'fa-trash', 'border-red-500');
+      if (!confirm(confirmMsg)) return;
+
+      const success = api.deleteUser(userId);
+      if (success) {
+        showToast(
+          this.lang === 'am' ? `ተጠቃሚ '${user.name}' በቋሚነት ተሰርዟል` : `Permanently deleted user: ${user.name}`,
+          'fa-trash',
+          'border-red-500'
+        );
+      } else {
+        showToast('Failed to delete user account', 'fa-triangle-exclamation', 'border-red-500');
+      }
       this.render();
     };
 

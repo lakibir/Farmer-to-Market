@@ -2,8 +2,10 @@ import { Language, translations } from '../i18n/translations';
 import { User, PlatformStats, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag, PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry } from '../types';
 import { api } from '../services/api';
 
-export type SuperAdminTab = 
+export type SuperAdminTab =
   | 'users'
+  | 'banners'
+  | 'moderation'
   | 'permissions'
   | 'config'
   | 'financials'
@@ -22,6 +24,8 @@ export function renderSuperAdminView(
 ): string {
   const t = translations[lang];
   const users = api.getAllUsers();
+  const banners = api.getBanners();
+  const listings = api.getListings();
   const config = api.getPlatformConfig();
   const auditLogs = api.getSystemAuditLogs();
   const zones = api.getDeliveryZones();
@@ -31,8 +35,8 @@ export function renderSuperAdminView(
   const blacklist = api.getBlacklist();
 
   // Filter users by role if selected
-  const filteredUsers = userRoleFilter === 'all' 
-    ? users 
+  const filteredUsers = userRoleFilter === 'all'
+    ? users
     : users.filter(u => u.role.toLowerCase() === userRoleFilter.toLowerCase());
 
   // Filter audit logs by category if selected
@@ -90,11 +94,21 @@ export function renderSuperAdminView(
         </div>
       </div>
 
-      <!-- Super Admin Navigation Pills (10 Governance Panels) -->
+      <!-- Super Admin Navigation Pills (12 Governance Panels) -->
       <div class="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto no-scrollbar text-xs font-bold">
         <button onclick="window.setSuperAdminTab('users')" class="cat-pill ${activeTab === 'users' ? 'active' : ''}">
           <i class="fa-solid fa-users-gear text-rose-500"></i>
           <span>${t.tabUserMaster} (${users.length})</span>
+        </button>
+
+        <button onclick="window.setSuperAdminTab('banners')" class="cat-pill ${activeTab === 'banners' ? 'active' : ''}">
+          <i class="fa-solid fa-panorama text-emerald-500"></i>
+          <span>${t.tabBanners} (${banners.length})</span>
+        </button>
+
+        <button onclick="window.setSuperAdminTab('moderation')" class="cat-pill ${activeTab === 'moderation' ? 'active' : ''}">
+          <i class="fa-solid fa-gavel text-purple-500"></i>
+          <span>${t.tabModeration} (${listings.length})</span>
         </button>
 
         <button onclick="window.setSuperAdminTab('permissions')" class="cat-pill ${activeTab === 'permissions' ? 'active' : ''}">
@@ -170,6 +184,10 @@ function renderActiveTabContent(
   switch (activeTab) {
     case 'users':
       return renderUserMasterTab(lang, filteredUsers, userRoleFilter, roleCount);
+    case 'banners':
+      return renderBannersTab(lang);
+    case 'moderation':
+      return renderModerationTab(lang);
     case 'permissions':
       return renderPermissionsTab(lang);
     case 'config':
@@ -1073,4 +1091,223 @@ function getAuditCategoryBadge(category: string): string {
     case 'IMPERSONATION': return 'bg-blue-100 text-blue-800';
     default: return 'bg-slate-100 text-slate-800';
   }
+}
+
+export function renderBannersTab(lang: Language): string {
+  const t = translations[lang];
+  const banners = api.getBanners();
+
+  return `
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl font-black text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+              <i class="fa-solid fa-panorama text-emerald-600 mr-2"></i> ${t.tabBanners}
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold font-mono">
+              ${banners.length} Total (${banners.filter(b => b.isActive).length} Active)
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            Publish dynamic marketing announcements, harvest updates, cold chain incentives, and legal notices across Buyer, Farmer, and Driver portals.
+          </p>
+        </div>
+
+        <button onclick="window.openCreateBannerModal()" class="btn-primary py-2.5 px-4 text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer self-start sm:self-auto">
+          <i class="fa-solid fa-plus"></i> ${t.createBannerBtn}
+        </button>
+      </div>
+
+      <!-- Banners Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        ${banners.length === 0 ? `
+          <div class="col-span-full glass-card p-12 text-center text-slate-400 space-y-3">
+            <i class="fa-solid fa-panorama text-4xl text-slate-300"></i>
+            <p class="text-xs font-bold text-slate-600">No promotional banners configured yet.</p>
+            <button onclick="window.openCreateBannerModal()" class="btn-primary py-2 px-4 text-xs font-bold cursor-pointer">
+              Create First Banner
+            </button>
+          </div>
+        ` : banners.map(b => `
+          <div class="glass-card rounded-3xl overflow-hidden border ${b.isActive ? 'border-emerald-200 ring-1 ring-emerald-500/20' : 'border-slate-200 opacity-75'} flex flex-col justify-between transition-all hover:shadow-lg">
+            <!-- Visual Thumbnail Preview -->
+            <div class="relative h-44 bg-gradient-to-r ${b.themeGradient || 'from-emerald-900 via-teal-900 to-slate-900'} p-4 text-white flex flex-col justify-between overflow-hidden">
+              <img src="${b.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600'}" class="absolute inset-0 w-full h-full object-cover opacity-25" />
+              <div class="relative z-10 flex items-center justify-between">
+                <span class="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider border border-white/20">
+                  ${b.badgeText || 'Promotion'}
+                </span>
+                <span class="px-2 py-0.5 rounded-md ${b.isActive ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'} text-[10px] font-bold">
+                  ${b.isActive ? 'LIVE / ACTIVE' : 'PAUSED'}
+                </span>
+              </div>
+
+              <div class="relative z-10 space-y-1">
+                <h4 class="text-sm font-black text-white leading-snug line-clamp-2">${lang === 'am' && b.titleAm ? b.titleAm : b.title}</h4>
+                <p class="text-[11px] text-white/80 line-clamp-2 font-medium">${lang === 'am' && b.subtitleAm ? b.subtitleAm : (b.subtitle || '')}</p>
+              </div>
+            </div>
+
+            <!-- Details & Actions -->
+            <div class="p-4 space-y-3.5 text-xs">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 text-[10px] font-bold">
+                  <i class="fa-solid fa-users mr-1"></i> Audience: ${b.targetAudience}
+                </span>
+                <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold">
+                  <i class="fa-solid fa-location-dot mr-1"></i> Region: ${b.targetRegion || 'All'}
+                </span>
+                <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold font-mono">
+                  Priority: ${b.priority}
+                </span>
+              </div>
+
+              <div class="text-[11px] text-slate-500 flex items-center justify-between">
+                <span>CTA: <strong>${b.ctaText || 'Browse'}</strong> &rarr; <span class="font-mono text-emerald-700 font-bold">${b.ctaLink || 'marketplace'}</span></span>
+                <span>${b.createdAt ? b.createdAt.split('T')[0] : ''}</span>
+              </div>
+
+              <!-- Action Bar -->
+              <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                <button onclick="window.toggleBannerStatus('${b.id}')" class="px-3 py-1.5 rounded-xl ${b.isActive ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200'} text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5">
+                  <i class="fa-solid ${b.isActive ? 'fa-pause' : 'fa-play'}"></i> ${b.isActive ? 'Pause' : 'Activate'}
+                </button>
+
+                <div class="flex items-center gap-1.5">
+                  <button onclick="window.openEditBannerModal('${b.id}')" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer" title="Edit Banner">
+                    <i class="fa-solid fa-pen-to-square text-xs"></i>
+                  </button>
+                  <button onclick="window.deleteBanner('${b.id}')" class="w-8 h-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors cursor-pointer" title="Delete Banner">
+                    <i class="fa-solid fa-trash text-xs"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+export function renderModerationTab(lang: Language): string {
+  const t = translations[lang];
+  const listings = api.getListings();
+
+  return `
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl font-black text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+              <i class="fa-solid fa-gavel text-purple-600 mr-2"></i> ${t.tabModeration}
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold font-mono">
+              ${listings.length} Produce Posts
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            Real-time listing moderation: Inspect price variance against regional benchmarks, edit crop specifications, manage stock, and delete non-compliant posts.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="trust-badge text-purple-800 bg-purple-50 border-purple-200">
+            <i class="fa-solid fa-shield-check text-purple-600"></i> AI Price Anomaly Guard Active
+          </span>
+        </div>
+      </div>
+
+      <!-- Listings Table -->
+      <div class="glass-card rounded-3xl overflow-hidden border border-slate-200 shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+              <tr>
+                <th class="py-3.5 px-4">Produce Details</th>
+                <th class="py-3.5 px-4">Farmer / Origin</th>
+                <th class="py-3.5 px-4">Price / Kg</th>
+                <th class="py-3.5 px-4">Stock (Kg)</th>
+                <th class="py-3.5 px-4">Moderation</th>
+                <th class="py-3.5 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-medium">
+              ${listings.length === 0 ? `
+                <tr>
+                  <td colspan="6" class="py-8 text-center text-slate-400">No active produce listings found.</td>
+                </tr>
+              ` : listings.map(l => {
+                const isFlagged = l.moderationStatus === 'Flagged';
+                const benchmark = l.marketBenchmarkPrice || 50;
+                const variance = Math.round(((l.pricePerKg - benchmark) / benchmark) * 100);
+
+                return `
+                  <tr class="hover:bg-slate-50/60 transition-colors ${isFlagged ? 'bg-red-50/30' : ''}">
+                    <td class="py-3.5 px-4">
+                      <div class="flex items-center gap-3">
+                        <img src="${l.photos && l.photos[0] ? l.photos[0] : 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200'}" class="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0" />
+                        <div>
+                          <p class="font-bold text-slate-900 text-xs">${lang === 'am' && l.nameAm ? l.nameAm : l.productName}</p>
+                          <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">${l.category}</span>
+                            <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold">${l.grade || 'Grade 2'}</span>
+                            ${l.isOrganic ? '<span class="px-1.5 py-0.5 rounded bg-green-100 text-green-800 text-[10px] font-bold">Organic</span>' : ''}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-4">
+                      <div>
+                        <p class="font-bold text-slate-800 text-xs">${l.farmerName}</p>
+                        <p class="text-[11px] text-slate-500 font-mono">${l.farmerPhone}</p>
+                        <p class="text-[10px] text-slate-400">${l.region}</p>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-4">
+                      <div>
+                        <span class="font-black text-slate-900 text-xs font-mono">${l.pricePerKg} ETB</span>
+                        <div class="text-[10px] ${Math.abs(variance) > 30 ? 'text-amber-700 font-bold' : 'text-slate-400'}">
+                          ${variance > 0 ? `+${variance}%` : `${variance}%`} vs Avg (${benchmark} ETB)
+                        </div>
+                      </div>
+                    </td>
+
+                    <td class="py-3.5 px-4 font-mono font-bold text-slate-800 text-xs">
+                      ${l.qtyKg.toLocaleString()} kg
+                      <span class="block text-[10px] text-slate-400 font-normal">Min: ${l.minOrderKg || 50} kg</span>
+                    </td>
+
+                    <td class="py-3.5 px-4">
+                      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold ${isFlagged ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}">
+                        <i class="fa-solid ${isFlagged ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i>
+                        ${l.moderationStatus || 'Approved'}
+                      </span>
+                    </td>
+
+                    <td class="py-3.5 px-4 text-right">
+                      <div class="flex items-center justify-end gap-1.5">
+                        <button onclick="window.openAdminEditListingModal('${l.id}')" class="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1" title="Moderate Listing">
+                          <i class="fa-solid fa-pen-to-square"></i> Moderate
+                        </button>
+                        <button onclick="window.flagListingAnomaly('${l.id}')" class="w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 flex items-center justify-center transition-colors cursor-pointer" title="Flag Price Anomaly">
+                          <i class="fa-solid fa-flag text-xs"></i>
+                        </button>
+                        <button onclick="window.adminDeleteListing('${l.id}')" class="w-8 h-8 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors cursor-pointer" title="Delete Listing">
+                          <i class="fa-solid fa-trash text-xs"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  `;
 }

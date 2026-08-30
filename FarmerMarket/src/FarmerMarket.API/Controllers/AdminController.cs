@@ -123,3 +123,4 @@ public class AdminController(IMediator mediator) : ControllerBase
         return Ok(benchmarks);
     }
 }
+

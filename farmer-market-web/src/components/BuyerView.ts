@@ -51,6 +51,10 @@ export function renderBuyerView(
     return acc;
   }, {} as Record<string, { farmerName: string; farmerRegion: string; items: CartItem[] }>);
 
+  // Dynamic Active Promotional Banners
+  const activeBanners = api.getActiveBanners('Buyer', selectedRegion);
+  const featuredBanner = activeBanners.length > 0 ? activeBanners[0] : null;
+
   return `
     <div class="space-y-8 pb-20">
       
@@ -62,20 +66,20 @@ export function renderBuyerView(
           <div class="lg:col-span-8 space-y-4">
             <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-emerald-200 text-xs font-bold">
               <span class="pulse-dot"></span>
-              <span>15M+ Ethiopian Smallholder Farmers Direct Network</span>
+              <span>${featuredBanner?.badgeText ? featuredBanner.badgeText : '15M+ Ethiopian Smallholder Farmers Direct Network'}</span>
             </div>
 
             <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight ${lang === 'am' ? 'lang-am' : ''}">
-              ${t.heroTitle}
+              ${featuredBanner ? (lang === 'am' && featuredBanner.titleAm ? featuredBanner.titleAm : featuredBanner.title) : t.heroTitle}
             </h1>
 
             <p class="text-emerald-100 text-sm sm:text-base max-w-2xl leading-relaxed ${lang === 'am' ? 'lang-am' : ''}">
-              ${t.heroDesc}
+              ${featuredBanner ? (lang === 'am' && featuredBanner.subtitleAm ? featuredBanner.subtitleAm : (featuredBanner.subtitle || t.heroDesc)) : t.heroDesc}
             </p>
 
             <div class="flex flex-wrap items-center gap-3 pt-2">
               <button onclick="window.setCategory('Vegetables'); window.setBuyerSubTab('marketplace')" class="bg-amber-400 hover:bg-amber-500 text-slate-950 font-extrabold text-xs py-2.5 px-5 rounded-xl shadow-md transition-transform hover:-translate-y-0.5 cursor-pointer">
-                <i class="fa-solid fa-fire mr-1.5 text-amber-900"></i> Browse Farm Deals
+                <i class="fa-solid fa-fire mr-1.5 text-amber-900"></i> ${featuredBanner?.ctaText ? (lang === 'am' && featuredBanner.ctaTextAm ? featuredBanner.ctaTextAm : featuredBanner.ctaText) : 'Browse Farm Deals'}
               </button>
               <button onclick="window.setBuyerSubTab('orders')" class="bg-white/15 hover:bg-white/25 text-white font-bold text-xs py-2.5 px-5 rounded-xl border border-white/20 transition-colors cursor-pointer">
                 <i class="fa-solid fa-file-invoice mr-1.5 text-emerald-300"></i> ${t.navOrders} & Invoices (${buyerOrders.length})
@@ -88,18 +92,23 @@ export function renderBuyerView(
 
           <!-- Hero Promo Card -->
           <div class="lg:col-span-4 hidden lg:block">
-            <div class="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/20 shadow-2xl space-y-3">
-              <div class="flex items-center justify-between text-xs font-bold text-emerald-200">
-                <span><i class="fa-solid fa-bolt text-amber-400"></i> PostGIS Geo-Proximity</span>
-                <span class="telebirr-badge text-[10px]">Telebirr C2B</span>
-              </div>
-              <div class="text-2xl font-black text-white">90% Direct to Farmer</div>
-              <p class="text-xs text-emerald-100/90 leading-relaxed">
-                Source directly from farms within 10-100 km. Consolidate orders from multiple farmers with official e-VAT tax receipts.
-              </p>
-              <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-emerald-200">
-                <span>Tax Invoices: <strong class="text-white">e-VAT Ready</strong></span>
-                <span>Contracts: <strong class="text-white">EABC Standard</strong></span>
+            <div class="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/20 shadow-2xl space-y-3 relative overflow-hidden">
+              ${featuredBanner?.imageUrl ? `
+                <img src="${featuredBanner.imageUrl}" class="absolute inset-0 w-full h-full object-cover opacity-20 pointer-events-none" />
+              ` : ''}
+              <div class="relative z-10 space-y-3">
+                <div class="flex items-center justify-between text-xs font-bold text-emerald-200">
+                  <span><i class="fa-solid fa-bolt text-amber-400"></i> PostGIS Geo-Proximity</span>
+                  <span class="telebirr-badge text-[10px]">Telebirr C2B</span>
+                </div>
+                <div class="text-2xl font-black text-white">90% Direct to Farmer</div>
+                <p class="text-xs text-emerald-100/90 leading-relaxed">
+                  Source directly from farms within 10-100 km. Consolidate orders from multiple farmers with official e-VAT tax receipts.
+                </p>
+                <div class="pt-2 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-emerald-200">
+                  <span>Tax Invoices: <strong class="text-white">e-VAT Ready</strong></span>
+                  <span>Contracts: <strong class="text-white">EABC Standard</strong></span>
+                </div>
               </div>
             </div>
           </div>
@@ -650,10 +659,10 @@ function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
   const t = translations[lang];
 
   const statusSteps = [
-    { key: 'pending',    label: 'Order Placed',         icon: 'fa-lock',              active: ['pending','confirmed','PickedUp','picked_up','delivered'] },
-    { key: 'confirmed',  label: 'Farmer Confirmed',     icon: 'fa-tractor',           active: ['confirmed','PickedUp','picked_up','delivered'] },
-    { key: 'picked_up', label: 'In Transit',            icon: 'fa-truck',             active: ['PickedUp','picked_up','delivered'] },
-    { key: 'delivered',  label: 'Delivered',            icon: 'fa-hand-holding-dollar', active: ['delivered'] },
+    { key: 'pending', label: 'Order Placed', icon: 'fa-lock', active: ['pending', 'confirmed', 'PickedUp', 'picked_up', 'delivered'] },
+    { key: 'confirmed', label: 'Farmer Confirmed', icon: 'fa-tractor', active: ['confirmed', 'PickedUp', 'picked_up', 'delivered'] },
+    { key: 'picked_up', label: 'In Transit', icon: 'fa-truck', active: ['PickedUp', 'picked_up', 'delivered'] },
+    { key: 'delivered', label: 'Delivered', icon: 'fa-hand-holding-dollar', active: ['delivered'] },
   ];
 
   function getStatusColor(status: string) {
@@ -735,9 +744,9 @@ function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
               <!-- Status Timeline -->
               <div class="relative flex items-start gap-0">
                 ${statusSteps.map((step, idx) => {
-                  const active = isActiveStep(step.active, o.status);
-                  const isLast = idx === statusSteps.length - 1;
-                  return `
+    const active = isActiveStep(step.active, o.status);
+    const isLast = idx === statusSteps.length - 1;
+    return `
                     <div class="flex-1 flex flex-col items-center">
                       <!-- Step circle -->
                       <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-sm transition-all
@@ -756,7 +765,7 @@ function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
                       </span>
                     </div>
                   `;
-                }).join('')}
+  }).join('')}
               </div>
 
               <!-- Driver ETA (for in-transit orders) -->

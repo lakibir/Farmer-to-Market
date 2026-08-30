@@ -5,7 +5,8 @@ import {
   TaxInvoice, TransportWaybill, LegalContract, DisputeMediationRecord,
   VerificationQueueItem, AgentRegisteredFarmer, UserDocument, VerificationStatus,
   AdminPermission, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag,
-  PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry, CreateUserDto
+  PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry, CreateUserDto,
+  Banner, CreateBannerDto, UpdateListingDto
 } from '../types';
 import { signalRService } from './signalr.service';
 
@@ -31,9 +32,11 @@ class ApiService {
   private priceBenchmarks: PriceBenchmark[] = [];
   private offlineQueue: OfflineAction[] = [];
   private isOfflineMode: boolean = false;
+  private banners: Banner[] = [];
   private accountData = { addresses: [] as any[], paymentMethods: [] as any[], coupons: [] as any[], notificationPreferences: [] as any[], sessions: [] as any[], twoFactor: null as any };
 
   // Super Admin governance state
+  private deletedUserIds: Set<string> = this.loadDeletedUsers();
   private allUsers: User[] = [];
   private platformConfig: PlatformConfig = {
     farmerSharePercent: 90,
@@ -115,6 +118,40 @@ class ApiService {
     } catch {
       return null;
     }
+  }
+
+  private loadDeletedUsers(): Set<string> {
+    try {
+      const stored = localStorage.getItem('farmerMarketDeletedUsers');
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) {
+          return new Set(arr.map(x => String(x).toLowerCase().replace(/\s+/g, '')));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load deleted users list', e);
+    }
+    return new Set();
+  }
+
+  private saveDeletedUsers() {
+    try {
+      localStorage.setItem('farmerMarketDeletedUsers', JSON.stringify(Array.from(this.deletedUserIds)));
+    } catch (e) {
+      console.warn('Failed to save deleted users list', e);
+    }
+  }
+
+  public isDeletedUser(id?: string, phone?: string): boolean {
+    if (id && this.deletedUserIds.has(id.toLowerCase())) return true;
+    if (phone) {
+      const cleanPhone = phone.toLowerCase().replace(/\s+/g, '');
+      if (this.deletedUserIds.has(cleanPhone)) return true;
+      const stripped = cleanPhone.replace(/\D/g, '');
+      if (stripped && this.deletedUserIds.has(stripped)) return true;
+    }
+    return false;
   }
 
   private async init() {
@@ -550,27 +587,146 @@ class ApiService {
         refrigerationType: "Ventilated & Insulated",
         walletBalanceEtb: 6450,
         createdAt: "2025-02-10"
+      },
+      {
+        id: "f-agent-02",
+        name: "Tadesse Roba",
+        nameAm: "ታደሰ ሮባ",
+        phone: "+251911889900",
+        role: "farmer",
+        region: "Oromia (Bishoftu)",
+        kebele: "Bishoftu Rural Kebele 02",
+        primaryCrop: "Red Onions & Garlic",
+        faydaId: "FAN-1029-4819-2041",
+        tinNumber: "0088772211",
+        verified: true,
+        verificationStatus: "Approved",
+        status: "active",
+        createdAt: "2025-04-12"
+      },
+      {
+        id: "f-agent-03",
+        name: "Desta Wolde",
+        nameAm: "ደስታ ወልዴ",
+        phone: "+251922776655",
+        role: "farmer",
+        region: "Oromia (Ada'a)",
+        kebele: "Dukem Farm Zone",
+        primaryCrop: "Wheat & Chickpeas",
+        faydaId: "FAN-7766-5544-3322",
+        verified: true,
+        verificationStatus: "Approved",
+        status: "active",
+        createdAt: "2025-04-15"
       }
     ];
 
     // Restore any newly registered users from localStorage
     const savedUsersStr = localStorage.getItem('farmerMarketAllUsers');
+    let loadedUsers: User[] = [];
     if (savedUsersStr) {
       try {
         const saved: User[] = JSON.parse(savedUsersStr);
         if (Array.isArray(saved) && saved.length > 0) {
-          const defaultList = [...this.allUsers];
-          const combined = [...saved];
-          defaultList.forEach(defUser => {
-            if (!combined.some(u => u.id === defUser.id || u.phone === defUser.phone)) {
-              combined.push(defUser);
-            }
-          });
-          this.allUsers = combined;
+          loadedUsers = saved;
         }
       } catch (e) {
         console.warn('Could not parse stored users, using default seed', e);
       }
+    }
+
+    if (loadedUsers.length > 0) {
+      const defaultList = [...this.allUsers];
+      const combined = [...loadedUsers];
+      defaultList.forEach(defUser => {
+        const cleanDefPhone = defUser.phone.replace(/\s+/g, '');
+        if (!this.isDeletedUser(defUser.id, cleanDefPhone) && !combined.some(u => u.id === defUser.id || u.phone.replace(/\s+/g, '') === cleanDefPhone)) {
+          combined.push(defUser);
+        }
+      });
+      this.allUsers = combined.filter(u => !this.isDeletedUser(u.id, u.phone));
+    } else {
+      this.allUsers = this.allUsers.filter(u => !this.isDeletedUser(u.id, u.phone));
+    }
+
+    // Initialize Platform Promotional Banners & Announcements
+    const defaultBanners: Banner[] = [
+      {
+        id: "banner-01",
+        title: "Fresh Harvest Direct From Bishoftu & Hawassa",
+        titleAm: "የቢሾፍቱ እና የሀዋሳ አዳዲስ ምርቶች በቀጥታ ከእርሻ",
+        subtitle: "Order Grade-A Teff, Organic Tomatoes & Hass Avocados directly from verified smallholder farmers with 100% Telebirr Escrow protection.",
+        subtitleAm: "ከደላላ ጣልቃ ገብነት ነፃ የሆኑ ምርጥ የማኛ ጤፍ፣ የቢሾፍቱ ቀይ ቲማቲም እና ሀስ አቮካዶ በቴሌብር የዋስትና ክፍያ ያግኙ።",
+        badgeText: "Harvest Season 2026",
+        badgeTextAm: "የ2018 ምርት ወቅት",
+        imageUrl: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200",
+        targetAudience: "Buyer",
+        targetRegion: "All",
+        ctaText: "Browse Marketplace",
+        ctaTextAm: "ገበያውን ይመልከቱ",
+        ctaLink: "marketplace",
+        themeGradient: "from-emerald-900 via-teal-900 to-slate-900",
+        priority: 10,
+        isActive: true,
+        createdAt: "2026-08-20",
+        createdBy: "Dr. Dawit Haile (Super Admin)"
+      },
+      {
+        id: "banner-02",
+        title: "National Smallholder Fayda ID & TIN Onboarding",
+        titleAm: "የአነስተኛ አርሶ አደሮች የፋይዳ (Fayda ID) እና TIN ምዝገባ",
+        subtitle: "Verify your digital national ID to unlock instant 90% direct payouts, MOR tax withholding exemptions, and local extension agent farm visits.",
+        subtitleAm: "ምርቶን በቀጥታ ለጅምላ ገዢዎች ለመሸጥ እና ክፍያ በቴሌብር ለመቀበል የፋይዳ መታወቂያዎን አሁኑኑ ያረጋግጡ።",
+        badgeText: "Legal Compliance",
+        badgeTextAm: "ህጋዊ ማረጋገጫ",
+        imageUrl: "https://images.unsplash.com/photo-1592417817098-8f3d6910a711?auto=format&fit=crop&q=80&w=1200",
+        targetAudience: "Farmer",
+        targetRegion: "All",
+        ctaText: "Verify Identity Now",
+        ctaTextAm: "መታወቂያዎን ያረጋግጡ",
+        ctaLink: "farmer",
+        themeGradient: "from-blue-900 via-indigo-950 to-slate-900",
+        priority: 8,
+        isActive: true,
+        createdAt: "2026-08-22",
+        createdBy: "Sara Mengistu (Admin)"
+      },
+      {
+        id: "banner-03",
+        title: "Cold Chain Freight Route Subsidies: Modjo - Addis Corridor",
+        titleAm: "የማቀዝቀዣ የጭነት ማጓጓዣ ድጋፍ፡ የሞጆ-አዲስ አበባ መስመር",
+        subtitle: "Verified 5-ton & 10-ton refrigerated truck drivers earn guaranteed 5% escrow share with instant fuel advance and digital waybill tracking.",
+        subtitleAm: "የተረጋገጡ የጭነት ሹፌሮች የ5% የዋስትና ክፍያ እና ዲጂታል የመንገድ ማረጋገጫ ወዲያውኑ ያገኛሉ።",
+        badgeText: "Logistics Incentive",
+        badgeTextAm: "የሎጂስቲክስ ማበረታቻ",
+        imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=1200",
+        targetAudience: "Driver",
+        targetRegion: "Oromia",
+        ctaText: "View Available Dispatches",
+        ctaTextAm: "የተዘጋጁ ጭነቶችን ይመልከቱ",
+        ctaLink: "driver",
+        themeGradient: "from-amber-900 via-orange-950 to-slate-900",
+        priority: 7,
+        isActive: true,
+        createdAt: "2026-08-25",
+        createdBy: "Sara Mengistu (Admin)"
+      }
+    ];
+
+    const savedBannersStr = localStorage.getItem('farmerMarketBanners');
+    if (savedBannersStr) {
+      try {
+        const savedBanners = JSON.parse(savedBannersStr);
+        if (Array.isArray(savedBanners) && savedBanners.length > 0) {
+          this.banners = savedBanners;
+        } else {
+          this.banners = defaultBanners;
+        }
+      } catch (e) {
+        this.banners = defaultBanners;
+      }
+    } else {
+      this.banners = defaultBanners;
     }
 
     this.systemAuditLogs = [
@@ -2278,23 +2434,25 @@ class ApiService {
         if (Array.isArray(dbUsers)) {
           let updated = false;
           dbUsers.forEach(dbU => {
-            const cleanPhone = dbU.phone;
-            const existing = this.allUsers.find(u => u.phone === cleanPhone);
-            if (!existing) {
-              const u: User = {
-                id: 'db-' + cleanPhone.replace(/\D/g, ''),
-                phone: dbU.phone,
-                name: dbU.name,
-                nameAm: dbU.nameAm,
-                role: (dbU.role || 'buyer').toLowerCase() as UserRole,
-                region: dbU.region || 'Addis Ababa',
-                verified: true,
-                verificationStatus: 'Approved',
-                status: 'active',
-                createdAt: new Date().toISOString()
-              };
-              this.allUsers.push(u);
-              updated = true;
+            const cleanPhone = dbU.phone.replace(/\s+/g, '');
+            if (!this.isDeletedUser(dbU.id, cleanPhone)) {
+              const existing = this.allUsers.find(u => u.phone.replace(/\s+/g, '') === cleanPhone);
+              if (!existing) {
+                const u: User = {
+                  id: dbU.id || 'db-' + cleanPhone.replace(/\D/g, ''),
+                  phone: dbU.phone,
+                  name: dbU.name,
+                  nameAm: dbU.nameAm,
+                  role: (dbU.role || 'buyer').toLowerCase() as UserRole,
+                  region: dbU.region || 'Addis Ababa',
+                  verified: true,
+                  verificationStatus: 'Approved',
+                  status: 'active',
+                  createdAt: new Date().toISOString()
+                };
+                this.allUsers.push(u);
+                updated = true;
+              }
             }
           });
           if (updated) {
@@ -2306,7 +2464,7 @@ class ApiService {
     } catch (e) {
       console.warn('Fetch remote users failed, using local user list', e);
     }
-    return this.allUsers;
+    return this.getAllUsers();
   }
 
   public async refreshAllData() {
@@ -2327,100 +2485,128 @@ class ApiService {
 
     // 1. Base allUsers
     this.allUsers.forEach(u => {
-      if (u.phone) userMap.set(u.phone.replace(/\s+/g, ''), u);
-      else if (u.id) userMap.set(u.id, u);
+      if (!this.isDeletedUser(u.id, u.phone)) {
+        if (u.phone) userMap.set(u.phone.replace(/\s+/g, ''), u);
+        else if (u.id) userMap.set(u.id, u);
+      }
     });
 
-    // 2. Verification Queue users (from KYC wizard & self registrations)
+    // 2. Verification Queue users (sync into master userMap)
     this.verificationQueue.forEach(q => {
       const cleanPhone = q.phone.replace(/\s+/g, '');
-      if (!userMap.has(cleanPhone)) {
-        userMap.set(cleanPhone, {
-          id: q.userId || 'vq-' + cleanPhone.replace(/\D/g, ''),
-          name: q.userName,
-          nameAm: q.userNameAm,
-          phone: q.phone,
-          role: (q.userRole || 'farmer').toLowerCase() as UserRole,
-          region: q.region || 'Addis Ababa',
-          verified: q.verificationStatus === 'Approved',
-          verificationStatus: q.verificationStatus as any,
-          status: 'active',
-          tinNumber: q.tinNumber,
-          faydaId: q.documents?.find(d => d.documentType === 'FaydaId')?.documentNumber,
-          createdAt: q.registeredAt || new Date().toISOString()
-        });
-      } else {
-        const existing = userMap.get(cleanPhone)!;
-        existing.verificationStatus = q.verificationStatus as any;
-        existing.verified = q.verificationStatus === 'Approved';
-        if (q.tinNumber) existing.tinNumber = q.tinNumber;
+      if (!this.isDeletedUser(q.userId, cleanPhone)) {
+        if (!userMap.has(cleanPhone)) {
+          const newUser: User = {
+            id: q.userId || 'vq-' + cleanPhone.replace(/\D/g, ''),
+            name: q.userName,
+            nameAm: q.userNameAm,
+            phone: q.phone,
+            role: (q.userRole || 'farmer').toLowerCase() as UserRole,
+            region: q.region || 'Addis Ababa',
+            verified: q.verificationStatus === 'Approved',
+            verificationStatus: q.verificationStatus as any,
+            status: 'active',
+            tinNumber: q.tinNumber,
+            faydaId: q.documents?.find(d => d.documentType === 'FaydaId')?.documentNumber,
+            createdAt: q.registeredAt || new Date().toISOString()
+          };
+          userMap.set(cleanPhone, newUser);
+          this.allUsers.push(newUser);
+        } else {
+          const existing = userMap.get(cleanPhone)!;
+          existing.verificationStatus = q.verificationStatus as any;
+          existing.verified = q.verificationStatus === 'Approved';
+          if (q.tinNumber) existing.tinNumber = q.tinNumber;
+        }
       }
     });
 
     // 3. KYC Queue users
     this.kycQueue.forEach(k => {
       const cleanPhone = k.phone.replace(/\s+/g, '');
-      if (!userMap.has(cleanPhone)) {
-        userMap.set(cleanPhone, {
-          id: k.userId || 'kyc-' + cleanPhone.replace(/\D/g, ''),
-          name: k.userName,
-          phone: k.phone,
-          role: (k.userRole || 'farmer').toLowerCase() as UserRole,
-          region: k.region || 'Addis Ababa',
-          verified: k.status === 'Verified',
-          verificationStatus: k.status === 'Verified' ? 'Approved' : 'UnderReview',
-          status: 'active',
-          tinNumber: k.tinNumber,
-          faydaId: k.documentNumber,
-          createdAt: k.submittedAt || new Date().toISOString()
-        });
+      if (!this.isDeletedUser(k.userId, cleanPhone)) {
+        if (!userMap.has(cleanPhone)) {
+          const newUser: User = {
+            id: k.userId || 'kyc-' + cleanPhone.replace(/\D/g, ''),
+            name: k.userName,
+            phone: k.phone,
+            role: (k.userRole || 'farmer').toLowerCase() as UserRole,
+            region: k.region || 'Addis Ababa',
+            verified: k.status === 'Verified',
+            verificationStatus: k.status === 'Verified' ? 'Approved' : 'UnderReview',
+            status: 'active',
+            tinNumber: k.tinNumber,
+            faydaId: k.documentNumber,
+            createdAt: k.submittedAt || new Date().toISOString()
+          };
+          userMap.set(cleanPhone, newUser);
+          this.allUsers.push(newUser);
+        }
       }
     });
 
     // 4. Agent Registered Farmers
     this.agentRegisteredFarmers.forEach(af => {
       const cleanPhone = af.phone.replace(/\s+/g, '');
-      if (!userMap.has(cleanPhone)) {
-        userMap.set(cleanPhone, {
-          id: af.id,
-          name: af.name,
-          nameAm: af.nameAm,
-          phone: af.phone,
-          role: 'farmer',
-          region: af.region,
-          kebele: af.kebele,
-          primaryCrop: af.primaryCrop,
-          faydaId: af.faydaId,
-          tinNumber: af.tinNumber,
-          verified: af.status === 'Approved',
-          verificationStatus: af.status as any,
-          status: 'active',
-          createdAt: af.registeredAt || new Date().toISOString()
-        });
+      if (!this.isDeletedUser(af.id, cleanPhone)) {
+        if (!userMap.has(cleanPhone)) {
+          const newUser: User = {
+            id: af.id,
+            name: af.name,
+            nameAm: af.nameAm,
+            phone: af.phone,
+            role: 'farmer',
+            region: af.region,
+            kebele: af.kebele,
+            primaryCrop: af.primaryCrop,
+            faydaId: af.faydaId,
+            tinNumber: af.tinNumber,
+            verified: af.status === 'Approved',
+            verificationStatus: af.status as any,
+            status: 'active',
+            createdAt: af.registeredAt || new Date().toISOString()
+          };
+          userMap.set(cleanPhone, newUser);
+          this.allUsers.push(newUser);
+        }
       }
     });
 
     // 5. Current logged-in user if not present
-    if (this.currentUser && this.currentUser.phone) {
+    if (this.currentUser && this.currentUser.phone && !this.isDeletedUser(this.currentUser.id, this.currentUser.phone)) {
       const cleanPhone = this.currentUser.phone.replace(/\s+/g, '');
       if (!userMap.has(cleanPhone)) {
         userMap.set(cleanPhone, this.currentUser);
+        this.allUsers.push(this.currentUser);
       }
     }
 
-    return Array.from(userMap.values());
+    return Array.from(userMap.values()).filter(u => !this.isDeletedUser(u.id, u.phone));
   }
 
   public getUserById(id: string): User | undefined {
-    return this.getAllUsers().find(u => u.id === id);
+    const cleanId = (id || '').trim();
+    if (!cleanId) return undefined;
+    return this.getAllUsers().find(u =>
+      u.id === cleanId ||
+      u.phone === cleanId ||
+      u.phone.replace(/\s+/g, '') === cleanId.replace(/\s+/g, '')
+    );
   }
 
   public createUser(dto: CreateUserDto): User {
+    const cleanPhone = dto.phone.startsWith('+251') ? dto.phone.replace(/\s+/g, '') : '+251' + dto.phone.replace(/^0+/, '').replace(/\s+/g, '');
+    
+    // Remove from deleted list if re-creating
+    this.deletedUserIds.delete(cleanPhone.toLowerCase());
+    this.deletedUserIds.delete(cleanPhone.replace(/\D/g, ''));
+    this.saveDeletedUsers();
+
     const newUser: User = {
       id: crypto.randomUUID ? crypto.randomUUID() : 'user-' + Date.now(),
       name: dto.name,
       nameAm: dto.nameAm,
-      phone: dto.phone.startsWith('+251') ? dto.phone : '+251' + dto.phone.replace(/^0+/, ''),
+      phone: cleanPhone,
       role: dto.role,
       region: dto.region,
       verified: dto.verified ?? true,
@@ -2438,11 +2624,13 @@ class ApiService {
       createdAt: new Date().toISOString()
     };
 
+    // Remove any previous occurrence and unshift
+    this.allUsers = this.allUsers.filter(u => u.phone.replace(/\s+/g, '') !== cleanPhone);
     this.allUsers.unshift(newUser);
     this.saveUsersToStorage();
 
     this.addAuditLog({
-      actorId: this.currentUser?.id || 'superadmin-01',
+      actorId: this.currentUser?.id || '00000000-0000-0000-0000-000000000001',
       actorName: this.currentUser?.name || 'Super Admin',
       actorRole: this.currentUser?.role || 'superadmin',
       action: 'CREATE_USER_ACCOUNT',
@@ -2459,50 +2647,113 @@ class ApiService {
   }
 
   public updateUser(id: string, dto: Partial<User>): User {
-    const idx = this.allUsers.findIndex(u => u.id === id);
-    if (idx === -1) throw new Error('User not found');
+    let userIdx = this.allUsers.findIndex(u =>
+      u.id === id ||
+      u.phone === id ||
+      u.phone.replace(/\s+/g, '') === id.replace(/\s+/g, '')
+    );
 
-    const preState = { ...this.allUsers[idx] };
-    this.allUsers[idx] = { ...this.allUsers[idx], ...dto };
+    if (userIdx === -1) {
+      const found = this.getUserById(id);
+      if (found) {
+        this.allUsers.push(found);
+        userIdx = this.allUsers.length - 1;
+      }
+    }
+
+    if (userIdx === -1) throw new Error('User not found');
+
+    const preState = { ...this.allUsers[userIdx] };
+    this.allUsers[userIdx] = { ...this.allUsers[userIdx], ...dto };
+    const updated = this.allUsers[userIdx];
+    const cleanPhone = updated.phone.replace(/\s+/g, '');
+
+    // Sync with verification queue if present
+    this.verificationQueue.forEach(q => {
+      if (q.userId === updated.id || q.phone.replace(/\s+/g, '') === cleanPhone) {
+        q.userName = updated.name;
+        if (updated.nameAm) q.userNameAm = updated.nameAm;
+        q.userRole = updated.role;
+        q.region = updated.region;
+        if (updated.tinNumber) q.tinNumber = updated.tinNumber;
+      }
+    });
+
+    // If current logged-in user was updated
+    if (this.currentUser && (this.currentUser.id === updated.id || this.currentUser.phone.replace(/\s+/g, '') === cleanPhone)) {
+      this.currentUser = { ...this.currentUser, ...updated };
+      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+    }
+
     this.saveUsersToStorage();
 
     this.addAuditLog({
-      actorId: this.currentUser?.id || 'superadmin-01',
+      actorId: this.currentUser?.id || '00000000-0000-0000-0000-000000000001',
       actorName: this.currentUser?.name || 'Super Admin',
       actorRole: this.currentUser?.role || 'superadmin',
       action: 'UPDATE_USER_ACCOUNT',
       category: 'USER_CRUD',
       targetResource: 'User',
-      targetId: id,
+      targetId: updated.id,
       ipAddress: '196.188.12.45',
       userAgent: navigator.userAgent,
-      details: `Updated user ${this.allUsers[idx].name} profile and credentials.`,
+      details: `Updated user profile for ${updated.name} (${updated.role.toUpperCase()}, ${updated.phone}). Status: ${updated.status || 'active'}.`,
       preState,
-      postState: this.allUsers[idx]
+      postState: updated
     });
 
     this.notify();
-    return this.allUsers[idx];
+    return updated;
   }
 
   public deleteUser(id: string): boolean {
-    const user = this.allUsers.find(u => u.id === id);
+    const user = this.getUserById(id);
     if (!user) return false;
 
-    this.allUsers = this.allUsers.filter(u => u.id !== id);
+    const cleanPhone = user.phone.replace(/\s+/g, '');
+    const cleanId = user.id;
+
+    // Record in deleted set
+    this.deletedUserIds.add(cleanId.toLowerCase());
+    this.deletedUserIds.add(cleanPhone.toLowerCase());
+    this.deletedUserIds.add(cleanPhone.replace(/\D/g, ''));
+    this.saveDeletedUsers();
+
+    // Filter out of all in-memory collections
+    this.allUsers = this.allUsers.filter(u => u.id !== cleanId && u.phone.replace(/\s+/g, '') !== cleanPhone);
+    this.verificationQueue = this.verificationQueue.filter(q => q.userId !== cleanId && q.phone.replace(/\s+/g, '') !== cleanPhone);
+    this.kycQueue = this.kycQueue.filter(k => k.userId !== cleanId && k.phone.replace(/\s+/g, '') !== cleanPhone);
+    this.agentRegisteredFarmers = this.agentRegisteredFarmers.filter(a => a.id !== cleanId && a.phone.replace(/\s+/g, '') !== cleanPhone);
+
+    // If current logged-in user is deleted
+    if (this.currentUser && (this.currentUser.id === cleanId || this.currentUser.phone.replace(/\s+/g, '') === cleanPhone)) {
+      if (this.impersonationOriginalUser) {
+        this.stopImpersonation();
+      }
+    }
+
     this.saveUsersToStorage();
 
+    // Call backend API asynchronously if valid GUID
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+    if (isGuid && this.token) {
+      fetch(`/api/superadmin/users/${cleanId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
+      }).catch(e => console.warn('Backend user delete sync skipped/failed:', e));
+    }
+
     this.addAuditLog({
-      actorId: this.currentUser?.id || 'superadmin-01',
+      actorId: this.currentUser?.id || '00000000-0000-0000-0000-000000000001',
       actorName: this.currentUser?.name || 'Super Admin',
       actorRole: this.currentUser?.role || 'superadmin',
       action: 'DELETE_USER_ACCOUNT',
       category: 'USER_CRUD',
       targetResource: 'User',
-      targetId: id,
+      targetId: cleanId,
       ipAddress: '196.188.12.45',
       userAgent: navigator.userAgent,
-      details: `Permanently deleted user account: ${user.name} (${user.role}).`
+      details: `Permanently deleted user account: ${user.name} (${user.role.toUpperCase()}, ${user.phone}).`
     });
 
     this.notify();
@@ -2510,24 +2761,65 @@ class ApiService {
   }
 
   public toggleUserSuspension(id: string, status?: 'active' | 'suspended'): User {
-    const user = this.allUsers.find(u => u.id === id);
+    let user = this.allUsers.find(u =>
+      u.id === id ||
+      u.phone === id ||
+      u.phone.replace(/\s+/g, '') === id.replace(/\s+/g, '')
+    );
+
+    if (!user) {
+      user = this.getUserById(id);
+      if (user && !this.allUsers.some(u => u.id === user!.id)) {
+        this.allUsers.push(user);
+      }
+    }
+
     if (!user) throw new Error('User not found');
 
-    const nextStatus = status || (user.status === 'suspended' ? 'active' : 'suspended');
+    const nextStatus: 'active' | 'suspended' = status || (user.status === 'suspended' ? 'active' : 'suspended');
     user.status = nextStatus;
+
+    // Sync status across all matching user instances
+    const cleanPhone = user.phone.replace(/\s+/g, '');
+    this.allUsers.forEach(u => {
+      if (u.id === user!.id || u.phone.replace(/\s+/g, '') === cleanPhone) {
+        u.status = nextStatus;
+      }
+    });
+
+    // If current logged-in or impersonated user
+    if (this.currentUser && (this.currentUser.id === user.id || this.currentUser.phone.replace(/\s+/g, '') === cleanPhone)) {
+      this.currentUser.status = nextStatus;
+      localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+    }
+
     this.saveUsersToStorage();
 
+    // Sync with backend API asynchronously if valid GUID
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+    if (isGuid && this.token) {
+      const endpoint = user.role === 'admin'
+        ? `/api/superadmin/admins/${user.id}/status`
+        : `/api/admin/users/${user.id}/status`;
+
+      fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      }).catch(e => console.warn('Backend user status sync skipped/failed:', e));
+    }
+
     this.addAuditLog({
-      actorId: this.currentUser?.id || 'superadmin-01',
+      actorId: this.currentUser?.id || '00000000-0000-0000-0000-000000000001',
       actorName: this.currentUser?.name || 'Super Admin',
       actorRole: this.currentUser?.role || 'superadmin',
       action: nextStatus === 'suspended' ? 'SUSPEND_USER_ACCOUNT' : 'REINSTATE_USER_ACCOUNT',
       category: 'EMERGENCY',
       targetResource: 'User',
-      targetId: id,
+      targetId: user.id,
       ipAddress: '196.188.12.45',
       userAgent: navigator.userAgent,
-      details: `${nextStatus === 'suspended' ? 'Suspended' : 'Reinstated'} access for ${user.name} (${user.phone}).`
+      details: `${nextStatus === 'suspended' ? 'Suspended account access' : 'Reinstated account access'} for ${user.name} (${user.role.toUpperCase()}, ${user.phone}).`
     });
 
     this.notify();
@@ -2928,6 +3220,257 @@ class ApiService {
     });
 
     return { filename, dataUrl };
+  }
+
+  // ==================== BANNER & ANNOUNCEMENT MANAGEMENT ====================
+  public getBanners(): Banner[] {
+    return [...this.banners].sort((a, b) => b.priority - a.priority);
+  }
+
+  public getActiveBanners(targetAudience: string = 'All', targetRegion: string = 'All'): Banner[] {
+    return this.banners
+      .filter(b => b.isActive)
+      .filter(b => b.targetAudience === 'All' || b.targetAudience.toLowerCase() === targetAudience.toLowerCase() || targetAudience === 'All')
+      .filter(b => !b.targetRegion || b.targetRegion === 'All' || b.targetRegion.toLowerCase() === targetRegion.toLowerCase() || targetRegion === 'All')
+      .sort((a, b) => b.priority - a.priority);
+  }
+
+  public getBannerById(id: string): Banner | undefined {
+    return this.banners.find(b => b.id === id);
+  }
+
+  public createBanner(dto: CreateBannerDto): Banner {
+    const newBanner: Banner = {
+      id: crypto.randomUUID ? crypto.randomUUID() : 'banner-' + Date.now(),
+      title: dto.title,
+      titleAm: dto.titleAm,
+      subtitle: dto.subtitle,
+      subtitleAm: dto.subtitleAm,
+      badgeText: dto.badgeText,
+      badgeTextAm: dto.badgeTextAm,
+      imageUrl: dto.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200',
+      targetAudience: dto.targetAudience || 'All',
+      targetRegion: dto.targetRegion || 'All',
+      ctaText: dto.ctaText,
+      ctaTextAm: dto.ctaTextAm,
+      ctaLink: dto.ctaLink || 'marketplace',
+      themeGradient: dto.themeGradient || 'from-emerald-900 via-teal-900 to-slate-900',
+      priority: Number(dto.priority) || 5,
+      isActive: dto.isActive ?? true,
+      createdAt: new Date().toISOString(),
+      createdBy: this.currentUser?.name || 'Platform Admin'
+    };
+
+    this.banners.unshift(newBanner);
+    this.saveBannersToStorage();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'admin-01',
+      actorName: this.currentUser?.name || 'Administrator',
+      actorRole: this.currentUser?.role || 'admin',
+      action: 'CREATE_PROMOTIONAL_BANNER',
+      category: 'CONFIG',
+      targetResource: 'Banner',
+      targetId: newBanner.id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Created promotional banner: "${newBanner.title}" for audience: ${newBanner.targetAudience}.`
+    });
+
+    this.notify();
+    return newBanner;
+  }
+
+  public updateBanner(id: string, dto: Partial<Banner>): Banner | null {
+    const idx = this.banners.findIndex(b => b.id === id);
+    if (idx === -1) return null;
+
+    this.banners[idx] = { ...this.banners[idx], ...dto };
+    this.saveBannersToStorage();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'admin-01',
+      actorName: this.currentUser?.name || 'Administrator',
+      actorRole: this.currentUser?.role || 'admin',
+      action: 'UPDATE_PROMOTIONAL_BANNER',
+      category: 'CONFIG',
+      targetResource: 'Banner',
+      targetId: id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Updated promotional banner "${this.banners[idx].title}". Status: ${this.banners[idx].isActive ? 'Active' : 'Inactive'}.`
+    });
+
+    this.notify();
+    return this.banners[idx];
+  }
+
+  public toggleBannerStatus(id: string, isActive?: boolean): boolean {
+    const banner = this.banners.find(b => b.id === id);
+    if (!banner) return false;
+
+    banner.isActive = isActive !== undefined ? isActive : !banner.isActive;
+    this.saveBannersToStorage();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'admin-01',
+      actorName: this.currentUser?.name || 'Administrator',
+      actorRole: this.currentUser?.role || 'admin',
+      action: banner.isActive ? 'ACTIVATE_BANNER' : 'DEACTIVATE_BANNER',
+      category: 'CONFIG',
+      targetResource: 'Banner',
+      targetId: id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `${banner.isActive ? 'Activated' : 'Deactivated'} banner: "${banner.title}".`
+    });
+
+    this.notify();
+    return true;
+  }
+
+  public deleteBanner(id: string): boolean {
+    const banner = this.banners.find(b => b.id === id);
+    if (!banner) return false;
+
+    this.banners = this.banners.filter(b => b.id !== id);
+    this.saveBannersToStorage();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'admin-01',
+      actorName: this.currentUser?.name || 'Administrator',
+      actorRole: this.currentUser?.role || 'admin',
+      action: 'DELETE_PROMOTIONAL_BANNER',
+      category: 'CONFIG',
+      targetResource: 'Banner',
+      targetId: id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Deleted promotional banner: "${banner.title}".`
+    });
+
+    this.notify();
+    return true;
+  }
+
+  private saveBannersToStorage() {
+    try {
+      localStorage.setItem('farmerMarketBanners', JSON.stringify(this.banners));
+    } catch (e) {
+      console.warn('Failed to save banners to localStorage', e);
+    }
+  }
+
+  // ==================== POST / LISTING MODERATION & MANAGEMENT ====================
+  public adminDeleteListing(id: string, reason: string = 'Violates marketplace standards'): boolean {
+    const listing = this.listings.find(l => l.id === id);
+    if (!listing) return false;
+
+    this.listings = this.listings.filter(l => l.id !== id);
+
+    // Call backend API if valid GUID
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isGuid && this.token) {
+      fetch(`/api/listings/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
+      }).catch(e => console.warn('Backend listing delete failed/skipped:', e));
+    }
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'admin-01',
+      actorName: this.currentUser?.name || 'Administrator',
+      actorRole: this.currentUser?.role || 'admin',
+      action: 'DELETE_LISTING_POST',
+      category: 'USER_CRUD',
+      targetResource: 'Listing',
+      targetId: id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Deleted listing post "${listing.productName}" (Farmer: ${listing.farmerName}, ${listing.farmerPhone}). Reason: ${reason}`
+    });
+
+    this.notify();
+    return true;
+  }
+
+  public adminUpdateListing(id: string, dto: UpdateListingDto): Listing | null {
+    const idx = this.listings.findIndex(l => l.id === id);
+    if (idx === -1) return null;
+
+    const preState = { ...this.listings[idx] };
+    this.listings[idx] = {
+      ...this.listings[idx],
+      ...dto
+    };
+
+    const updated = this.listings[idx];
+
+    // Call backend API if valid GUID
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isGuid && this.token) {
+      fetch(`/api/listings/${id}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(dto)
+      }).catch(e => console.warn('Backend listing update failed/skipped:', e));
+    }
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'admin-01',
+      actorName: this.currentUser?.name || 'Administrator',
+      actorRole: this.currentUser?.role || 'admin',
+      action: 'MODERATE_LISTING_POST',
+      category: 'USER_CRUD',
+      targetResource: 'Listing',
+      targetId: id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Moderated/Updated listing "${updated.productName}". Price: ${updated.pricePerKg} ETB/kg, Stock: ${updated.qtyKg} kg, Status: ${updated.moderationStatus || 'Approved'}.`,
+      preState,
+      postState: updated
+    });
+
+    this.notify();
+    return updated;
+  }
+
+  public flagListingAnomaly(id: string, reason: string = 'Severe Price Variance Detected', details?: string, sendSmsAlert: boolean = true, benchmarkPrice?: number): boolean {
+    const listing = this.listings.find(l => l.id === id);
+    if (!listing) return false;
+
+    listing.moderationStatus = 'Flagged';
+    const benchmark = benchmarkPrice || listing.marketBenchmarkPrice || 50;
+    const variance = Math.round(((listing.pricePerKg - benchmark) / benchmark) * 100);
+
+    const newAnomaly: AnomalyAlert = {
+      id: 'ANOM-' + Date.now().toString().slice(-4),
+      severity: 'High',
+      type: 'PriceManipulation',
+      title: `Price Anomaly: ${listing.productName}`,
+      description: `${listing.productName} listed by ${listing.farmerName} (${listing.farmerPhone}) at ${listing.pricePerKg} ETB/kg (${variance > 0 ? '+' : ''}${variance}% vs benchmark of ${benchmark} ETB/kg). ${reason}`,
+      entityType: 'Listing',
+      entityId: listing.id,
+      detectedAt: 'Just now'
+    };
+
+    this.anomalyAlerts.unshift(newAnomaly);
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'admin-01',
+      actorName: this.currentUser?.name || 'Administrator',
+      actorRole: this.currentUser?.role || 'admin',
+      action: 'FLAG_LISTING_ANOMALY',
+      category: 'EMERGENCY',
+      targetResource: 'Listing',
+      targetId: id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Flagged listing "${listing.productName}" for price anomaly: ${variance > 0 ? '+' : ''}${variance}% variance against benchmark.`
+    });
+
+    this.notify();
+    return true;
   }
 }
 

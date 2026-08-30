@@ -635,3 +635,44 @@ export interface CreateUserDto {
   permissions?: string[];
 }
 
+export interface Banner {
+  id: string;
+  title: string;
+  titleAm?: string;
+  subtitle?: string;
+  subtitleAm?: string;
+  badgeText?: string;
+  badgeTextAm?: string;
+  imageUrl?: string;
+  targetAudience: 'All' | 'Buyer' | 'Farmer' | 'Driver' | 'Agent';
+  targetRegion: string;
+  ctaText?: string;
+  ctaTextAm?: string;
+  ctaLink?: string;
+  themeGradient?: string;
+  priority: number;
+  isActive: boolean;
+  createdAt: string;
+  createdBy: string;
+}
+
+export type CreateBannerDto = Omit<Banner, 'id' | 'createdAt' | 'createdBy'>;
+
+export interface UpdateListingDto {
+  productName?: string;
+  nameAm?: string;
+  description?: string;
+  descriptionAm?: string;
+  category?: string;
+  qtyKg?: number;
+  pricePerKg?: number;
+  minOrderKg?: number;
+  region?: string;
+  grade?: string;
+  ripeness?: string;
+  isOrganic?: boolean;
+  isAdvanceHarvest?: boolean;
+  moderationStatus?: 'Approved' | 'PendingReview' | 'Flagged';
+}
+
+

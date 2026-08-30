@@ -1,6 +1,7 @@
 import { Language, translations } from '../i18n/translations';
 import { PlatformStats, Order, AnomalyAlert, KycVerificationItem, RegionalAnalytics } from '../types';
 import { api } from '../services/api';
+import { renderBannersTab, renderModerationTab } from './SuperAdminView';
 
 export function renderAdminView(
   lang: Language,
@@ -9,9 +10,11 @@ export function renderAdminView(
   anomalies: AnomalyAlert[] = api.getAnomalyAlerts(),
   kycQueue: KycVerificationItem[] = api.getKycQueue(),
   regionalAnalytics: RegionalAnalytics[] = api.getRegionalAnalytics(),
-  activeAdminTab: 'disputes' | 'anomalies' | 'kyc' | 'tax_compliance' | 'analytics' | 'sms' = 'disputes'
+  activeAdminTab: 'disputes' | 'moderation' | 'banners' | 'anomalies' | 'kyc' | 'tax_compliance' | 'analytics' | 'sms' = 'disputes'
 ): string {
   const t = translations[lang];
+  const banners = api.getBanners();
+  const listings = api.getListings();
 
   return `
     <div class="space-y-8 pb-20">
@@ -88,6 +91,14 @@ export function renderAdminView(
           <i class="fa-solid fa-scale-balanced"></i>
           <span>${t.resolveDisputeTitle} (${disputedOrders.length})</span>
         </button>
+        <button onclick="window.setAdminTab('moderation')" class="cat-pill ${activeAdminTab === 'moderation' ? 'active' : ''}">
+          <i class="fa-solid fa-gavel text-purple-600"></i>
+          <span>${t.tabModeration} (${listings.length})</span>
+        </button>
+        <button onclick="window.setAdminTab('banners')" class="cat-pill ${activeAdminTab === 'banners' ? 'active' : ''}">
+          <i class="fa-solid fa-panorama text-emerald-600"></i>
+          <span>${t.tabBanners} (${banners.length})</span>
+        </button>
         <button onclick="window.setAdminTab('anomalies')" class="cat-pill ${activeAdminTab === 'anomalies' ? 'active' : ''}">
           <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
           <span>${t.anomalyScannerTitle} (${anomalies.length})</span>
@@ -109,6 +120,10 @@ export function renderAdminView(
           <span>${t.broadcastSmsTitle}</span>
         </button>
       </div>
+
+      <!-- Tab Content: Moderation & Banners -->
+      ${activeAdminTab === 'moderation' ? renderModerationTab(lang) : ''}
+      ${activeAdminTab === 'banners' ? renderBannersTab(lang) : ''}
 
       <!-- Tab Content 1: Dispute Arbitration Console (3-Way Split with Legal Decrees) -->
       ${activeAdminTab === 'disputes' ? `

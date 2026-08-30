@@ -318,7 +318,7 @@ public class CreateListingHandler(IAppDbContext db) : IRequestHandler<CreateList
 }
 
 // 5. Update Listing Command
-public record UpdateListingCommand(Guid ListingId, Guid FarmerId, UpdateListingDto Dto) : IRequest<Result<ListingDto>>;
+public record UpdateListingCommand(Guid ListingId, Guid FarmerId, UpdateListingDto Dto, bool IsAdmin = false) : IRequest<Result<ListingDto>>;
 
 public class UpdateListingHandler(IAppDbContext db) : IRequestHandler<UpdateListingCommand, Result<ListingDto>>
 {
@@ -332,7 +332,7 @@ public class UpdateListingHandler(IAppDbContext db) : IRequestHandler<UpdateList
         if (listing == null)
             return Result<ListingDto>.Failure("Listing not found.");
 
-        if (listing.FarmerId != req.FarmerId)
+        if (!req.IsAdmin && listing.FarmerId != req.FarmerId)
             return Result<ListingDto>.Failure("Unauthorized to modify this listing.");
 
         var d = req.Dto;
@@ -401,7 +401,7 @@ public class UpdateListingHandler(IAppDbContext db) : IRequestHandler<UpdateList
 }
 
 // 6. Deactivate Listing Command
-public record DeactivateListingCommand(Guid ListingId, Guid FarmerId) : IRequest<Result>;
+public record DeactivateListingCommand(Guid ListingId, Guid FarmerId, bool IsAdmin = false) : IRequest<Result>;
 
 public class DeactivateListingHandler(IAppDbContext db) : IRequestHandler<DeactivateListingCommand, Result>
 {
@@ -411,7 +411,7 @@ public class DeactivateListingHandler(IAppDbContext db) : IRequestHandler<Deacti
         if (listing == null)
             return Result.Failure("Listing not found.");
 
-        if (listing.FarmerId != req.FarmerId)
+        if (!req.IsAdmin && listing.FarmerId != req.FarmerId)
             return Result.Failure("Unauthorized to modify this listing.");
 
         listing.Status = ListingStatus.Inactive;

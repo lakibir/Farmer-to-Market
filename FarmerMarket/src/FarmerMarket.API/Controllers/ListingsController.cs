@@ -70,7 +70,7 @@ public class ListingsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "farmer,admin")]
+    [Authorize(Roles = "farmer,admin,superadmin")]
     public async Task<IActionResult> Create([FromBody] CreateListingDto dto, CancellationToken ct)
     {
         var farmerId = User.GetUserId();
@@ -81,22 +81,24 @@ public class ListingsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "farmer,admin")]
+    [Authorize(Roles = "farmer,admin,superadmin")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateListingDto dto, CancellationToken ct)
     {
-        var farmerId = User.GetUserId();
-        var result = await mediator.Send(new UpdateListingCommand(id, farmerId, dto), ct);
+        var userId = User.GetUserId();
+        var isAdmin = User.IsInRole("admin") || User.IsInRole("superadmin");
+        var result = await mediator.Send(new UpdateListingCommand(id, userId, dto, isAdmin), ct);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 
         return Ok(result.Value);
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "farmer,admin")]
+    [Authorize(Roles = "farmer,admin,superadmin")]
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
     {
-        var farmerId = User.GetUserId();
-        var result = await mediator.Send(new DeactivateListingCommand(id, farmerId), ct);
+        var userId = User.GetUserId();
+        var isAdmin = User.IsInRole("admin") || User.IsInRole("superadmin");
+        var result = await mediator.Send(new DeactivateListingCommand(id, userId, isAdmin), ct);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 
         return NoContent();
