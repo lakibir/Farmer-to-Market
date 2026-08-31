@@ -327,8 +327,8 @@ export function renderBuyerView(
                   <button onclick="window.openProduceDetail('${l.id}')" class="btn-secondary py-2.5 text-xs font-bold shadow-xs cursor-pointer hover:bg-slate-100">
                     <i class="fa-solid fa-eye text-emerald-600 mr-1"></i> Details
                   </button>
-                  <button onclick="window.addToCart('${l.id}')" class="btn-primary py-2.5 text-xs font-extrabold shadow-sm cursor-pointer">
-                    <i class="fa-solid fa-cart-plus mr-1"></i> ${t.addToCart}
+                  <button onclick="${api.hasEffectivePermission('PLACE_ORDERS', 'buyer') ? `window.addToCart('${l.id}')` : `window.alert('Permission Restricted: PLACE_ORDERS has been revoked by SuperAdmin RBAC policy.')`}" class="btn-primary py-2.5 text-xs font-extrabold shadow-sm cursor-pointer ${!api.hasEffectivePermission('PLACE_ORDERS', 'buyer') ? 'opacity-60 border-dashed bg-slate-700' : ''}">
+                    <i class="fa-solid ${api.hasEffectivePermission('PLACE_ORDERS', 'buyer') ? 'fa-cart-plus' : 'fa-lock'} mr-1"></i> ${t.addToCart}
                   </button>
                 </div>
 

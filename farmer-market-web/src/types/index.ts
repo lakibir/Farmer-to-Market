@@ -675,4 +675,52 @@ export interface UpdateListingDto {
   moderationStatus?: 'Approved' | 'PendingReview' | 'Flagged';
 }
 
+export type PermissionKey =
+  // Governance & Root (Super Admin Exclusive by default)
+  | 'MANAGE_USERS'
+  | 'MANAGE_RBAC_PERMISSIONS'
+  | 'MANAGE_PLATFORM_CONFIG'
+  | 'EMERGENCY_ESCROW_FREEZE'
+  | 'APPROVE_HIGH_VALUE_PAYOUTS'
+  | 'IMPERSONATE_USERS'
+  | 'VIEW_AUDIT_LOGS'
+  | 'MANAGE_TRADE_ZONES'
+  | 'MANAGE_BLACKLIST'
+  // Operational Moderation (Admin & Super Admin)
+  | 'MODERATE_LISTINGS'
+  | 'MANAGE_BANNERS'
+  | 'RESOLVE_DISPUTES'
+  | 'VERIFY_KYC'
+  | 'BROADCAST_SMS'
+  | 'VIEW_ANOMALY_ALERTS'
+  | 'VIEW_TAX_COMPLIANCE'
+  | 'VIEW_REGIONAL_ANALYTICS'
+  // Field Extension Operations (Agent & Admin)
+  | 'FIELD_AGENT_ONBOARDING'
+  | 'EXECUTE_USSD'
+  // Farmer Operations
+  | 'PUBLISH_PRODUCE'
+  | 'MANAGE_FARM_ORDERS'
+  | 'REQUEST_WALLET_WITHDRAWAL'
+  // Driver Operations
+  | 'VIEW_DELIVERY_ROUTES'
+  | 'SUBMIT_DELIVERY_PROOF'
+  | 'OFFLINE_TRIP_SYNC'
+  // Buyer Operations
+  | 'PLACE_ORDERS'
+  | 'TELEBIRR_CHECKOUT'
+  | 'CREATE_STANDING_ORDERS'
+  | 'FILE_DISPUTES';
+
+export interface PermissionDefinition {
+  key: PermissionKey;
+  label: string;
+  labelAm: string;
+  category: 'Governance & Root' | 'Operational Moderation' | 'Field & Logistics' | 'Marketplace & Trade';
+  description: string;
+}
+
+export type RolePermissionsMap = Record<UserRole, Record<PermissionKey, boolean>>;
+
+
 

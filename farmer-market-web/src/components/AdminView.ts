@@ -85,48 +85,82 @@ export function renderAdminView(
 
       </section>
 
-      <!-- Admin Tab Pills -->
-      <div class="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
-        <button onclick="window.setAdminTab('disputes')" class="cat-pill ${activeAdminTab === 'disputes' ? 'active' : ''}">
-          <i class="fa-solid fa-scale-balanced"></i>
-          <span>${t.resolveDisputeTitle} (${disputedOrders.length})</span>
-        </button>
-        <button onclick="window.setAdminTab('moderation')" class="cat-pill ${activeAdminTab === 'moderation' ? 'active' : ''}">
-          <i class="fa-solid fa-gavel text-purple-600"></i>
-          <span>${t.tabModeration} (${listings.length})</span>
-        </button>
-        <button onclick="window.setAdminTab('banners')" class="cat-pill ${activeAdminTab === 'banners' ? 'active' : ''}">
-          <i class="fa-solid fa-panorama text-emerald-600"></i>
-          <span>${t.tabBanners} (${banners.length})</span>
-        </button>
-        <button onclick="window.setAdminTab('anomalies')" class="cat-pill ${activeAdminTab === 'anomalies' ? 'active' : ''}">
-          <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
-          <span>${t.anomalyScannerTitle} (${anomalies.length})</span>
-        </button>
-        <button onclick="window.setAdminTab('kyc')" class="cat-pill ${activeAdminTab === 'kyc' ? 'active' : ''}">
-          <i class="fa-solid fa-id-card"></i>
-          <span>${t.kycQueueTitle} (${kycQueue.filter(k => k.status === 'Pending').length})</span>
-        </button>
-        <button onclick="window.setAdminTab('tax_compliance')" class="cat-pill ${activeAdminTab === 'tax_compliance' ? 'active' : ''}">
-          <i class="fa-solid fa-file-invoice-dollar"></i>
-          <span>Fiscal & Tax Invoicing</span>
-        </button>
-        <button onclick="window.setAdminTab('analytics')" class="cat-pill ${activeAdminTab === 'analytics' ? 'active' : ''}">
-          <i class="fa-solid fa-chart-pie"></i>
-          <span>${t.regionalAnalyticsTitle}</span>
-        </button>
-        <button onclick="window.setAdminTab('sms')" class="cat-pill ${activeAdminTab === 'sms' ? 'active' : ''}">
-          <i class="fa-solid fa-tower-broadcast"></i>
-          <span>${t.broadcastSmsTitle}</span>
-        </button>
-      </div>
+      <!-- Admin Tab Pills with RBAC status indicators -->
+      ${(() => {
+        const canDisputes = api.hasEffectivePermission('RESOLVE_DISPUTES', 'admin');
+        const canModeration = api.hasEffectivePermission('MODERATE_LISTINGS', 'admin');
+        const canBanners = api.hasEffectivePermission('MANAGE_BANNERS', 'admin');
+        const canAnomalies = api.hasEffectivePermission('VIEW_ANOMALY_ALERTS', 'admin');
+        const canKyc = api.hasEffectivePermission('VERIFY_KYC', 'admin');
+        const canTax = api.hasEffectivePermission('VIEW_TAX_COMPLIANCE', 'admin');
+        const canAnalytics = api.hasEffectivePermission('VIEW_REGIONAL_ANALYTICS', 'admin');
+        const canSms = api.hasEffectivePermission('BROADCAST_SMS', 'admin');
 
-      <!-- Tab Content: Moderation & Banners -->
-      ${activeAdminTab === 'moderation' ? renderModerationTab(lang) : ''}
-      ${activeAdminTab === 'banners' ? renderBannersTab(lang) : ''}
+        return `
+          <div class="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
+            <button onclick="window.setAdminTab('disputes')" class="cat-pill ${activeAdminTab === 'disputes' ? 'active' : ''} ${!canDisputes ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-scale-balanced"></i>
+              <span>${t.resolveDisputeTitle} (${disputedOrders.length})</span>
+              ${!canDisputes ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+            <button onclick="window.setAdminTab('moderation')" class="cat-pill ${activeAdminTab === 'moderation' ? 'active' : ''} ${!canModeration ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-gavel text-purple-600"></i>
+              <span>${t.tabModeration} (${listings.length})</span>
+              ${!canModeration ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+            <button onclick="window.setAdminTab('banners')" class="cat-pill ${activeAdminTab === 'banners' ? 'active' : ''} ${!canBanners ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-panorama text-emerald-600"></i>
+              <span>${t.tabBanners} (${banners.length})</span>
+              ${!canBanners ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+            <button onclick="window.setAdminTab('anomalies')" class="cat-pill ${activeAdminTab === 'anomalies' ? 'active' : ''} ${!canAnomalies ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+              <span>${t.anomalyScannerTitle} (${anomalies.length})</span>
+              ${!canAnomalies ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+            <button onclick="window.setAdminTab('kyc')" class="cat-pill ${activeAdminTab === 'kyc' ? 'active' : ''} ${!canKyc ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-id-card"></i>
+              <span>${t.kycQueueTitle} (${kycQueue.filter(k => k.status === 'Pending').length})</span>
+              ${!canKyc ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+            <button onclick="window.setAdminTab('tax_compliance')" class="cat-pill ${activeAdminTab === 'tax_compliance' ? 'active' : ''} ${!canTax ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-file-invoice-dollar"></i>
+              <span>Fiscal & Tax Invoicing</span>
+              ${!canTax ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+            <button onclick="window.setAdminTab('analytics')" class="cat-pill ${activeAdminTab === 'analytics' ? 'active' : ''} ${!canAnalytics ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-chart-pie"></i>
+              <span>${t.regionalAnalyticsTitle}</span>
+              ${!canAnalytics ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+            <button onclick="window.setAdminTab('sms')" class="cat-pill ${activeAdminTab === 'sms' ? 'active' : ''} ${!canSms ? 'opacity-70 border-dashed' : ''}">
+              <i class="fa-solid fa-tower-broadcast"></i>
+              <span>${t.broadcastSmsTitle}</span>
+              ${!canSms ? '<i class="fa-solid fa-lock text-[10px] text-rose-500 ml-1" title="Permission Revoked"></i>' : ''}
+            </button>
+          </div>
+        `;
+      })()}
+
+      <!-- Tab Content: Moderation & Banners with RBAC Checks -->
+      ${activeAdminTab === 'moderation' ? (api.hasEffectivePermission('MODERATE_LISTINGS', 'admin') ? renderModerationTab(lang) : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የምርት ቁጥጥር ፈቃድ ተገድቧል' : 'Produce Moderation Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'MODERATE_LISTINGS' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
+
+      ${activeAdminTab === 'banners' ? (api.hasEffectivePermission('MANAGE_BANNERS', 'admin') ? renderBannersTab(lang) : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የባነር አስተዳደር ፈቃድ ተገድቧል' : 'Banner Management Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'MANAGE_BANNERS' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
 
       <!-- Tab Content 1: Dispute Arbitration Console (3-Way Split with Legal Decrees) -->
-      ${activeAdminTab === 'disputes' ? `
+      ${activeAdminTab === 'disputes' ? (api.hasEffectivePermission('RESOLVE_DISPUTES', 'admin') ? `
         <section class="space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
@@ -210,10 +244,16 @@ export function renderAdminView(
             </div>
           `}
         </section>
-      ` : ''}
+      ` : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የአለመግባባት ዳኝነት ፈቃድ ተገድቧል' : 'Dispute Arbitration Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'RESOLVE_DISPUTES' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
 
       <!-- Tab Content 2: Fraud & Anomaly Detection Monitor -->
-      ${activeAdminTab === 'anomalies' ? `
+      ${activeAdminTab === 'anomalies' ? (api.hasEffectivePermission('VIEW_ANOMALY_ALERTS', 'admin') ? `
         <section class="space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
@@ -251,10 +291,16 @@ export function renderAdminView(
             `).join('')}
           </div>
         </section>
-      ` : ''}
+      ` : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የማጭበርበር ቅኝት ፈቃድ ተገድቧል' : 'Anomaly Scanner Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'VIEW_ANOMALY_ALERTS' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
 
       <!-- Tab Content 3: Comprehensive Verification & Regulatory Audit Queue -->
-      ${activeAdminTab === 'kyc' ? `
+      ${activeAdminTab === 'kyc' ? (api.hasEffectivePermission('VERIFY_KYC', 'admin') ? `
         <section class="space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -379,10 +425,16 @@ export function renderAdminView(
             `).join('')}
           </div>
         </section>
-      ` : ''}
+      ` : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የKYC ማረጋገጫ ፈቃድ ተገድቧል' : 'KYC Verification Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'VERIFY_KYC' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
 
       <!-- Tab Content 4: Fiscal & Tax Invoicing Registry -->
-      ${activeAdminTab === 'tax_compliance' ? `
+      ${activeAdminTab === 'tax_compliance' ? (api.hasEffectivePermission('VIEW_TAX_COMPLIANCE', 'admin') ? `
         <section class="space-y-6">
           <div class="p-6 rounded-3xl bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 text-white shadow-xl space-y-4">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
@@ -459,10 +511,16 @@ export function renderAdminView(
             </div>
           </div>
         </section>
-      ` : ''}
+      ` : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የግብር ሰነዶች ፈቃድ ተገድቧል' : 'Fiscal & Tax Compliance Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'VIEW_TAX_COMPLIANCE' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
 
       <!-- Tab Content 5: Regional Analytics & EABC Impact Dashboard -->
-      ${activeAdminTab === 'analytics' ? `
+      ${activeAdminTab === 'analytics' ? (api.hasEffectivePermission('VIEW_REGIONAL_ANALYTICS', 'admin') ? `
         <section class="space-y-6">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
@@ -497,10 +555,16 @@ export function renderAdminView(
             `).join('')}
           </div>
         </section>
-      ` : ''}
+      ` : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የክልላዊ ትንታኔ ፈቃድ ተገድቧል' : 'Regional Analytics Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'VIEW_REGIONAL_ANALYTICS' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
 
       <!-- Tab Content 6: Broadcast Bilingual SMS (Twilio) -->
-      ${activeAdminTab === 'sms' ? `
+      ${activeAdminTab === 'sms' ? (api.hasEffectivePermission('BROADCAST_SMS', 'admin') ? `
         <section class="glass-card p-6 sm:p-8 space-y-6 max-w-2xl mx-auto">
           <div class="flex items-center gap-3 pb-4 border-b border-slate-200">
             <div class="w-12 h-12 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center text-xl font-bold">
@@ -537,7 +601,13 @@ export function renderAdminView(
             </button>
           </form>
         </section>
-      ` : ''}
+      ` : `
+        <div class="glass-card p-12 text-center space-y-3 rounded-3xl border border-rose-200 bg-rose-50/20 shadow-sm animate-fadeIn">
+          <div class="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-2xl"><i class="fa-solid fa-lock"></i></div>
+          <h3 class="text-base font-black text-slate-900">${lang === 'am' ? 'የኤስኤምኤስ ስርጭት ፈቃድ ተገድቧል' : 'SMS Broadcast Restricted by RBAC Policy'}</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Your account role currently lacks the 'BROADCAST_SMS' permission. Please contact a Super Administrator.</p>
+        </div>
+      `) : ''}
 
     </div>
   `;

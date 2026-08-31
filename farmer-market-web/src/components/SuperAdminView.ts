@@ -1,5 +1,5 @@
 import { Language, translations } from '../i18n/translations';
-import { User, PlatformStats, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag, PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry } from '../types';
+import { User, UserRole, PlatformStats, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag, PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry } from '../types';
 import { api } from '../services/api';
 
 export type SuperAdminTab =
@@ -20,7 +20,8 @@ export function renderSuperAdminView(
   lang: Language,
   activeTab: SuperAdminTab = 'users',
   userRoleFilter: string = 'all',
-  auditCategoryFilter: string = 'all'
+  auditCategoryFilter: string = 'all',
+  selectedRbacRole: UserRole = 'admin'
 ): string {
   const t = translations[lang];
   const users = api.getAllUsers();
@@ -158,7 +159,7 @@ export function renderSuperAdminView(
       </div>
 
       <!-- Tab Content Panels -->
-      ${renderActiveTabContent(lang, activeTab, filteredUsers, userRoleFilter, roleCount, config, filteredAuditLogs, auditCategoryFilter, zones, featureFlags, payouts, rules, blacklist)}
+      ${renderActiveTabContent(lang, activeTab, filteredUsers, userRoleFilter, roleCount, config, filteredAuditLogs, auditCategoryFilter, zones, featureFlags, payouts, rules, blacklist, selectedRbacRole)}
 
     </div>
   `;
@@ -177,7 +178,8 @@ function renderActiveTabContent(
   featureFlags: FeatureFlag[],
   payouts: PayoutApprovalItem[],
   rules: GlobalBusinessRules,
-  blacklist: BlacklistEntry[]
+  blacklist: BlacklistEntry[],
+  selectedRbacRole: UserRole = 'admin'
 ): string {
   const t = translations[lang];
 
@@ -189,7 +191,7 @@ function renderActiveTabContent(
     case 'moderation':
       return renderModerationTab(lang);
     case 'permissions':
-      return renderPermissionsTab(lang);
+      return renderPermissionsTab(lang, selectedRbacRole);
     case 'config':
       return renderConfigTab(lang, config);
     case 'financials':
@@ -359,130 +361,211 @@ function renderUserMasterTab(lang: Language, users: User[], activeFilter: string
 }
 
 // 2. RBAC & PERMISSIONS TAB
-function renderPermissionsTab(lang: Language): string {
+function renderPermissionsTab(lang: Language, selectedRole: UserRole = 'admin'): string {
+  const allPermissions = api.getPermissionsList();
+  const allRolePerms = api.getAllRolePermissions();
+  const currentRolePerms = api.getRolePermissions(selectedRole);
+
+  const roles: Array<{ key: UserRole; label: string; icon: string; badgeCls: string; count: number }> = [
+    { key: 'admin', label: 'Marketplace Admin', icon: 'fa-shield-halved text-purple-600', badgeCls: 'bg-purple-100 text-purple-800', count: Object.values(allRolePerms['admin'] || {}).filter(Boolean).length },
+    { key: 'agent', label: 'Field Extension Agent', icon: 'fa-users-gear text-teal-600', badgeCls: 'bg-teal-100 text-teal-800', count: Object.values(allRolePerms['agent'] || {}).filter(Boolean).length },
+    { key: 'farmer', label: 'Smallholder Farmer', icon: 'fa-seedling text-emerald-600', badgeCls: 'bg-emerald-100 text-emerald-800', count: Object.values(allRolePerms['farmer'] || {}).filter(Boolean).length },
+    { key: 'driver', label: 'Logistics Transporter', icon: 'fa-truck-fast text-amber-600', badgeCls: 'bg-amber-100 text-amber-800', count: Object.values(allRolePerms['driver'] || {}).filter(Boolean).length },
+    { key: 'buyer', label: 'Commercial Buyer', icon: 'fa-basket-shopping text-blue-600', badgeCls: 'bg-blue-100 text-blue-800', count: Object.values(allRolePerms['buyer'] || {}).filter(Boolean).length },
+    { key: 'superadmin', label: 'Super Admin (Root)', icon: 'fa-crown text-rose-600', badgeCls: 'bg-rose-100 text-rose-900', count: allPermissions.length }
+  ];
+
+  const categories: Array<'Governance & Root' | 'Operational Moderation' | 'Field & Logistics' | 'Marketplace & Trade'> = [
+    'Governance & Root',
+    'Operational Moderation',
+    'Field & Logistics',
+    'Marketplace & Trade'
+  ];
+
+  const categoryIcons: Record<string, string> = {
+    'Governance & Root': 'fa-crown text-rose-600',
+    'Operational Moderation': 'fa-shield-halved text-purple-600',
+    'Field & Logistics': 'fa-truck-ramp-box text-teal-600',
+    'Marketplace & Trade': 'fa-cart-shopping text-emerald-600'
+  };
+
   return `
     <div class="space-y-6">
-      <div>
-        <h2 class="text-xl font-extrabold text-slate-900">
-          ${lang === 'am' ? 'የሚናዎች እና ፈቃዶች ማትሪክስ (RBAC Matrix)' : 'Role-Based Access Control & Permission Matrix'}
-        </h2>
-        <p class="text-xs text-slate-500 font-medium">
-          ${lang === 'am' ? 'ለእያንዳንዱ አድሚን እና ኤጀንት የሚሰጡ ልዩ ፈቃዶችን ያስተካክሉ።' : 'Define and grant granular capabilities for Marketplace Admins, Field Extension Agents, and Financial Auditors.'}
-        </p>
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl font-black text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+              <i class="fa-solid fa-user-lock text-purple-600 mr-2"></i> ${lang === 'am' ? 'የሚናዎች እና ፈቃዶች ማትሪክስ (RBAC Engine)' : 'Role-Based Access Control & Permission Matrix'}
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold font-mono">
+              ${allPermissions.length} Granular Capabilities
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            ${lang === 'am' ? 'ለእያንዳንዱ የሚና ዓይነት (Role) ልዩ የሆኑ ፈቃዶችን ያቀናብሩ። ለውጦች ወዲያውኑ በሲስተሙ ተግባራዊ ይሆናሉ።' : 'Configure granular privileges for Admins, Agents, Farmers, Drivers, and Buyers. Changes are dynamically persisted and enforced across the platform.'}
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="window.resetAllRolePermissions()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 border border-slate-300">
+            <i class="fa-solid fa-rotate-left"></i> ${lang === 'am' ? 'ወደ ነባሪ መልስ' : 'Reset to Factory Defaults'}
+          </button>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-        
-        <!-- Marketplace Admin Card -->
-        <div class="glass-card p-5 border-l-4 border-purple-600 space-y-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 font-black text-slate-900 text-base">
-              <i class="fa-solid fa-shield-halved text-purple-600"></i> Marketplace Admin
+      <!-- Role Selector Tabs -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        ${roles.map(r => {
+          const isSelected = r.key === selectedRole;
+          return `
+            <button onclick="window.setRbacSelectedRole('${r.key}')" class="p-3 rounded-2xl border transition-all text-left flex flex-col justify-between gap-2 cursor-pointer ${isSelected ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-600/30' : 'glass-card text-slate-700 hover:border-purple-300'}">
+              <div class="flex items-center justify-between">
+                <i class="fa-solid ${r.icon} text-base ${isSelected ? 'text-purple-300' : ''}"></i>
+                <span class="text-[10px] font-black px-1.5 py-0.5 rounded ${isSelected ? 'bg-purple-800 text-purple-200' : r.badgeCls}">
+                  ${r.count}/${allPermissions.length}
+                </span>
+              </div>
+              <div>
+                <p class="text-xs font-black ${isSelected ? 'text-white' : 'text-slate-900'}">${r.label}</p>
+                <span class="text-[10px] font-mono opacity-70">${r.key.toUpperCase()}</span>
+              </div>
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Selected Role RBAC Configuration Card -->
+      <div class="glass-card rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg">
+              <i class="fa-solid ${roles.find(r => r.key === selectedRole)?.icon || 'fa-user-gear'}"></i>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-800 rounded">Standard Admin</span>
+            <div>
+              <h3 class="text-base font-black text-slate-900">
+                ${roles.find(r => r.key === selectedRole)?.label} Permissions
+              </h3>
+              <p class="text-[11px] text-slate-500">
+                ${selectedRole === 'superadmin' ? 'Root role possesses irrevocable master permissions across the entire cluster.' : `Toggle specific capabilities for users assigned the '${selectedRole.toUpperCase()}' role.`}
+              </p>
+            </div>
           </div>
 
-          <div class="space-y-2.5 text-xs text-slate-700">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-purple-600" />
-              <span>Resolve & Arbitrate Produce Disputes</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-purple-600" />
-              <span>Review & Approve Farmer/Driver KYC</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-purple-600" />
-              <span>Broadcast Twilio SMS Bulletins</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-purple-600" />
-              <span>View Financial Volume & MOR VAT</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-slate-400">
-              <input type="checkbox" disabled class="rounded" />
-              <span>Modify Escrow Split Percentages (Super Admin Only)</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-slate-400">
-              <input type="checkbox" disabled class="rounded" />
-              <span>Emergency Platform Escrow Freeze (Super Admin Only)</span>
-            </label>
-          </div>
-          <button onclick="window.showToast('Admin permissions updated in security vault.')" class="btn-secondary w-full py-2 text-xs font-bold cursor-pointer">
-            Save Admin Permissions
-          </button>
-        </div>
-
-        <!-- Field Extension Agent Card -->
-        <div class="glass-card p-5 border-l-4 border-teal-600 space-y-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 font-black text-slate-900 text-base">
-              <i class="fa-solid fa-users-gear text-teal-600"></i> Field Extension Agent
-            </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 bg-teal-100 text-teal-800 rounded">Rural Extension</span>
-          </div>
-
-          <div class="space-y-2.5 text-xs text-slate-700">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-teal-600" />
-              <span>Onboard Farmers via Mobile Camera</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-teal-600" />
-              <span>Scan & Capture Kebele ID & Fayda National ID</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-teal-600" />
-              <span>Submit Produce Listings on Behalf of Farmer</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked class="rounded text-teal-600" />
-              <span>Earn Extension Agent Commission per Verified Farmer</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer text-slate-400">
-              <input type="checkbox" disabled class="rounded" />
-              <span>Approve KYC (Requires Marketplace Admin)</span>
-            </label>
-          </div>
-          <button onclick="window.showToast('Field Agent permissions updated.')" class="btn-secondary w-full py-2 text-xs font-bold cursor-pointer">
-            Save Agent Permissions
-          </button>
-        </div>
-
-        <!-- Super Admin Card -->
-        <div class="glass-card p-5 border-l-4 border-rose-600 bg-rose-50/30 space-y-4">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 font-black text-rose-950 text-base">
-              <i class="fa-solid fa-crown text-rose-600"></i> Super Admin
-            </div>
-            <span class="text-[10px] font-black px-2 py-0.5 bg-rose-200 text-rose-900 rounded">Root Level</span>
-          </div>
-
-          <div class="space-y-2.5 text-xs text-rose-950 font-medium">
-            <div class="flex items-center gap-2">
-              <i class="fa-solid fa-check text-rose-600"></i> Full System Access & Unrestricted CRUD
-            </div>
-            <div class="flex items-center gap-2">
-              <i class="fa-solid fa-check text-rose-600"></i> Create & Revoke Admin Roles
-            </div>
-            <div class="flex items-center gap-2">
-              <i class="fa-solid fa-check text-rose-600"></i> Live User Impersonation Session Engine
-            </div>
-            <div class="flex items-center gap-2">
-              <i class="fa-solid fa-check text-rose-600"></i> Telebirr 90/5/5 Split Configuration
-            </div>
-            <div class="flex items-center gap-2">
-              <i class="fa-solid fa-check text-rose-600"></i> Emergency Platform-Wide Escrow Freeze
-            </div>
-            <div class="flex items-center gap-2">
-              <i class="fa-solid fa-check text-rose-600"></i> Database Snapshot Backups & Exports
-            </div>
-          </div>
-          <div class="p-2.5 rounded-xl bg-white border border-rose-200 text-[11px] text-rose-800 font-semibold">
-            Root access is protected with 2FA and multi-sig security.
+          <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-xs font-extrabold ${selectedRole === 'superadmin' ? 'bg-rose-100 text-rose-900 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'}">
+              <i class="fa-solid fa-shield-check mr-1"></i> ${Object.values(currentRolePerms).filter(Boolean).length} / ${allPermissions.length} Active
+            </span>
           </div>
         </div>
 
+        <!-- Permissions By Category -->
+        <div class="space-y-6">
+          ${categories.map(cat => {
+            const catPerms = allPermissions.filter(p => p.category === cat);
+            if (catPerms.length === 0) return '';
+
+            return `
+              <div class="space-y-3">
+                <div class="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider">
+                  <i class="fa-solid ${categoryIcons[cat] || 'fa-shield'}"></i>
+                  <span>${cat}</span>
+                  <span class="text-[10px] text-slate-400 font-mono">(${catPerms.length})</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  ${catPerms.map(p => {
+                    const isGranted = selectedRole === 'superadmin' ? true : !!currentRolePerms[p.key];
+                    const isLocked = selectedRole === 'superadmin';
+
+                    return `
+                      <div class="p-3.5 rounded-2xl border transition-all ${isGranted ? 'bg-emerald-50/40 border-emerald-200 ring-1 ring-emerald-500/10' : 'bg-slate-50/60 border-slate-200 opacity-80'} flex flex-col justify-between gap-2.5">
+                        <div class="flex items-start justify-between gap-2">
+                          <div>
+                            <p class="text-xs font-black text-slate-900">${lang === 'am' && p.labelAm ? p.labelAm : p.label}</p>
+                            <span class="text-[10px] font-mono text-purple-700 font-semibold">${p.key}</span>
+                          </div>
+
+                          <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input
+                              type="checkbox"
+                              ${isGranted ? 'checked' : ''}
+                              ${isLocked ? 'disabled' : ''}
+                              onchange="window.handleToggleRolePermission('${selectedRole}', '${p.key}', this.checked)"
+                              class="sr-only peer"
+                            />
+                            <div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}"></div>
+                          </label>
+                        </div>
+
+                        <p class="text-[11px] text-slate-500 leading-snug font-normal">
+                          ${p.description}
+                        </p>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Comparative RBAC Security Matrix Table -->
+      <div class="glass-card rounded-3xl overflow-hidden border border-slate-200 shadow-sm space-y-4 p-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+            <i class="fa-solid fa-table-columns text-purple-600"></i> Full System Capability Matrix (Role vs Permission)
+          </h3>
+          <span class="text-xs text-slate-500 font-bold">Auto-persisted to LocalStorage & PostgreSQL</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50/80 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+              <tr>
+                <th class="py-3 px-3">Permission Capability</th>
+                <th class="py-3 px-3">Category</th>
+                <th class="py-3 px-3 text-center">SuperAdmin</th>
+                <th class="py-3 px-3 text-center">Admin</th>
+                <th class="py-3 px-3 text-center">Agent</th>
+                <th class="py-3 px-3 text-center">Farmer</th>
+                <th class="py-3 px-3 text-center">Driver</th>
+                <th class="py-3 px-3 text-center">Buyer</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-medium text-[11px]">
+              ${allPermissions.map(p => `
+                <tr class="hover:bg-slate-50/60 transition-colors">
+                  <td class="py-2.5 px-3">
+                    <span class="font-bold text-slate-900">${p.label}</span>
+                    <span class="block text-[9px] text-purple-700 font-mono">${p.key}</span>
+                  </td>
+                  <td class="py-2.5 px-3">
+                    <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">${p.category}</span>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <i class="fa-solid fa-circle-check text-emerald-600 text-xs"></i>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <i class="fa-solid ${allRolePerms['admin']?.[p.key] ? 'fa-circle-check text-emerald-600' : 'fa-circle-xmark text-slate-300'} text-xs"></i>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <i class="fa-solid ${allRolePerms['agent']?.[p.key] ? 'fa-circle-check text-teal-600' : 'fa-circle-xmark text-slate-300'} text-xs"></i>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <i class="fa-solid ${allRolePerms['farmer']?.[p.key] ? 'fa-circle-check text-emerald-600' : 'fa-circle-xmark text-slate-300'} text-xs"></i>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <i class="fa-solid ${allRolePerms['driver']?.[p.key] ? 'fa-circle-check text-amber-600' : 'fa-circle-xmark text-slate-300'} text-xs"></i>
+                  </td>
+                  <td class="py-2.5 px-3 text-center">
+                    <i class="fa-solid ${allRolePerms['buyer']?.[p.key] ? 'fa-circle-check text-blue-600' : 'fa-circle-xmark text-slate-300'} text-xs"></i>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   `;

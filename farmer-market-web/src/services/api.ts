@@ -6,7 +6,8 @@ import {
   VerificationQueueItem, AgentRegisteredFarmer, UserDocument, VerificationStatus,
   AdminPermission, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag,
   PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry, CreateUserDto,
-  Banner, CreateBannerDto, UpdateListingDto
+  Banner, CreateBannerDto, UpdateListingDto,
+  PermissionKey, PermissionDefinition, RolePermissionsMap
 } from '../types';
 import { signalRService } from './signalr.service';
 
@@ -34,6 +35,9 @@ class ApiService {
   private isOfflineMode: boolean = false;
   private banners: Banner[] = [];
   private accountData = { addresses: [] as any[], paymentMethods: [] as any[], coupons: [] as any[], notificationPreferences: [] as any[], sessions: [] as any[], twoFactor: null as any };
+
+  // RBAC & Permissions State
+  private rolePermissions: RolePermissionsMap = this.loadStoredRolePermissions();
 
   // Super Admin governance state
   private deletedUserIds: Set<string> = this.loadDeletedUsers();
@@ -479,7 +483,6 @@ class ApiService {
         verified: true,
         verificationStatus: "Approved",
         status: "active",
-        permissions: ["users_manage", "disputes_resolve", "kyc_approve", "sms_broadcast", "reports_view"],
         createdAt: "2025-03-15"
       },
       {
@@ -3471,6 +3474,390 @@ class ApiService {
 
     this.notify();
     return true;
+  }
+
+  // ─── RBAC & PERMISSION MATRIX ENGINE ─────────────────────────────────────
+
+  public static readonly ALL_PERMISSIONS: PermissionDefinition[] = [
+    // Governance & Root
+    { key: 'MANAGE_USERS', label: 'User Master CRUD & Suspension', labelAm: 'የተጠቃሚዎች አስተዳደር እና እገዳ', category: 'Governance & Root', description: 'Create, update, suspend, and delete users across all roles.' },
+    { key: 'MANAGE_RBAC_PERMISSIONS', label: 'RBAC Permission Matrix', labelAm: 'የሚናዎች እና ፈቃዶች ማትሪክስ', category: 'Governance & Root', description: 'Configure and assign granular capabilities for roles and users.' },
+    { key: 'MANAGE_PLATFORM_CONFIG', label: 'Platform Financial Configuration', labelAm: 'የፕላትፎርም የፋይናንስ ውቅር', category: 'Governance & Root', description: 'Adjust escrow split percentages (90/5/5), withholding tax, and gateway keys.' },
+    { key: 'EMERGENCY_ESCROW_FREEZE', label: 'Emergency Escrow Killswitch', labelAm: 'የአስቸኳይ ጊዜ የገንዘብ እገዳ (Killswitch)', category: 'Governance & Root', description: 'Halt all Telebirr fund payouts and freeze system escrow in emergency.' },
+    { key: 'APPROVE_HIGH_VALUE_PAYOUTS', label: 'High-Value Payout Approval', labelAm: 'ከፍተኛ የገንዘብ ክፍያዎችን ማጽደቅ', category: 'Governance & Root', description: 'Authorize manual audits for payouts exceeding platform threshold.' },
+    { key: 'IMPERSONATE_USERS', label: 'Shadow Impersonation Engine', labelAm: 'የተጠቃሚ መለያዎችን በመወከል መግባት', category: 'Governance & Root', description: 'Log in as any user to inspect and debug live issues.' },
+    { key: 'VIEW_AUDIT_LOGS', label: 'System Audit Logs', labelAm: 'የስርዓት ኦዲት ምዝግብ ማስታወሻዎች', category: 'Governance & Root', description: 'Review tamper-evident security audit trails and actor actions.' },
+    { key: 'MANAGE_TRADE_ZONES', label: 'Geo-Fenced Trade Corridors', labelAm: 'የንግድ ኮሪደሮች እና የድንበር ዞኖች', category: 'Governance & Root', description: 'Configure transport corridors, checkpoints, and regional hubs.' },
+    { key: 'MANAGE_BLACKLIST', label: 'National Fraud Blacklist', labelAm: 'የማጭበርበር ጥቁር መዝገብ', category: 'Governance & Root', description: 'Enforce restrictions on banned phone numbers, TINs, and Fayda IDs.' },
+
+    // Operational Moderation
+    { key: 'MODERATE_LISTINGS', label: 'Produce Listing Moderation', labelAm: 'የምርት ምዝገባ ቁጥጥር እና ማረም', category: 'Operational Moderation', description: 'Force edit price, stock, grade, and delete fraudulent produce posts.' },
+    { key: 'MANAGE_BANNERS', label: 'Promotional Marketing Banners', labelAm: 'የማስተዋወቂያ ባነሮች አስተዳደር', category: 'Operational Moderation', description: 'Publish, edit, pause, and delete promotional announcements.' },
+    { key: 'RESOLVE_DISPUTES', label: 'Arbitrate Produce Disputes', labelAm: 'የምርት አለመግባባቶችን መፍታት', category: 'Operational Moderation', description: 'Render legally binding arbitration decrees and execute escrow splits.' },
+    { key: 'VERIFY_KYC', label: 'KYC & Document Verification', labelAm: 'የማንነት እና ሰነድ ማረጋገጫ', category: 'Operational Moderation', description: 'Approve or reject Fayda ID, TIN certificates, and vehicle logbooks.' },
+    { key: 'BROADCAST_SMS', label: 'Twilio Mass SMS Broadcast', labelAm: 'የጅምላ ኤስኤምኤስ ማሰራጫ', category: 'Operational Moderation', description: 'Broadcast agricultural bulletins and alerts to farmers, drivers, and buyers.' },
+    { key: 'VIEW_ANOMALY_ALERTS', label: 'AI Anomaly Scanner', labelAm: 'የዋጋ እና ማጭበርበር ስካነር', category: 'Operational Moderation', description: 'Monitor price spikes, duplicate photo proofs, and volume surges.' },
+    { key: 'VIEW_TAX_COMPLIANCE', label: 'Tax & Fiscal Compliance Invoicing', labelAm: 'የግብር እና ህጋዊ ደረሰኝ', category: 'Operational Moderation', description: 'Inspect electronic tax invoices (e-VAT) and MOR 2% withholding receipts.' },
+    { key: 'VIEW_REGIONAL_ANALYTICS', label: 'Regional Analytics & Volume', labelAm: 'የክልሎች የንግድ ትንታኔ', category: 'Operational Moderation', description: 'Analyze GMV, metric tons moved, and price averages per region.' },
+
+    // Field & Logistics
+    { key: 'FIELD_AGENT_ONBOARDING', label: 'In-Field Farmer Onboarding', labelAm: 'አርሶ አደሮችን በአካል መመዝገብ', category: 'Field & Logistics', description: 'Onboard smallholders with camera capture of Kebele ID & Fayda National ID.' },
+    { key: 'EXECUTE_USSD', label: 'Offline USSD Engine', labelAm: 'ከኢንተርኔት ውጭ USSD መጠቀም', category: 'Field & Logistics', description: 'Execute *988# USSD command simulation for low-connectivity rural hubs.' },
+    { key: 'VIEW_DELIVERY_ROUTES', label: 'GPS Dispatch & Waybills', labelAm: 'የማጓጓዣ መንገዶች እና ዌይቢል', category: 'Field & Logistics', description: 'Access multi-stop route optimization and cargo load manifests.' },
+    { key: 'SUBMIT_DELIVERY_PROOF', label: 'GPS Dropoff Photo Proof', labelAm: 'የማድረሻ ፎቶ ማረጋገጫ ማስገባት', category: 'Field & Logistics', description: 'Submit geo-tagged timestamped photos of produce pickup & delivery.' },
+    { key: 'OFFLINE_TRIP_SYNC', label: 'Offline Trip Sync', labelAm: 'የከመስመር ውጭ ጉዞ ማመሳሰል', category: 'Field & Logistics', description: 'Cache trip confirmations in localStorage and sync when cellular resumes.' },
+
+    // Marketplace & Trade
+    { key: 'PUBLISH_PRODUCE', label: 'Publish Produce Listings', labelAm: 'የእርሻ ምርት ለገበያ ማቅረብ', category: 'Marketplace & Trade', description: 'Post crops with pricing, stock quantity, and audio voice memo transcription.' },
+    { key: 'MANAGE_FARM_ORDERS', label: 'Confirm & Fulfill Farm Orders', labelAm: 'የትዕዛዝ መቀበያ እና ማረጋገጫ', category: 'Marketplace & Trade', description: 'Accept purchase orders and prepare harvest for driver pickup.' },
+    { key: 'REQUEST_WALLET_WITHDRAWAL', label: 'Telebirr Instant Payouts', labelAm: 'ገንዘብ ወደ ቴሌብር ማውጣት', category: 'Marketplace & Trade', description: 'Withdraw wallet balance directly to Telebirr mobile wallet.' },
+    { key: 'PLACE_ORDERS', label: 'Bulk Wholesale Ordering', labelAm: 'የጅምላ ምርት መግዛት', category: 'Marketplace & Trade', description: 'Purchase fresh produce directly from verified farmers across Ethiopia.' },
+    { key: 'TELEBIRR_CHECKOUT', label: 'Telebirr C2B Escrow Checkout', labelAm: 'በቴሌብር ክፍያ መፈጸም', category: 'Marketplace & Trade', description: 'Authorize secure payments held in Telebirr escrow.' },
+    { key: 'CREATE_STANDING_ORDERS', label: 'Recurring Standing Orders', labelAm: 'ተደጋጋሚ ቋሚ ትዕዛዝ ማዘዝ', category: 'Marketplace & Trade', description: 'Schedule automatic weekly and bi-weekly harvest deliveries.' },
+    { key: 'FILE_DISPUTES', label: 'File Escrow Dispute', labelAm: 'የቅሬታ ማመልከቻ ማስገባት', category: 'Marketplace & Trade', description: 'Report damaged goods or delivery delays to pause escrow release.' }
+  ];
+
+  public static readonly DEFAULT_ROLE_PERMISSIONS: RolePermissionsMap = {
+    superadmin: {
+      MANAGE_USERS: true,
+      MANAGE_RBAC_PERMISSIONS: true,
+      MANAGE_PLATFORM_CONFIG: true,
+      EMERGENCY_ESCROW_FREEZE: true,
+      APPROVE_HIGH_VALUE_PAYOUTS: true,
+      IMPERSONATE_USERS: true,
+      VIEW_AUDIT_LOGS: true,
+      MANAGE_TRADE_ZONES: true,
+      MANAGE_BLACKLIST: true,
+      MODERATE_LISTINGS: true,
+      MANAGE_BANNERS: true,
+      RESOLVE_DISPUTES: true,
+      VERIFY_KYC: true,
+      BROADCAST_SMS: true,
+      VIEW_ANOMALY_ALERTS: true,
+      VIEW_TAX_COMPLIANCE: true,
+      VIEW_REGIONAL_ANALYTICS: true,
+      FIELD_AGENT_ONBOARDING: true,
+      EXECUTE_USSD: true,
+      VIEW_DELIVERY_ROUTES: true,
+      SUBMIT_DELIVERY_PROOF: true,
+      OFFLINE_TRIP_SYNC: true,
+      PUBLISH_PRODUCE: true,
+      MANAGE_FARM_ORDERS: true,
+      REQUEST_WALLET_WITHDRAWAL: true,
+      PLACE_ORDERS: true,
+      TELEBIRR_CHECKOUT: true,
+      CREATE_STANDING_ORDERS: true,
+      FILE_DISPUTES: true
+    },
+    admin: {
+      MANAGE_USERS: true,
+      MANAGE_RBAC_PERMISSIONS: false,
+      MANAGE_PLATFORM_CONFIG: false,
+      EMERGENCY_ESCROW_FREEZE: false,
+      APPROVE_HIGH_VALUE_PAYOUTS: false,
+      IMPERSONATE_USERS: false,
+      VIEW_AUDIT_LOGS: true,
+      MANAGE_TRADE_ZONES: true,
+      MANAGE_BLACKLIST: true,
+      MODERATE_LISTINGS: true,
+      MANAGE_BANNERS: true,
+      RESOLVE_DISPUTES: true,
+      VERIFY_KYC: true,
+      BROADCAST_SMS: true,
+      VIEW_ANOMALY_ALERTS: true,
+      VIEW_TAX_COMPLIANCE: true,
+      VIEW_REGIONAL_ANALYTICS: true,
+      FIELD_AGENT_ONBOARDING: true,
+      EXECUTE_USSD: true,
+      VIEW_DELIVERY_ROUTES: true,
+      SUBMIT_DELIVERY_PROOF: false,
+      OFFLINE_TRIP_SYNC: false,
+      PUBLISH_PRODUCE: false,
+      MANAGE_FARM_ORDERS: false,
+      REQUEST_WALLET_WITHDRAWAL: false,
+      PLACE_ORDERS: false,
+      TELEBIRR_CHECKOUT: false,
+      CREATE_STANDING_ORDERS: false,
+      FILE_DISPUTES: false
+    },
+    agent: {
+      MANAGE_USERS: false,
+      MANAGE_RBAC_PERMISSIONS: false,
+      MANAGE_PLATFORM_CONFIG: false,
+      EMERGENCY_ESCROW_FREEZE: false,
+      APPROVE_HIGH_VALUE_PAYOUTS: false,
+      IMPERSONATE_USERS: false,
+      VIEW_AUDIT_LOGS: false,
+      MANAGE_TRADE_ZONES: false,
+      MANAGE_BLACKLIST: false,
+      MODERATE_LISTINGS: false,
+      MANAGE_BANNERS: false,
+      RESOLVE_DISPUTES: false,
+      VERIFY_KYC: false,
+      BROADCAST_SMS: false,
+      VIEW_ANOMALY_ALERTS: false,
+      VIEW_TAX_COMPLIANCE: false,
+      VIEW_REGIONAL_ANALYTICS: true,
+      FIELD_AGENT_ONBOARDING: true,
+      EXECUTE_USSD: true,
+      VIEW_DELIVERY_ROUTES: false,
+      SUBMIT_DELIVERY_PROOF: false,
+      OFFLINE_TRIP_SYNC: false,
+      PUBLISH_PRODUCE: true,
+      MANAGE_FARM_ORDERS: false,
+      REQUEST_WALLET_WITHDRAWAL: true,
+      PLACE_ORDERS: false,
+      TELEBIRR_CHECKOUT: false,
+      CREATE_STANDING_ORDERS: false,
+      FILE_DISPUTES: false
+    },
+    farmer: {
+      MANAGE_USERS: false,
+      MANAGE_RBAC_PERMISSIONS: false,
+      MANAGE_PLATFORM_CONFIG: false,
+      EMERGENCY_ESCROW_FREEZE: false,
+      APPROVE_HIGH_VALUE_PAYOUTS: false,
+      IMPERSONATE_USERS: false,
+      VIEW_AUDIT_LOGS: false,
+      MANAGE_TRADE_ZONES: false,
+      MANAGE_BLACKLIST: false,
+      MODERATE_LISTINGS: false,
+      MANAGE_BANNERS: false,
+      RESOLVE_DISPUTES: false,
+      VERIFY_KYC: false,
+      BROADCAST_SMS: false,
+      VIEW_ANOMALY_ALERTS: false,
+      VIEW_TAX_COMPLIANCE: false,
+      VIEW_REGIONAL_ANALYTICS: false,
+      FIELD_AGENT_ONBOARDING: false,
+      EXECUTE_USSD: true,
+      VIEW_DELIVERY_ROUTES: false,
+      SUBMIT_DELIVERY_PROOF: false,
+      OFFLINE_TRIP_SYNC: false,
+      PUBLISH_PRODUCE: true,
+      MANAGE_FARM_ORDERS: true,
+      REQUEST_WALLET_WITHDRAWAL: true,
+      PLACE_ORDERS: false,
+      TELEBIRR_CHECKOUT: false,
+      CREATE_STANDING_ORDERS: false,
+      FILE_DISPUTES: false
+    },
+    driver: {
+      MANAGE_USERS: false,
+      MANAGE_RBAC_PERMISSIONS: false,
+      MANAGE_PLATFORM_CONFIG: false,
+      EMERGENCY_ESCROW_FREEZE: false,
+      APPROVE_HIGH_VALUE_PAYOUTS: false,
+      IMPERSONATE_USERS: false,
+      VIEW_AUDIT_LOGS: false,
+      MANAGE_TRADE_ZONES: false,
+      MANAGE_BLACKLIST: false,
+      MODERATE_LISTINGS: false,
+      MANAGE_BANNERS: false,
+      RESOLVE_DISPUTES: false,
+      VERIFY_KYC: false,
+      BROADCAST_SMS: false,
+      VIEW_ANOMALY_ALERTS: false,
+      VIEW_TAX_COMPLIANCE: false,
+      VIEW_REGIONAL_ANALYTICS: false,
+      FIELD_AGENT_ONBOARDING: false,
+      EXECUTE_USSD: true,
+      VIEW_DELIVERY_ROUTES: true,
+      SUBMIT_DELIVERY_PROOF: true,
+      OFFLINE_TRIP_SYNC: true,
+      PUBLISH_PRODUCE: false,
+      MANAGE_FARM_ORDERS: false,
+      REQUEST_WALLET_WITHDRAWAL: true,
+      PLACE_ORDERS: false,
+      TELEBIRR_CHECKOUT: false,
+      CREATE_STANDING_ORDERS: false,
+      FILE_DISPUTES: false
+    },
+    buyer: {
+      MANAGE_USERS: false,
+      MANAGE_RBAC_PERMISSIONS: false,
+      MANAGE_PLATFORM_CONFIG: false,
+      EMERGENCY_ESCROW_FREEZE: false,
+      APPROVE_HIGH_VALUE_PAYOUTS: false,
+      IMPERSONATE_USERS: false,
+      VIEW_AUDIT_LOGS: false,
+      MANAGE_TRADE_ZONES: false,
+      MANAGE_BLACKLIST: false,
+      MODERATE_LISTINGS: false,
+      MANAGE_BANNERS: false,
+      RESOLVE_DISPUTES: false,
+      VERIFY_KYC: false,
+      BROADCAST_SMS: false,
+      VIEW_ANOMALY_ALERTS: false,
+      VIEW_TAX_COMPLIANCE: false,
+      VIEW_REGIONAL_ANALYTICS: false,
+      FIELD_AGENT_ONBOARDING: false,
+      EXECUTE_USSD: false,
+      VIEW_DELIVERY_ROUTES: false,
+      SUBMIT_DELIVERY_PROOF: false,
+      OFFLINE_TRIP_SYNC: false,
+      PUBLISH_PRODUCE: false,
+      MANAGE_FARM_ORDERS: false,
+      REQUEST_WALLET_WITHDRAWAL: false,
+      PLACE_ORDERS: true,
+      TELEBIRR_CHECKOUT: true,
+      CREATE_STANDING_ORDERS: true,
+      FILE_DISPUTES: true
+    }
+  };
+
+  private loadStoredRolePermissions(): RolePermissionsMap {
+    try {
+      const stored = localStorage.getItem('farmerMarketRolePermissions');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const merged: RolePermissionsMap = JSON.parse(JSON.stringify(ApiService.DEFAULT_ROLE_PERMISSIONS));
+        for (const r of Object.keys(ApiService.DEFAULT_ROLE_PERMISSIONS) as UserRole[]) {
+          if (parsed[r]) {
+            merged[r] = { ...merged[r], ...parsed[r] };
+          }
+        }
+        return merged;
+      }
+    } catch (e) {
+      console.warn('Failed to parse stored role permissions, using defaults.', e);
+    }
+    return JSON.parse(JSON.stringify(ApiService.DEFAULT_ROLE_PERMISSIONS));
+  }
+
+  public reloadRolePermissionsFromStorage(): RolePermissionsMap {
+    this.rolePermissions = this.loadStoredRolePermissions();
+    this.notify();
+    return this.rolePermissions;
+  }
+
+  public saveRolePermissionsToStorage(): void {
+    try {
+      localStorage.setItem('farmerMarketRolePermissions', JSON.stringify(this.rolePermissions));
+    } catch (e) {
+      console.error('Failed to persist role permissions to localStorage', e);
+    }
+  }
+
+  public getPermissionsList(): PermissionDefinition[] {
+    return ApiService.ALL_PERMISSIONS;
+  }
+
+  public getAllRolePermissions(): RolePermissionsMap {
+    return this.rolePermissions;
+  }
+
+  public getRolePermissions(role: UserRole): Record<PermissionKey, boolean> {
+    return this.rolePermissions[role] || ApiService.DEFAULT_ROLE_PERMISSIONS[role];
+  }
+
+  public hasRolePermission(role: UserRole, permission: PermissionKey): boolean {
+    if (role === 'superadmin') return true;
+    const rolePerms = this.rolePermissions[role] || ApiService.DEFAULT_ROLE_PERMISSIONS[role];
+    if (!rolePerms) return false;
+    return !!rolePerms[permission];
+  }
+
+  public hasPermission(permission: PermissionKey, customUser?: User | null): boolean {
+    const user = customUser !== undefined ? customUser : this.currentUser;
+    if (!user) return false;
+
+    // Super Admin root override: SuperAdmin always has full access
+    if (user.role === 'superadmin') return true;
+
+    // Check Role-Based Access Control matrix
+    const rolePerms = this.rolePermissions[user.role] || ApiService.DEFAULT_ROLE_PERMISSIONS[user.role];
+    if (rolePerms && rolePerms[permission] === true) {
+      return true;
+    }
+
+    // User-level specific override if assigned
+    if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
+      if (user.permissions.includes(permission)) return true;
+    }
+
+    return false;
+  }
+
+  public hasEffectivePermission(permission: PermissionKey, targetRole?: UserRole): boolean {
+    if (this.isImpersonating()) {
+      return this.hasPermission(permission);
+    }
+    const user = this.currentUser;
+    if (user && user.role !== 'superadmin') {
+      return this.hasPermission(permission, user);
+    }
+    if (targetRole) {
+      return this.hasRolePermission(targetRole, permission);
+    }
+    return this.hasPermission(permission, user);
+  }
+
+  public updateRolePermissionKey(role: UserRole, key: PermissionKey, enabled: boolean): boolean {
+    if (!this.rolePermissions[role]) {
+      this.rolePermissions[role] = { ...ApiService.DEFAULT_ROLE_PERMISSIONS[role] };
+    }
+    this.rolePermissions[role][key] = enabled;
+    this.saveRolePermissionsToStorage();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'superadmin-01',
+      actorName: this.currentUser?.name || 'Super Administrator',
+      actorRole: this.currentUser?.role || 'superadmin',
+      action: 'UPDATE_ROLE_PERMISSION',
+      category: 'CONFIG',
+      targetResource: `Role:${role}`,
+      targetId: key,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Set permission "${key}" for role "${role}" to ${enabled ? 'ENABLED' : 'DISABLED'}.`
+    });
+
+    this.notify();
+    return true;
+  }
+
+  public updateRolePermissions(role: UserRole, permissions: Partial<Record<PermissionKey, boolean>>): boolean {
+    if (!this.rolePermissions[role]) {
+      this.rolePermissions[role] = { ...ApiService.DEFAULT_ROLE_PERMISSIONS[role] };
+    }
+    this.rolePermissions[role] = { ...this.rolePermissions[role], ...permissions };
+    this.saveRolePermissionsToStorage();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'superadmin-01',
+      actorName: this.currentUser?.name || 'Super Administrator',
+      actorRole: this.currentUser?.role || 'superadmin',
+      action: 'BATCH_UPDATE_ROLE_PERMISSIONS',
+      category: 'CONFIG',
+      targetResource: `Role:${role}`,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Updated permission bundle for role "${role}".`
+    });
+
+    this.notify();
+    return true;
+  }
+
+  public resetRolePermissions(): RolePermissionsMap {
+    this.rolePermissions = JSON.parse(JSON.stringify(ApiService.DEFAULT_ROLE_PERMISSIONS));
+    this.saveRolePermissionsToStorage();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'superadmin-01',
+      actorName: this.currentUser?.name || 'Super Administrator',
+      actorRole: this.currentUser?.role || 'superadmin',
+      action: 'RESET_ROLE_PERMISSIONS_TO_DEFAULT',
+      category: 'CONFIG',
+      targetResource: 'RBACMatrix',
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: 'Reset all platform RBAC role permissions to factory defaults.'
+    });
+
+    this.notify();
+    return this.rolePermissions;
   }
 }
 

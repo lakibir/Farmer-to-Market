@@ -70,8 +70,8 @@ export function renderFarmerView(
             <span class="${lang === 'am' ? 'lang-am' : ''}">${t.navWallet}</span>
           </button>
 
-          <button onclick="window.toggleCreateListingModal()" class="btn-primary text-xs sm:text-sm py-2.5 px-5 shadow-md cursor-pointer">
-            <i class="fa-solid fa-plus-circle"></i>
+          <button onclick="${api.hasEffectivePermission('PUBLISH_PRODUCE', 'farmer') ? 'window.toggleCreateListingModal()' : 'window.alert(\'Permission Restricted: PUBLISH_PRODUCE has been revoked by SuperAdmin RBAC policy.\')'}" class="btn-primary text-xs sm:text-sm py-2.5 px-5 shadow-md cursor-pointer ${!api.hasEffectivePermission('PUBLISH_PRODUCE', 'farmer') ? 'opacity-60 border-dashed bg-slate-700' : ''}">
+            <i class="fa-solid ${api.hasEffectivePermission('PUBLISH_PRODUCE', 'farmer') ? 'fa-plus-circle' : 'fa-lock'}"></i>
             <span class="${lang === 'am' ? 'lang-am' : ''}">${t.postNewListing}</span>
           </button>
         </div>
@@ -355,8 +355,8 @@ function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orde
         </div>
 
         <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <button onclick="window.handleFarmerWithdrawal()" class="btn-primary bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 px-6 rounded-xl shadow-lg w-full sm:w-auto cursor-pointer">
-            <i class="fa-solid fa-money-bill-transfer mr-1 text-slate-950"></i> ${t.requestWithdrawal}
+          <button onclick="${api.hasEffectivePermission('REQUEST_WALLET_WITHDRAWAL', 'farmer') ? 'window.handleFarmerWithdrawal()' : 'window.alert(\'Permission Restricted: REQUEST_WALLET_WITHDRAWAL has been revoked by SuperAdmin RBAC policy.\')'}" class="btn-primary bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs py-3 px-6 rounded-xl shadow-lg w-full sm:w-auto cursor-pointer ${!api.hasEffectivePermission('REQUEST_WALLET_WITHDRAWAL', 'farmer') ? 'opacity-50 border-dashed' : ''}">
+            <i class="fa-solid ${api.hasEffectivePermission('REQUEST_WALLET_WITHDRAWAL', 'farmer') ? 'fa-money-bill-transfer' : 'fa-lock'} mr-1 text-slate-950"></i> ${t.requestWithdrawal}
           </button>
         </div>
       </div>

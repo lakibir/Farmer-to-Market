@@ -236,12 +236,12 @@ export function renderDriverView(
                     </button>
 
                     ${o.status === 'confirmed' ? `
-                      <button onclick="window.driverPickupWithProof('${o.id}')" class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer">
-                        <i class="fa-solid fa-camera mr-1"></i> ${t.uploadProof} & Pickup
+                      <button onclick="${api.hasEffectivePermission('SUBMIT_DELIVERY_PROOF', 'driver') ? `window.driverPickupWithProof('${o.id}')` : `window.alert('Permission Restricted: SUBMIT_DELIVERY_PROOF has been revoked.')`}" class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer ${!api.hasEffectivePermission('SUBMIT_DELIVERY_PROOF', 'driver') ? 'opacity-60 border-dashed bg-slate-700' : ''}">
+                        <i class="fa-solid ${api.hasEffectivePermission('SUBMIT_DELIVERY_PROOF', 'driver') ? 'fa-camera' : 'fa-lock'} mr-1"></i> ${t.uploadProof} & Pickup
                       </button>
                     ` : o.status === 'picked_up' ? `
-                      <button onclick="window.driverCompleteDeliveryProof('${o.id}')" class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer">
-                        <i class="fa-solid fa-location-crosshairs mr-1"></i> Dropoff + GPS Proof
+                      <button onclick="${api.hasEffectivePermission('SUBMIT_DELIVERY_PROOF', 'driver') ? `window.driverCompleteDeliveryProof('${o.id}')` : `window.alert('Permission Restricted: SUBMIT_DELIVERY_PROOF has been revoked.')`}" class="btn-primary w-full sm:w-auto text-xs py-2 px-4 shadow-sm cursor-pointer ${!api.hasEffectivePermission('SUBMIT_DELIVERY_PROOF', 'driver') ? 'opacity-60 border-dashed bg-slate-700' : ''}">
+                        <i class="fa-solid ${api.hasEffectivePermission('SUBMIT_DELIVERY_PROOF', 'driver') ? 'fa-location-crosshairs' : 'fa-lock'} mr-1"></i> Dropoff + GPS Proof
                       </button>
                     ` : `
                       <span class="text-xs text-emerald-700 font-bold flex items-center gap-1">

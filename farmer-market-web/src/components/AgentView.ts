@@ -84,10 +84,22 @@ export class AgentView {
           </button>
         </div>
 
-        <!-- Tab Contents -->
-        ${this.activeTab === 'register' ? this.renderRegisterTab() : ''}
+        <!-- Tab Contents with RBAC Checks -->
+        ${this.activeTab === 'register' ? (api.hasEffectivePermission('FIELD_AGENT_ONBOARDING', 'agent') ? this.renderRegisterTab() : `
+          <div style="background: var(--color-surface); border: 1px solid #fca5a5; border-radius: 16px; padding: 2.5rem; text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
+            <h3 style="margin: 0 0 0.5rem 0; color: #b91c1c;">${this.currentLang === 'am' ? 'የአርሶ አደር ምዝገባ ፈቃድ ተገድቧል' : 'Agent Onboarding Restricted'}</h3>
+            <p style="margin: 0; font-size: 0.85rem; color: #6b7280;">Your account role currently lacks the 'FIELD_AGENT_ONBOARDING' permission. Please contact a Super Administrator.</p>
+          </div>
+        `) : ''}
         ${this.activeTab === 'roster' ? this.renderRosterTab(farmers) : ''}
-        ${this.activeTab === 'ussd_sim' ? this.renderUssdTab() : ''}
+        ${this.activeTab === 'ussd_sim' ? (api.hasEffectivePermission('EXECUTE_USSD', 'agent') ? this.renderUssdTab() : `
+          <div style="background: var(--color-surface); border: 1px solid #fca5a5; border-radius: 16px; padding: 2.5rem; text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
+            <h3 style="margin: 0 0 0.5rem 0; color: #b91c1c;">${this.currentLang === 'am' ? 'የUSSD ክዋኔ ፈቃድ ተገድቧል' : 'USSD Execution Restricted'}</h3>
+            <p style="margin: 0; font-size: 0.85rem; color: #6b7280;">Your account role currently lacks the 'EXECUTE_USSD' permission. Please contact a Super Administrator.</p>
+          </div>
+        `) : ''}
 
       </div>
     `;

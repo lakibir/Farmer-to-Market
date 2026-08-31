@@ -2,7 +2,7 @@ import confetti from 'canvas-confetti';
 import { Language } from './i18n/translations';
 import { api } from './services/api';
 import { signalRService } from './services/signalr.service';
-import { CartItem, Order, UserRole, Listing } from './types';
+import { CartItem, Order, UserRole, Listing, PermissionKey } from './types';
 import { renderNavbar } from './components/Navbar';
 import { renderBuyerView } from './components/BuyerView';
 import { renderFarmerView } from './components/FarmerView';
@@ -91,6 +91,7 @@ class App {
   private editTargetBannerId: string | null = null;
   private isListingEditModalOpen: boolean = false;
   private editTargetListingId: string | null = null;
+  private selectedRbacRole: UserRole = 'admin';
 
   // Voice Note State
   private isRecordingVoice: boolean = false;
@@ -246,15 +247,15 @@ class App {
     );
 
     let viewHtml = '';
-    if (this.activeTab === 'farmer-account' && isAuthenticated && currentUser?.role === 'farmer') {
+    if (this.activeTab === 'farmer-account' && isAuthenticated && (currentUser?.role === 'farmer' || currentUser?.role === 'superadmin')) {
       viewHtml = renderFarmerAccountView(this.lang, currentUser, api.getListings().filter(listing => listing.farmerId === currentUser.id), api.getOrders('farmer'), this.activeFarmerAccountTab, this.isCreateListingModalOpen, api.getPriceBenchmarks());
-    } else if (this.activeTab === 'farmer' && isAuthenticated && currentUser?.role === 'farmer') {
+    } else if (this.activeTab === 'farmer' && isAuthenticated && (currentUser?.role === 'farmer' || currentUser?.role === 'superadmin')) {
       const farmerListings = api.getListings().filter(l => l.farmerId === currentUser.id);
       const farmerOrders = api.getOrders('farmer');
       const summary = api.getFarmerSummary();
       viewHtml = renderFarmerView(
         this.lang,
-        farmerListings,
+        farmerListings.length ? farmerListings : api.getListings().slice(0, 3),
         farmerOrders,
         summary,
         this.isCreateListingModalOpen,
@@ -262,7 +263,7 @@ class App {
         api.getPriceBenchmarks(),
         currentUser
       );
-    } else if (this.activeTab === 'driver' && isAuthenticated && currentUser?.role === 'driver') {
+    } else if (this.activeTab === 'driver' && isAuthenticated && (currentUser?.role === 'driver' || currentUser?.role === 'superadmin')) {
       const driverOrders = api.getOrders('driver');
       const summary = api.getDriverSummary();
       viewHtml = renderDriverView(
@@ -279,9 +280,10 @@ class App {
         this.lang,
         this.activeSuperAdminTab,
         this.superAdminUserRoleFilter,
-        this.superAdminAuditCategoryFilter
+        this.superAdminAuditCategoryFilter,
+        this.selectedRbacRole
       );
-    } else if (this.activeTab === 'admin' && isAuthenticated && currentUser?.role === 'admin') {
+    } else if (this.activeTab === 'admin' && isAuthenticated && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')) {
       const stats = api.getPlatformStats();
       const disputedOrders = api.getOrders().filter(o => o.status === 'disputed' && !o.disputeStatus?.startsWith('Resolved'));
       viewHtml = renderAdminView(
@@ -293,10 +295,10 @@ class App {
         api.getRegionalAnalytics(),
         this.activeAdminTab
       );
-    } else if (this.activeTab === 'agent' || (isAuthenticated && currentUser?.role === 'agent')) {
+    } else if (this.activeTab === 'agent' || (isAuthenticated && (currentUser?.role === 'agent' || currentUser?.role === 'superadmin') && this.activeTab === 'agent')) {
       this.agentView.setLanguage(this.lang);
       viewHtml = this.agentView.render();
-    } else if (this.activeTab === 'account' && isAuthenticated && currentUser?.role === 'buyer') {
+    } else if (this.activeTab === 'account' && isAuthenticated && (currentUser?.role === 'buyer' || currentUser?.role === 'superadmin')) {
       viewHtml = renderBuyerAccountView(this.lang, currentUser, api.getOrders('buyer'), this.activeBuyerAccountTab, api.getAccountData());
     } else {
       // Default Wholesale Produce Marketplace (for Buyers or Logged Out Guests)
@@ -483,6 +485,14 @@ class App {
 
   private attachGlobalWindowHandlers() {
     const w = window as any;
+
+    // Real-time RBAC cross-tab and cross-window sync listener
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'farmerMarketRolePermissions') {
+        api.reloadRolePermissionsFromStorage();
+        this.render();
+      }
+    });
 
     // Produce Post Detail Modal Handlers
     w.openProduceDetail = (id: string) => {
@@ -1549,6 +1559,29 @@ class App {
       this.render();
     };
 
+    w.setRbacSelectedRole = (role: UserRole) => {
+      this.selectedRbacRole = role;
+      this.render();
+    };
+
+    w.handleToggleRolePermission = (role: UserRole, key: PermissionKey, enabled: boolean) => {
+      api.updateRolePermissionKey(role, key, enabled);
+      showToast(
+        enabled ? `Granted "${key}" to ${role.toUpperCase()}` : `Revoked "${key}" from ${role.toUpperCase()}`,
+        'fa-shield-halved',
+        enabled ? 'border-emerald-500' : 'border-amber-500'
+      );
+      this.render();
+    };
+
+    w.resetAllRolePermissions = () => {
+      if (!confirm('Reset all roles to factory default permissions?')) return;
+      api.resetRolePermissions();
+      confetti({ particleCount: 90, spread: 60, origin: { y: 0.6 } });
+      showToast('Reset all role permissions to factory defaults!', 'fa-rotate-left', 'border-emerald-500');
+      this.render();
+    };
+
     w.setUserRoleFilter = (filter: string) => {
       this.superAdminUserRoleFilter = filter;
       this.render();
@@ -1560,33 +1593,57 @@ class App {
     };
 
     w.openCreateUserModal = () => {
+      if (!api.hasPermission('MANAGE_USERS')) {
+        showToast('Unauthorized: You lack MANAGE_USERS permission.', 'fa-lock', 'border-red-500');
+        return;
+      }
       this.isSuperAdminCreateUserModalOpen = true;
       this.render();
     };
 
     w.openEditUserModal = (userId: string) => {
+      if (!api.hasPermission('MANAGE_USERS')) {
+        showToast('Unauthorized: You lack MANAGE_USERS permission.', 'fa-lock', 'border-red-500');
+        return;
+      }
       this.editTargetUserId = userId;
       this.isSuperAdminEditUserModalOpen = true;
       this.render();
     };
 
     w.openAddZoneModal = () => {
+      if (!api.hasPermission('MANAGE_TRADE_ZONES')) {
+        showToast('Unauthorized: You lack MANAGE_TRADE_ZONES permission.', 'fa-lock', 'border-red-500');
+        return;
+      }
       this.isSuperAdminAddZoneModalOpen = true;
       this.render();
     };
 
     w.openAddBlacklistModal = () => {
+      if (!api.hasPermission('MANAGE_BLACKLIST')) {
+        showToast('Unauthorized: You lack MANAGE_BLACKLIST permission.', 'fa-lock', 'border-red-500');
+        return;
+      }
       this.isSuperAdminAddBlacklistModalOpen = true;
       this.render();
     };
 
     w.openCreateBannerModal = () => {
+      if (!api.hasPermission('MANAGE_BANNERS')) {
+        showToast('Unauthorized: You lack MANAGE_BANNERS permission.', 'fa-lock', 'border-red-500');
+        return;
+      }
       this.editTargetBannerId = null;
       this.isSuperAdminBannerModalOpen = true;
       this.render();
     };
 
     w.openEditBannerModal = (bannerId: string) => {
+      if (!api.hasPermission('MANAGE_BANNERS')) {
+        showToast('Unauthorized: You lack MANAGE_BANNERS permission.', 'fa-lock', 'border-red-500');
+        return;
+      }
       this.editTargetBannerId = bannerId;
       this.isSuperAdminBannerModalOpen = true;
       this.render();

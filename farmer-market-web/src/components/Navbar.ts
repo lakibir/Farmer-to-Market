@@ -1,5 +1,6 @@
 import { Language, translations } from '../i18n/translations';
 import { User, CartItem } from '../types';
+import { api } from '../services/api';
 
 export function renderNavbar(
   lang: Language,
@@ -303,10 +304,12 @@ export function renderNavbar(
                 class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'farmer' ? 'bg-emerald-900 text-white font-bold shadow-xs' : 'hover:bg-slate-200/70 text-slate-700'} ${lang === 'am' ? 'lang-am' : ''}">
                 <i class="fa-solid fa-tractor"></i> ${t.navFarmerPortal}
               </button>
-              <button onclick="window.toggleCreateListingModal()" 
-                class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 bg-emerald-100 text-emerald-950 font-bold hover:bg-emerald-200 ${lang === 'am' ? 'lang-am' : ''}">
-                <i class="fa-solid fa-plus-circle text-emerald-700"></i> ${t.postNewListing}
-              </button>
+              ${api.hasEffectivePermission('PUBLISH_PRODUCE', 'farmer') ? `
+                <button onclick="window.toggleCreateListingModal()" 
+                  class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 bg-emerald-100 text-emerald-950 font-bold hover:bg-emerald-200 ${lang === 'am' ? 'lang-am' : ''}">
+                  <i class="fa-solid fa-plus-circle text-emerald-700"></i> ${t.postNewListing}
+                </button>
+              ` : ''}
             ` : ''}
 
             ${isAuthenticated && currentUser?.role === 'driver' ? `
@@ -327,6 +330,13 @@ export function renderNavbar(
               <button onclick="window.navigateTab('admin')" 
                 class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'admin' ? 'bg-emerald-900 text-white font-bold shadow-xs' : 'hover:bg-slate-200/70 text-slate-700'} ${lang === 'am' ? 'lang-am' : ''}">
                 <i class="fa-solid fa-sliders"></i> ${t.navAdminPortal}
+              </button>
+            ` : ''}
+
+            ${isAuthenticated && currentUser?.role === 'superadmin' ? `
+              <button onclick="window.navigateTab('superadmin')" 
+                class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'superadmin' ? 'bg-rose-900 text-white font-bold shadow-xs' : 'bg-rose-50 hover:bg-rose-100 text-rose-900 font-bold border border-rose-200'}">
+                <i class="fa-solid fa-crown text-rose-500"></i> SuperAdmin
               </button>
             ` : ''}
 
