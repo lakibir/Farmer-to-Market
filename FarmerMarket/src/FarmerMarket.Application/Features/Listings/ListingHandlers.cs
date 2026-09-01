@@ -45,6 +45,15 @@ public class GetListingsHandler(IAppDbContext db) : IRequestHandler<GetListingsQ
         if (f.IsAdvanceHarvest.HasValue)
             query = query.Where(l => l.IsAdvanceHarvest == f.IsAdvanceHarvest.Value);
 
+        if (f.RequiresColdChain.HasValue)
+            query = query.Where(l => l.RequiresColdChain == f.RequiresColdChain.Value);
+
+        if (f.IsAggregatedLot.HasValue)
+            query = query.Where(l => l.IsAggregatedLot == f.IsAggregatedLot.Value);
+
+        if (!string.IsNullOrWhiteSpace(f.CooperativeName) && f.CooperativeName != "All")
+            query = query.Where(l => l.CooperativeName != null && l.CooperativeName.ToLower().Contains(f.CooperativeName.ToLower()));
+
         if (!string.IsNullOrWhiteSpace(f.Search))
         {
             var search = f.Search.ToLower();
@@ -53,7 +62,8 @@ public class GetListingsHandler(IAppDbContext db) : IRequestHandler<GetListingsQ
                 (l.NameAm != null && l.NameAm.ToLower().Contains(search)) ||
                 l.Farmer.Name.ToLower().Contains(search) ||
                 (l.Farmer.NameAm != null && l.Farmer.NameAm.ToLower().Contains(search)) ||
-                l.Farmer.Region.ToLower().Contains(search));
+                l.Farmer.Region.ToLower().Contains(search) ||
+                (l.CooperativeName != null && l.CooperativeName.ToLower().Contains(search)));
         }
 
         var total = await query.CountAsync(ct);
@@ -104,6 +114,13 @@ public class GetListingsHandler(IAppDbContext db) : IRequestHandler<GetListingsQ
                 l.VoiceNoteTranscript,
                 l.MarketBenchmarkPrice,
                 l.ModerationStatus ?? "Approved",
+                l.RequiresColdChain,
+                l.TargetTempMinCelsius,
+                l.TargetTempMaxCelsius,
+                l.CooperativeName,
+                l.IsAggregatedLot ?? false,
+                l.AggregatedFarmerCount ?? 0,
+                l.CooperativeLotId,
                 rating,
                 l.Farmer.ReviewsReceived.Count,
                 l.CreatedAt
@@ -172,6 +189,13 @@ public class GetListingByIdHandler(IAppDbContext db) : IRequestHandler<GetListin
             l.VoiceNoteTranscript,
             l.MarketBenchmarkPrice,
             l.ModerationStatus ?? "Approved",
+            l.RequiresColdChain,
+            l.TargetTempMinCelsius,
+            l.TargetTempMaxCelsius,
+            l.CooperativeName,
+            l.IsAggregatedLot ?? false,
+            l.AggregatedFarmerCount ?? 0,
+            l.CooperativeLotId,
             rating,
             l.Farmer.ReviewsReceived.Count,
             l.CreatedAt
@@ -229,6 +253,13 @@ public class GetNearbyListingsHandler(IAppDbContext db) : IRequestHandler<GetNea
                 l.VoiceNoteTranscript,
                 l.MarketBenchmarkPrice,
                 l.ModerationStatus ?? "Approved",
+                l.RequiresColdChain,
+                l.TargetTempMinCelsius,
+                l.TargetTempMaxCelsius,
+                l.CooperativeName,
+                l.IsAggregatedLot ?? false,
+                l.AggregatedFarmerCount ?? 0,
+                l.CooperativeLotId,
                 rating,
                 l.Farmer.ReviewsReceived.Count,
                 l.CreatedAt
@@ -274,7 +305,14 @@ public class CreateListingHandler(IAppDbContext db) : IRequestHandler<CreateList
             VoiceNoteUrl = d.VoiceNoteUrl,
             VoiceNoteTranscript = d.VoiceNoteTranscript,
             MarketBenchmarkPrice = d.MarketBenchmarkPrice,
-            ModerationStatus = "Approved"
+            ModerationStatus = "Approved",
+            RequiresColdChain = d.RequiresColdChain,
+            TargetTempMinCelsius = d.TargetTempMinCelsius,
+            TargetTempMaxCelsius = d.TargetTempMaxCelsius,
+            CooperativeName = d.CooperativeName ?? farmer.CooperativeName,
+            IsAggregatedLot = d.IsAggregatedLot,
+            AggregatedFarmerCount = d.AggregatedFarmerCount,
+            CooperativeLotId = d.CooperativeLotId
         };
 
         db.Listings.Add(listing);
@@ -308,6 +346,13 @@ public class CreateListingHandler(IAppDbContext db) : IRequestHandler<CreateList
             listing.VoiceNoteTranscript,
             listing.MarketBenchmarkPrice,
             listing.ModerationStatus ?? "Approved",
+            listing.RequiresColdChain,
+            listing.TargetTempMinCelsius,
+            listing.TargetTempMaxCelsius,
+            listing.CooperativeName,
+            listing.IsAggregatedLot ?? false,
+            listing.AggregatedFarmerCount ?? 0,
+            listing.CooperativeLotId,
             5.0,
             0,
             listing.CreatedAt
@@ -356,6 +401,13 @@ public class UpdateListingHandler(IAppDbContext db) : IRequestHandler<UpdateList
         if (d.VoiceNoteTranscript != null) listing.VoiceNoteTranscript = d.VoiceNoteTranscript;
         if (d.MarketBenchmarkPrice.HasValue) listing.MarketBenchmarkPrice = d.MarketBenchmarkPrice.Value;
         if (d.ModerationStatus != null) listing.ModerationStatus = d.ModerationStatus;
+        if (d.RequiresColdChain.HasValue) listing.RequiresColdChain = d.RequiresColdChain.Value;
+        if (d.TargetTempMinCelsius.HasValue) listing.TargetTempMinCelsius = d.TargetTempMinCelsius.Value;
+        if (d.TargetTempMaxCelsius.HasValue) listing.TargetTempMaxCelsius = d.TargetTempMaxCelsius.Value;
+        if (d.CooperativeName != null) listing.CooperativeName = d.CooperativeName;
+        if (d.IsAggregatedLot.HasValue) listing.IsAggregatedLot = d.IsAggregatedLot.Value;
+        if (d.AggregatedFarmerCount.HasValue) listing.AggregatedFarmerCount = d.AggregatedFarmerCount.Value;
+        if (d.CooperativeLotId != null) listing.CooperativeLotId = d.CooperativeLotId;
 
         await db.SaveChangesAsync(ct);
 
@@ -391,6 +443,13 @@ public class UpdateListingHandler(IAppDbContext db) : IRequestHandler<UpdateList
             listing.VoiceNoteTranscript,
             listing.MarketBenchmarkPrice,
             listing.ModerationStatus ?? "Approved",
+            listing.RequiresColdChain,
+            listing.TargetTempMinCelsius,
+            listing.TargetTempMaxCelsius,
+            listing.CooperativeName,
+            listing.IsAggregatedLot ?? false,
+            listing.AggregatedFarmerCount ?? 0,
+            listing.CooperativeLotId,
             rating,
             listing.Farmer.ReviewsReceived.Count,
             listing.CreatedAt

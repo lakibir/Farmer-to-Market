@@ -113,6 +113,16 @@ export class ProduceDetailModal {
                     <span class="bg-emerald-900/90 backdrop-blur-md text-white text-[11px] font-extrabold px-3 py-1 rounded-full shadow-md border border-emerald-500/40 flex items-center gap-1.5">
                       <i class="fa-solid fa-award text-amber-400"></i> ${listing.grade || 'Grade 1'}
                     </span>
+                    ${listing.requiresColdChain ? `
+                      <span class="bg-cyan-950/90 backdrop-blur-md text-cyan-200 text-[11px] font-extrabold px-3 py-1 rounded-full shadow-md border border-cyan-400/40 flex items-center gap-1">
+                        <i class="fa-solid fa-snowflake text-cyan-400"></i> Cold-Chain (0°C - 8°C)
+                      </span>
+                    ` : ''}
+                    ${listing.isAggregatedLot || listing.cooperativeName ? `
+                      <span class="bg-amber-950/90 backdrop-blur-md text-amber-200 text-[11px] font-extrabold px-3 py-1 rounded-full shadow-md border border-amber-400/40 flex items-center gap-1">
+                        <i class="fa-solid fa-users text-amber-300"></i> ${listing.cooperativeName || 'Cooperative Union Batch'}
+                      </span>
+                    ` : ''}
                     ${listing.isOrganic ? `
                       <span class="bg-teal-900/90 backdrop-blur-md text-white text-[11px] font-extrabold px-3 py-1 rounded-full shadow-md border border-teal-400/40 flex items-center gap-1">
                         <i class="fa-solid fa-seedling text-emerald-400"></i> 100% Organic

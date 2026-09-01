@@ -114,6 +114,20 @@ public static class DbInitializer
                 @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""VoiceNoteTranscript"" character varying(1000);",
                 @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""MarketBenchmarkPrice"" numeric;",
                 @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""ModerationStatus"" character varying(50) DEFAULT 'Approved';",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""RequiresColdChain"" boolean DEFAULT false;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""TargetTempMinCelsius"" numeric;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""TargetTempMaxCelsius"" numeric;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""CooperativeName"" character varying(200);",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""IsAggregatedLot"" boolean DEFAULT false;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""AggregatedFarmerCount"" integer DEFAULT 0;",
+                @"ALTER TABLE ""Listings"" ADD COLUMN IF NOT EXISTS ""CooperativeLotId"" character varying(100);",
+
+                // Users table cooperative and driver cold chain enhancements
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""HasRefrigeration"" boolean DEFAULT false;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""MinTempCapabilityCelsius"" numeric;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""CooperativeName"" character varying(200);",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""IsCooperativeMember"" boolean DEFAULT false;",
+                @"ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""CooperativeRole"" character varying(100);",
 
                 // Orders table
                 @"ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""PickupPhoto"" character varying(500);",

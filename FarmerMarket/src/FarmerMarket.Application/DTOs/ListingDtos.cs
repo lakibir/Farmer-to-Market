@@ -30,6 +30,13 @@ public record ListingDto(
     string? VoiceNoteTranscript,
     decimal? MarketBenchmarkPrice,
     string ModerationStatus,
+    bool RequiresColdChain,
+    decimal? TargetTempMinCelsius,
+    decimal? TargetTempMaxCelsius,
+    string? CooperativeName,
+    bool IsAggregatedLot,
+    int AggregatedFarmerCount,
+    string? CooperativeLotId,
     double FarmerRating,
     int ReviewCount,
     DateTimeOffset CreatedAt
@@ -53,7 +60,14 @@ public record CreateListingDto(
     DateOnly? ExpectedHarvestDate = null,
     string? VoiceNoteUrl = null,
     string? VoiceNoteTranscript = null,
-    decimal? MarketBenchmarkPrice = null
+    decimal? MarketBenchmarkPrice = null,
+    bool RequiresColdChain = false,
+    decimal? TargetTempMinCelsius = null,
+    decimal? TargetTempMaxCelsius = null,
+    string? CooperativeName = null,
+    bool IsAggregatedLot = false,
+    int AggregatedFarmerCount = 0,
+    string? CooperativeLotId = null
 );
 
 public record UpdateListingDto(
@@ -76,7 +90,14 @@ public record UpdateListingDto(
     string? VoiceNoteUrl,
     string? VoiceNoteTranscript,
     decimal? MarketBenchmarkPrice,
-    string? ModerationStatus
+    string? ModerationStatus,
+    bool? RequiresColdChain = null,
+    decimal? TargetTempMinCelsius = null,
+    decimal? TargetTempMaxCelsius = null,
+    string? CooperativeName = null,
+    bool? IsAggregatedLot = null,
+    int? AggregatedFarmerCount = null,
+    string? CooperativeLotId = null
 );
 
 public record ListingFilters(
@@ -92,6 +113,9 @@ public record ListingFilters(
     string? Ripeness = null,
     bool? IsOrganic = null,
     bool? IsAdvanceHarvest = null,
+    bool? RequiresColdChain = null,
+    bool? IsAggregatedLot = null,
+    string? CooperativeName = null,
     int Page = 1,
     int PageSize = 20
 );

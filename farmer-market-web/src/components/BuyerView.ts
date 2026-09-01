@@ -256,6 +256,16 @@ export function renderBuyerView(
                           <i class="fa-solid fa-calendar-check text-emerald-700"></i> Advance Harvest
                         </span>
                       ` : ''}
+                      ${l.requiresColdChain ? `
+                        <span class="bg-cyan-950/90 backdrop-blur-md text-cyan-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-md border border-cyan-500/40">
+                          <i class="fa-solid fa-snowflake mr-1"></i> Cold-Chain
+                        </span>
+                      ` : ''}
+                      ${l.isAggregatedLot || l.cooperativeName ? `
+                        <span class="bg-amber-950/90 backdrop-blur-md text-amber-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-md border border-amber-500/40">
+                          <i class="fa-solid fa-users mr-1"></i> ${l.cooperativeName || 'Cooperative Lot'}
+                        </span>
+                      ` : ''}
                       ${l.isOrganic ? `
                         <span class="bg-emerald-900/90 backdrop-blur-md text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-md">
                           Organic Certified

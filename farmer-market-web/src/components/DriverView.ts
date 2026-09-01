@@ -23,7 +23,10 @@ export function renderDriverView(
         <div>
           <div class="flex flex-wrap items-center gap-2 mb-1.5">
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold">
-              <i class="fa-solid fa-truck text-amber-700"></i> ${currentUser?.vehicleType || 'Isuzu 5-Ton'} · ${currentUser?.refrigerationType || 'Ventilated'}
+              <i class="fa-solid fa-truck text-amber-700"></i> ${currentUser?.vehicleType || 'Isuzu 5-Ton'} · ${currentUser?.refrigerationType || 'Refrigerated Cold-Chain'}
+            </span>
+            <span class="trust-badge text-cyan-800 bg-cyan-50 border-cyan-200">
+              <i class="fa-solid fa-snowflake text-cyan-600"></i> Cold-Chain Certified (0°C to 4°C active)
             </span>
             <span class="trust-badge text-emerald-800 bg-emerald-50 border-emerald-200">
               <i class="fa-solid fa-certificate"></i> Logbook Verified (${currentUser?.kycDocumentNumber || 'ET-LOG-5T-98214'})

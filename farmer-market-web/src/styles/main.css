@@ -1021,3 +1021,551 @@ body {
     border: none;
   }
 }
+
+/* =========================================================
+   USSD Offline Feature-Phone Simulator (*804#)
+   ========================================================= */
+.ussd-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.ussd-modal-wrapper {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 1.5rem;
+  max-width: 440px;
+  width: 100%;
+  padding: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  color: white;
+}
+
+.ussd-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.ussd-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ussd-title h3 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.ussd-title p {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.ussd-close-btn {
+  background: #334155;
+  color: #cbd5e1;
+  border: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ussd-close-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.ussd-phone-chassis {
+  background: #0f172a;
+  border: 3px solid #475569;
+  border-radius: 2rem;
+  padding: 1.25rem;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1), 0 10px 25px rgba(0, 0, 0, 0.6);
+}
+
+.ussd-phone-speaker {
+  width: 4rem;
+  height: 0.35rem;
+  background: #334155;
+  border-radius: 1rem;
+  margin: 0 auto 0.75rem auto;
+}
+
+.ussd-lcd-screen {
+  background: #143825;
+  border: 2px solid #064e3b;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+  margin-bottom: 1rem;
+  min-height: 180px;
+}
+
+.ussd-lcd-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  font-family: monospace;
+  font-weight: 700;
+  color: #34d399;
+  border-bottom: 1px dashed rgba(52, 211, 153, 0.3);
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.ussd-lcd-body {
+  font-family: 'Consolas', monospace;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #a7f3d0;
+  text-shadow: 0 0 4px rgba(52, 211, 153, 0.5);
+  min-height: 100px;
+}
+
+.ussd-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: monospace;
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #6ee7b7;
+  margin-top: 0.5rem;
+  border-top: 1px dashed rgba(52, 211, 153, 0.3);
+  padding-top: 0.25rem;
+}
+
+.ussd-cursor {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.ussd-quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ussd-btn-lang, .ussd-btn-reset {
+  flex: 1;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.4rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ussd-btn-lang:hover, .ussd-btn-reset:hover {
+  background: #334155;
+  color: white;
+}
+
+.ussd-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ussd-key {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  color: white;
+  padding: 0.6rem 0.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s;
+}
+
+.ussd-key:hover {
+  background: #334155;
+  transform: translateY(-1px);
+}
+
+.ussd-key:active {
+  transform: translateY(1px);
+}
+
+.k-num {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.k-sub {
+  font-size: 0.55rem;
+  color: #94a3b8;
+  letter-spacing: 1px;
+}
+
+.ussd-action-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-call {
+  flex: 2;
+  background: #059669;
+  border-color: #10b981;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-direction: row;
+  gap: 0.4rem;
+}
+
+.btn-call:hover {
+  background: #047857;
+}
+
+.btn-clear {
+  flex: 1;
+  background: #b91c1c;
+  border-color: #ef4444;
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex-direction: row;
+  gap: 0.4rem;
+}
+
+.btn-clear:hover {
+  background: #991b1b;
+}
+
+.ussd-demo-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+
+.hint-chip {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+}
+
+/* =========================================================
+   ECX Market Intelligence & Price Advisor Modal
+   ========================================================= */
+.market-intel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.market-intel-wrapper {
+  background: white;
+  border-radius: 1.5rem;
+  max-width: 960px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.market-intel-header {
+  background: #0f172a;
+  color: white;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.market-intel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.market-intel-title h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.market-intel-title p {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.market-intel-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+.market-left-panel {
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.market-right-panel {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.commodity-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.commodity-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.commodity-card:hover {
+  border-color: #10b981;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.commodity-card.selected {
+  border-color: #059669;
+  background: #f0fdf4;
+}
+
+.comm-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.comm-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.comm-am {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.comm-trend {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+}
+
+.comm-trend.up { background: #dcfce7; color: #166534; }
+.comm-trend.down { background: #fee2e2; color: #991b1b; }
+.comm-trend.stable { background: #f1f5f9; color: #475569; }
+
+.comm-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.comm-price {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #059669;
+}
+
+.comm-benchmark {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.detail-top-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+}
+
+.detail-top-banner h2 {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0;
+}
+
+.national-rate-box {
+  text-align: right;
+}
+
+.rate-val {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #059669;
+}
+
+.sparkline-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 90px;
+  padding-top: 1rem;
+}
+
+.sparkline-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.sparkline-bar {
+  width: 100%;
+  background: #10b981;
+  border-radius: 0.25rem 0.25rem 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.2rem;
+  transition: all 0.3s;
+}
+
+.sparkline-val {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: white;
+}
+
+.sparkline-lbl {
+  font-size: 0.65rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+.regional-table {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.regional-table th {
+  background: #f1f5f9;
+  padding: 0.5rem;
+  text-align: left;
+  font-weight: 700;
+}
+
+.regional-table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ai-advisor-section {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 1rem;
+  padding: 1.25rem;
+}
+
+.advisor-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.75rem;
+}
+
+.advisor-title span:first-child {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #78350f;
+}
+
+.advisor-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.advisor-toggles-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.advisor-result-card {
+  background: white;
+  border: 1px solid #fde68a;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-top: 0.75rem;
+}
+
+.fair-price-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.price-val {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #059669;
+}

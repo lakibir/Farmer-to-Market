@@ -283,6 +283,16 @@ export function renderFarmerView(
                       <i class="fa-solid fa-calendar-days text-emerald-700"></i> Advance Harvest
                     </span>
                   ` : ''}
+                  ${l.requiresColdChain ? `
+                    <span class="bg-cyan-900/90 backdrop-blur-md text-cyan-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs border border-cyan-500/30">
+                      <i class="fa-solid fa-snowflake"></i> Cold-Chain
+                    </span>
+                  ` : ''}
+                  ${l.isAggregatedLot || l.cooperativeName ? `
+                    <span class="bg-amber-900/90 backdrop-blur-md text-amber-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs border border-amber-500/30">
+                      <i class="fa-solid fa-users"></i> ${l.cooperativeName || 'Cooperative Lot'}
+                    </span>
+                  ` : ''}
                   ${l.isOrganic ? `
                     <span class="bg-emerald-800/90 backdrop-blur-md text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-xs">
                       Organic
@@ -598,7 +608,12 @@ export function renderCreateListingModal(lang: Language, benchmarks: PriceBenchm
             </div>
 
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">${t.priceKgLabel}</label>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-xs font-bold text-slate-700">${t.priceKgLabel}</label>
+                <button type="button" onclick="window.checkFairPriceForNewListing()" class="text-[10px] font-bold text-amber-800 hover:text-amber-900 flex items-center gap-1 cursor-pointer">
+                  <i class="fa-solid fa-wand-magic-sparkles text-amber-600"></i> AI Fair Rate
+                </button>
+              </div>
               <input type="number" id="newPricePerKg" required min="1" value="45" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
             </div>
           </div>
@@ -612,9 +627,10 @@ export function renderCreateListingModal(lang: Language, benchmarks: PriceBenchm
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">${t.gradeLabel}</label>
               <select id="newGrade" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
-                <option value="Grade 1">Grade 1 (Standard)</option>
-                <option value="Grade 2">Grade 2 (Value)</option>
-                <option value="Export Grade">Export Grade (Premium)</option>
+                <option value="Grade 1">Grade 1 (Standard / Premium)</option>
+                <option value="Export Grade">Export Grade (Grade A+ International)</option>
+                <option value="Grade 2">Grade 2 (Commercial Table)</option>
+                <option value="Grade 3">Grade 3 (Processing / Bulk)</option>
               </select>
             </div>
 
@@ -625,6 +641,29 @@ export function renderCreateListingModal(lang: Language, benchmarks: PriceBenchm
                 <option value="Semi-Ripe">Semi-Ripe (2-3 Days)</option>
                 <option value="Green / Storable">Green / Storable (1-2 Weeks)</option>
               </select>
+            </div>
+          </div>
+
+          <!-- Cold-Chain & Cooperative Aggregation Lot Features -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="p-3.5 rounded-xl bg-cyan-50/70 border border-cyan-200 space-y-1">
+              <label class="flex items-center gap-2 text-xs font-bold text-cyan-950 cursor-pointer">
+                <input type="checkbox" id="newRequiresColdChain" class="rounded text-cyan-600 focus:ring-cyan-500" />
+                <span>❄️ Requires Cold-Chain Logistics</span>
+              </label>
+              <p class="text-[10px] text-cyan-800 font-medium pl-5">Auto-matches with refrigerated Isuzu freight trucks (0°C to 8°C).</p>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="flex items-center gap-2 text-xs font-bold text-amber-950 cursor-pointer">
+                  <input type="checkbox" id="newIsAggregatedLot" onchange="document.getElementById('coopDetailsField').classList.toggle('hidden', !this.checked)" class="rounded text-amber-600 focus:ring-amber-500" />
+                  <span>🤝 Cooperative Hub Aggregated Lot</span>
+                </label>
+              </div>
+              <div id="coopDetailsField" class="hidden">
+                <input type="text" id="newCooperativeName" placeholder="e.g. Bishoftu Farmers Union" class="w-full px-2.5 py-1.5 rounded-lg border border-amber-300 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white" />
+              </div>
             </div>
           </div>
 

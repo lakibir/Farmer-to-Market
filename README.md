@@ -87,3 +87,30 @@ Open **`http://localhost:4200`** in your browser.
    - **90%** automatically deposited to Farmer's Telebirr wallet.
    - **5%** automatically deposited to Driver's Telebirr wallet.
    - **5%** retained as platform transaction revenue.
+
+---
+
+## 🌟 Strategic Innovations & Integrated Features
+
+### 1. 📞 USSD & 2G Offline Gateway (`*804#`)
+- **Interactive Feature-Phone Simulator**: Dial `*804#` directly from the web client.
+- **Bilingual Offline Navigation**: Check live market commodity rates, check Telebirr balance & escrow payouts, review pending pickup orders, and list fresh harvests via simple numeric menus.
+- **Endpoints**: `POST /api/ussd` (Telco webhook), `POST /api/ussd/simulate` (Web emulator).
+
+### 2. 📈 AI-Driven Crop Price Index & ECX Advisor
+- **Ethiopian Commodity Exchange (ECX) Benchmarks**: Live rates and 7-day trend history for Teff (White Magna), Coffee (Sidama G1), Wheat, Onions, Tomatoes, Avocados, and Potatoes across Addis Ababa Merkato, Adama, Bahir Dar, and Hawassa.
+- **Fair Price Valuation Engine**: AI-calculated fair price recommendations based on crop grade, region, volume, and cold-chain requirements to prevent underpricing.
+- **Endpoints**: `GET /api/market-intelligence/indices`, `POST /api/market-intelligence/advisor`.
+
+### 3. 🤝 Agricultural Cooperatives & Aggregation Hubs
+- **Pooled Lot Support**: Cooperative unions can aggregate smallholder harvests into bulk wholesale containers with transparent member lot tracking.
+- **Cooperative Badges**: Marketplace indicators highlighting union-aggregated produce.
+
+### 4. ❄️ Cold-Chain & Specialized Logistics
+- **Refrigerated Vehicle Filtering**: Match perishable produce (0°C to 8°C) with certified refrigerated Isuzu transport trucks.
+- **Quality Preservation Premium**: Integrated +12% cold-chain valuation for temperature-sensitive cargo.
+
+### 5. ⭐ Standardized Produce Grading & Quality Dispute Escrow
+- **Grade A / B / C Standards**: Export Grade (International Premium), Grade 1 (Standard Commercial), Grade 2 (Value), Grade 3 (Processing/Bulk).
+- **Escrow Dispute Arbitration**: Administrative partial refunds and arbitration decrees for delivery discrepancies.
+

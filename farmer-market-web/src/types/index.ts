@@ -98,11 +98,85 @@ export interface Listing {
   voiceNoteTranscript?: string;
   marketBenchmarkPrice?: number;
   moderationStatus?: 'Approved' | 'PendingReview' | 'Flagged';
+  requiresColdChain?: boolean;
+  targetTempMinCelsius?: number;
+  targetTempMaxCelsius?: number;
+  cooperativeName?: string;
+  isAggregatedLot?: boolean;
+  aggregatedFarmerCount?: number;
+  cooperativeLotId?: string;
   farmerRating: number;
   reviewCount: number;
   repeatBuyerCount?: number;
   onTimeDeliveryRate?: number;
   createdAt: string;
+}
+
+export interface RegionalPricePoint {
+  regionName: string;
+  marketName: string;
+  minPriceEtb: number;
+  avgPriceEtb: number;
+  maxPriceEtb: number;
+}
+
+export interface PriceHistoryPoint {
+  date: string;
+  priceEtb: number;
+}
+
+export interface CommodityPriceIndex {
+  commodityId: string;
+  name: string;
+  nameAm: string;
+  category: string;
+  unit: string;
+  nationalAvgPriceEtb: number;
+  eczBenchmarkEtb: number;
+  weeklyChangePercent: number;
+  trendDirection: 'Up' | 'Down' | 'Stable';
+  volatilityRating: 'Low' | 'Moderate' | 'High';
+  regionalPrices: RegionalPricePoint[];
+  historical7Days: PriceHistoryPoint[];
+}
+
+export interface FairPriceRecommendationRequest {
+  commodityName: string;
+  category: string;
+  region: string;
+  grade: string;
+  qtyKg: number;
+  requiresColdChain?: boolean;
+}
+
+export interface FairPriceRecommendationResult {
+  commodityName: string;
+  region: string;
+  grade: string;
+  recommendedMinEtb: number;
+  recommendedFairPriceEtb: number;
+  recommendedMaxEtb: number;
+  ecxBenchmarkEtb: number;
+  supplyCondition: string;
+  volatility: string;
+  guidanceMessageEn: string;
+  guidanceMessageAm: string;
+  coldChainPremiumPercent: number;
+  cooperativeBulkDiscountPercent: number;
+}
+
+export interface UssdRequest {
+  sessionId: string;
+  phoneNumber: string;
+  text: string;
+  serviceCode?: string;
+  language?: string;
+}
+
+export interface UssdResponse {
+  sessionId: string;
+  message: string;
+  action: 'CON' | 'END';
 }
 
 export interface Order {

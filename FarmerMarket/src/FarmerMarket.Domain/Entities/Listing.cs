@@ -42,6 +42,17 @@ public class Listing
     // Content moderation status
     public string? ModerationStatus { get; set; } = "Approved"; // Approved, PendingReview, Flagged
 
+    // Cold-Chain Logistics & Temperature Control
+    public bool RequiresColdChain { get; set; } = false;
+    public decimal? TargetTempMinCelsius { get; set; }
+    public decimal? TargetTempMaxCelsius { get; set; }
+
+    // Agricultural Cooperative & Union Aggregation Hub
+    public string? CooperativeName { get; set; }
+    public bool? IsAggregatedLot { get; set; } = false;
+    public int? AggregatedFarmerCount { get; set; } = 0;
+    public string? CooperativeLotId { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();

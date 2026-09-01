@@ -18,6 +18,8 @@ import { renderSuperAdminView, SuperAdminTab } from './components/SuperAdminView
 import { renderSuperAdminModals } from './components/SuperAdminModals';
 import { renderBuyerAccountView, BuyerAccountTab } from './components/BuyerAccountView';
 import { renderFarmerAccountView, FarmerAccountTab } from './components/FarmerAccountView';
+import { ussdSimulator } from './components/UssdSimulatorModal';
+import { marketIntelligenceModal } from './components/MarketIntelligenceModal';
 
 // Toast Notification Manager
 function showToast(message: string, icon: string = 'fa-circle-check', color: string = 'border-emerald-500') {
@@ -861,6 +863,9 @@ class App {
       const isAdvance = (document.getElementById('newIsAdvanceHarvest') as HTMLInputElement)?.checked || false;
       const expectedHarvest = (document.getElementById('newExpectedHarvestDate') as HTMLInputElement)?.value || undefined;
       const voiceTranscript = (document.getElementById('voiceTranscriptText') as HTMLElement)?.innerText?.replace(/^"|"$/g, '') || undefined;
+      const requiresColdChain = (document.getElementById('newRequiresColdChain') as HTMLInputElement)?.checked || false;
+      const isAggregatedLot = (document.getElementById('newIsAggregatedLot') as HTMLInputElement)?.checked || false;
+      const cooperativeName = (document.getElementById('newCooperativeName') as HTMLInputElement)?.value || undefined;
 
       const user = api.getCurrentUser();
       const newListing = await api.createListing({
@@ -875,6 +880,9 @@ class App {
         isAdvanceHarvest: isAdvance,
         expectedHarvestDate: expectedHarvest,
         voiceNoteTranscript: voiceTranscript,
+        requiresColdChain,
+        isAggregatedLot,
+        cooperativeName: isAggregatedLot ? (cooperativeName || 'Bishoftu Farmers Cooperative Union') : undefined,
         farmerId: user?.id,
         farmerName: user?.name,
         farmerNameAm: user?.nameAm,
@@ -886,6 +894,35 @@ class App {
       confetti({ particleCount: 90, spread: 60, origin: { y: 0.6 } });
       showToast(this.lang === 'am' ? 'አዲስ ምርት በተሳካ ሁኔታ ተመዝግቧል!' : `Published ${newListing.productName} successfully!`, 'fa-circle-check');
       this.render();
+    };
+
+    w.checkFairPriceForNewListing = async () => {
+      const prodName = (document.getElementById('newProdName') as HTMLInputElement)?.value || 'Tomatoes';
+      const category = (document.getElementById('newCategory') as HTMLSelectElement)?.value || 'Vegetables';
+      const grade = (document.getElementById('newGrade') as HTMLSelectElement)?.value || 'Grade 1';
+      const qtyKg = Number((document.getElementById('newQtyKg') as HTMLInputElement)?.value || 500);
+      const requiresColdChain = (document.getElementById('newRequiresColdChain') as HTMLInputElement)?.checked || false;
+      const user = api.getCurrentUser();
+
+      try {
+        const rec = await api.getFairPriceRecommendation({
+          commodityName: prodName,
+          category,
+          region: user?.region || 'Oromia',
+          grade,
+          qtyKg,
+          requiresColdChain
+        });
+
+        const priceInput = document.getElementById('newPricePerKg') as HTMLInputElement;
+        if (priceInput) {
+          priceInput.value = rec.recommendedFairPriceEtb.toString();
+        }
+
+        showToast(`AI Fair Price Applied: ETB ${rec.recommendedFairPriceEtb}/kg (ECX Benchmarked)`, 'fa-wand-magic-sparkles', 'border-amber-500');
+      } catch (err) {
+        showToast('Using local standard benchmark rate', 'fa-info-circle', 'border-blue-500');
+      }
     };
 
     // Voice Note Listing Creation Simulation
@@ -2199,6 +2236,14 @@ class App {
       document.body.removeChild(link);
       showToast(`Downloaded full platform data export (${format.toUpperCase()})!`, 'fa-download', 'border-emerald-500');
       this.render();
+    };
+
+    w.openUssdSimulator = (presetCode?: string) => {
+      ussdSimulator.open(presetCode);
+    };
+
+    w.openMarketIntelligence = () => {
+      marketIntelligenceModal.open();
     };
   }
 }

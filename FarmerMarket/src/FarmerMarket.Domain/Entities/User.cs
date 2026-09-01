@@ -25,7 +25,14 @@ public class User
     // Driver Vehicle & Capacity Profile
     public string? VehicleType { get; set; } = "Isuzu 5-Ton"; // Isuzu 5-Ton, Pickup 1.5-Ton, Sino 10-Ton, Bajaj
     public string? RefrigerationType { get; set; } = "Ventilated"; // Refrigerated, Ventilated, Standard
+    public bool? HasRefrigeration { get; set; } = false;
+    public decimal? MinTempCapabilityCelsius { get; set; }
     public decimal? VehicleCapacityKg { get; set; } = 5000;
+
+    // Cooperative & Union Association
+    public string? CooperativeName { get; set; }
+    public bool? IsCooperativeMember { get; set; } = false;
+    public string? CooperativeRole { get; set; } // Member, UnionLeader, AggregatorManager
 
     // KYC & Identity Verification
     public string? KycDocumentType { get; set; } // National ID (Fayda), Kebele ID, Vehicle Logbook

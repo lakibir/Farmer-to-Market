@@ -25,6 +25,9 @@ public class ListingsController(IMediator mediator) : ControllerBase
         [FromQuery] string? ripeness,
         [FromQuery] bool? isOrganic,
         [FromQuery] bool? isAdvanceHarvest,
+        [FromQuery] bool? requiresColdChain,
+        [FromQuery] bool? isAggregatedLot,
+        [FromQuery] string? cooperativeName,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
@@ -42,6 +45,9 @@ public class ListingsController(IMediator mediator) : ControllerBase
             Ripeness: ripeness,
             IsOrganic: isOrganic,
             IsAdvanceHarvest: isAdvanceHarvest,
+            RequiresColdChain: requiresColdChain,
+            IsAggregatedLot: isAggregatedLot,
+            CooperativeName: cooperativeName,
             Page: page,
             PageSize: pageSize
         );

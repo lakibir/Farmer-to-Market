@@ -347,10 +347,24 @@ export function renderNavbar(
               </button>
             ` : ''}
 
+            <button onclick="window.openMarketIntelligence()" 
+              class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold ${lang === 'am' ? 'lang-am' : ''}"
+              title="View live Ethiopian Commodity Exchange (ECX) prices & AI valuation">
+              <i class="fa-solid fa-chart-line text-amber-600"></i> ${lang === 'am' ? '📈 የECX ገበያ ዋጋ' : '📈 ECX Price Index'}
+            </button>
+
+            <button onclick="window.openUssdSimulator()" 
+              class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 font-bold ${lang === 'am' ? 'lang-am' : ''}"
+              title="Simulate 2G feature-phone USSD *804# workflow for offline farmers">
+              <i class="fa-solid fa-phone text-emerald-600"></i> ${lang === 'am' ? '📞 USSD (*804#)' : '📞 USSD (*804#)'}
+            </button>
+
           </div>
 
           <div class="hidden lg:flex items-center gap-3 text-slate-500 text-[11px]">
             <span class="flex items-center gap-1"><i class="fa-solid fa-seedling text-emerald-600"></i> 100% Ethiopian Farm Sourced</span>
+            <span>·</span>
+            <span class="flex items-center gap-1"><i class="fa-solid fa-snowflake text-cyan-600"></i> Cold-Chain Logistics</span>
             <span>·</span>
             <span class="flex items-center gap-1"><i class="fa-solid fa-bolt text-blue-600"></i> Telebirr Escrow Automated</span>
           </div>

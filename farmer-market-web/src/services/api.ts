@@ -7,7 +7,8 @@ import {
   AdminPermission, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag,
   PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry, CreateUserDto,
   Banner, CreateBannerDto, UpdateListingDto,
-  PermissionKey, PermissionDefinition, RolePermissionsMap
+  PermissionKey, PermissionDefinition, RolePermissionsMap,
+  CommodityPriceIndex, FairPriceRecommendationRequest, FairPriceRecommendationResult, UssdRequest, UssdResponse
 } from '../types';
 import { signalRService } from './signalr.service';
 
@@ -2599,7 +2600,7 @@ class ApiService {
 
   public createUser(dto: CreateUserDto): User {
     const cleanPhone = dto.phone.startsWith('+251') ? dto.phone.replace(/\s+/g, '') : '+251' + dto.phone.replace(/^0+/, '').replace(/\s+/g, '');
-    
+
     // Remove from deleted list if re-creating
     this.deletedUserIds.delete(cleanPhone.toLowerCase());
     this.deletedUserIds.delete(cleanPhone.replace(/\D/g, ''));
@@ -3858,6 +3859,214 @@ class ApiService {
 
     this.notify();
     return this.rolePermissions;
+  }
+
+  // Market Intelligence & Price Indices
+  public async getMarketPriceIndices(category?: string, region?: string): Promise<CommodityPriceIndex[]> {
+    try {
+      const params = new URLSearchParams();
+      if (category && category !== 'All') params.append('category', category);
+      if (region && region !== 'All') params.append('region', region);
+      const res = await fetch(`/api/market-intelligence/indices?${params.toString()}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Fallback to local market price indices:', e);
+    }
+    // Fallback static data
+    return [
+      {
+        commodityId: 'teff-white',
+        name: 'Teff (White Magna)',
+        nameAm: 'ነጭ ማግና ጤፍ',
+        category: 'Grain',
+        unit: 'kg',
+        nationalAvgPriceEtb: 128.50,
+        eczBenchmarkEtb: 126.00,
+        weeklyChangePercent: 3.8,
+        trendDirection: 'Up',
+        volatilityRating: 'Moderate',
+        regionalPrices: [
+          { regionName: 'Addis Ababa', marketName: 'Merkato Ehil Berenda', minPriceEtb: 125, avgPriceEtb: 132, maxPriceEtb: 138 },
+          { regionName: 'Oromia', marketName: "Ada'a / Bishoftu Central", minPriceEtb: 120, avgPriceEtb: 126, maxPriceEtb: 130 },
+          { regionName: 'Amhara', marketName: 'East Gojjam / Debre Markos', minPriceEtb: 115, avgPriceEtb: 122, maxPriceEtb: 126 }
+        ],
+        historical7Days: [
+          { date: 'D-6', priceEtb: 124 }, { date: 'D-5', priceEtb: 125.2 }, { date: 'D-4', priceEtb: 125 },
+          { date: 'D-3', priceEtb: 126.5 }, { date: 'D-2', priceEtb: 127 }, { date: 'D-1', priceEtb: 127.8 }, { date: 'Today', priceEtb: 128.5 }
+        ]
+      },
+      {
+        commodityId: 'coffee-sidama-g1',
+        name: 'Coffee (Sidama Washed Grade 1)',
+        nameAm: 'ሲዳማ የታጠበ ቡና (ደረጃ 1)',
+        category: 'Coffee',
+        unit: 'kg',
+        nationalAvgPriceEtb: 485.00,
+        eczBenchmarkEtb: 490.00,
+        weeklyChangePercent: 5.2,
+        trendDirection: 'Up',
+        volatilityRating: 'High',
+        regionalPrices: [
+          { regionName: 'Addis Ababa', marketName: 'ECX Central Terminal', minPriceEtb: 475, avgPriceEtb: 492, maxPriceEtb: 510 },
+          { regionName: 'Sidama', marketName: 'Hawassa Wholesale Exchange', minPriceEtb: 460, avgPriceEtb: 480, maxPriceEtb: 495 }
+        ],
+        historical7Days: [
+          { date: 'D-6', priceEtb: 460 }, { date: 'D-5', priceEtb: 465 }, { date: 'D-4', priceEtb: 472 },
+          { date: 'D-3', priceEtb: 475 }, { date: 'D-2', priceEtb: 480 }, { date: 'D-1', priceEtb: 482 }, { date: 'Today', priceEtb: 485 }
+        ]
+      },
+      {
+        commodityId: 'onions-adama-red',
+        name: 'Adama Red Onions',
+        nameAm: 'የአዳማ ቀይ ሽንኩርት',
+        category: 'Vegetable',
+        unit: 'kg',
+        nationalAvgPriceEtb: 82.00,
+        eczBenchmarkEtb: 80.00,
+        weeklyChangePercent: -2.4,
+        trendDirection: 'Down',
+        volatilityRating: 'High',
+        regionalPrices: [
+          { regionName: 'Addis Ababa', marketName: 'Piazza & Janmeda Market', minPriceEtb: 82, avgPriceEtb: 88, maxPriceEtb: 95 },
+          { regionName: 'Oromia', marketName: 'Adama Bulbula Terminal', minPriceEtb: 72, avgPriceEtb: 78, maxPriceEtb: 82 }
+        ],
+        historical7Days: [
+          { date: 'D-6', priceEtb: 86 }, { date: 'D-5', priceEtb: 85 }, { date: 'D-4', priceEtb: 84.5 },
+          { date: 'D-3', priceEtb: 83 }, { date: 'D-2', priceEtb: 83.5 }, { date: 'D-1', priceEtb: 82.2 }, { date: 'Today', priceEtb: 82 }
+        ]
+      },
+      {
+        commodityId: 'tomatoes-meki',
+        name: 'Tomatoes (Meki Plum)',
+        nameAm: 'የመቂ ቲማቲም',
+        category: 'Vegetable',
+        unit: 'kg',
+        nationalAvgPriceEtb: 65.00,
+        eczBenchmarkEtb: 64.00,
+        weeklyChangePercent: 8.1,
+        trendDirection: 'Up',
+        volatilityRating: 'High',
+        regionalPrices: [
+          { regionName: 'Addis Ababa', marketName: 'Atkilt Tera Merkato', minPriceEtb: 65, avgPriceEtb: 72, maxPriceEtb: 80 },
+          { regionName: 'Oromia', marketName: 'Meki Lake Ziway Hub', minPriceEtb: 52, avgPriceEtb: 58, maxPriceEtb: 64 }
+        ],
+        historical7Days: [
+          { date: 'D-6', priceEtb: 58 }, { date: 'D-5', priceEtb: 60 }, { date: 'D-4', priceEtb: 61.5 },
+          { date: 'D-3', priceEtb: 62 }, { date: 'D-2', priceEtb: 63.8 }, { date: 'D-1', priceEtb: 64.5 }, { date: 'Today', priceEtb: 65 }
+        ]
+      }
+    ];
+  }
+
+  public async getFairPriceRecommendation(request: FairPriceRecommendationRequest): Promise<FairPriceRecommendationResult> {
+    try {
+      const res = await fetch('/api/market-intelligence/advisor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Fallback to local fair price calculation:', e);
+    }
+    const base = 85.0;
+    const gradeMult = request.grade === 'Export Grade' ? 1.25 : request.grade === 'Grade 1' ? 1.05 : 0.95;
+    const coldPrem = request.requiresColdChain ? 0.12 : 0;
+    const fair = Math.round(base * gradeMult * (1 + coldPrem) * 100) / 100;
+    return {
+      commodityName: request.commodityName,
+      region: request.region,
+      grade: request.grade,
+      recommendedMinEtb: Math.round(fair * 0.9 * 100) / 100,
+      recommendedFairPriceEtb: fair,
+      recommendedMaxEtb: Math.round(fair * 1.15 * 100) / 100,
+      ecxBenchmarkEtb: 82.0,
+      supplyCondition: 'Moderate',
+      volatility: 'Moderate',
+      guidanceMessageEn: `Recommended fair price for ${request.commodityName} (${request.grade}) is ETB ${fair}/kg based on current market trends.`,
+      guidanceMessageAm: `ለ${request.commodityName} (${request.grade}) ተስማሚ የገበያ መሸጫ ዋጋ ${fair} ብር/ኪ.ግ ነው።`,
+      coldChainPremiumPercent: coldPrem * 100,
+      cooperativeBulkDiscountPercent: 5
+    };
+  }
+
+  // USSD Simulation
+  public async simulateUssd(request: UssdRequest): Promise<UssdResponse> {
+    try {
+      const res = await fetch('/api/ussd/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request)
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Fallback to local USSD state machine:', e);
+    }
+
+    const isAm = request.language === 'am';
+    const text = (request.text || '').trim();
+
+    if (!text || text === '*804#') {
+      return {
+        sessionId: request.sessionId,
+        message: isAm
+          ? "🌾 ወደ ገበያ-ለአርሶ አደር (*804#) እንኳን ደህና መጡ\n\n1. 📈 የገበያ ዋጋ መረጃ (ECX)\n2. 💰 የሒሳብ ቀሪ (Telebirr)\n3. 📦 የትዕዛዝ ሁኔታ\n4. 🚜 አዲስ ምርት መመዝገብ\n5. 🌐 Switch to English\n0. መውጫ"
+          : "🌾 Welcome to Farmer-to-Market (*804#)\n\n1. 📈 Market Price Index (ECX)\n2. 💰 Wallet Balance (Telebirr)\n3. 📦 Pending Orders\n4. 🚜 List New Produce\n5. 🌐 ወደ አማርኛ ቀይር\n0. Exit",
+        action: 'CON'
+      };
+    }
+
+    if (text === '1') {
+      return {
+        sessionId: request.sessionId,
+        message: isAm
+          ? "የወቅቱ የኢትዮጵያ ምርት ገበያ (ECX) ዋጋዎች፡\n1. ነጭ ጤፍ - 128 ETB/kg\n2. ቡና (ሲዳማ) - 485 ETB/kg\n3. ቀይ ሽንኩርት - 82 ETB/kg\n4. ቲማቲም - 65 ETB/kg\n0. ዋና ማውጫ"
+          : "Live ECX Market Prices (ETB/kg):\n1. Teff White - 128 ETB\n2. Coffee Sidama - 485 ETB\n3. Red Onion - 82 ETB\n4. Tomatoes - 65 ETB\n0. Main Menu",
+        action: 'CON'
+      };
+    }
+
+    if (text === '2') {
+      return {
+        sessionId: request.sessionId,
+        message: isAm
+          ? "💰 የቴሌብር (Telebirr) የሒሳብዎ ቀሪ፡ 28,450.00 ብር\nበኤስክሮው (Escrow) የተያዘ፡ 12,500.00 ብር\nያለቀ ክፍያ ወዲያውኑ ወደ ስልክዎ ይገባል።"
+          : "💰 Telebirr Escrow Balance: ETB 28,450.00\nHeld in Active Escrow: ETB 12,500.00\nPayouts auto-release on delivery confirmation.",
+        action: 'END'
+      };
+    }
+
+    if (text === '3') {
+      return {
+        sessionId: request.sessionId,
+        message: isAm
+          ? "📦 የትዕዛዝዎ ሁኔታ፡\n• በመጓጓዝ ላይ ያሉ ትዕዛዞች: 2\n• ሹፌር የተመደበለት: 1 Isuzu 5-Ton\n• ለመውሰድ የታቀደበት ቀን፡ ዛሬ 9:00 ሰዓት"
+          : "📦 Active Order Status:\n• In-transit shipments: 2\n• Assigned Driver: 1 Isuzu 5-Ton\n• Scheduled Pickup: Today 3:00 PM",
+        action: 'END'
+      };
+    }
+
+    if (text === '4') {
+      return {
+        sessionId: request.sessionId,
+        message: isAm
+          ? "🚜 የሚሸጡትን ምርት ይምረጡ፡\n1. ጤፍ (Teff)\n2. ቀይ ሽንኩርት (Onion)\n3. ቲማቲም (Tomato)\n4. ስንዴ (Wheat)\n0. ተመለስ"
+          : "🚜 Select produce to list:\n1. Teff\n2. Red Onion\n3. Tomato\n4. Wheat\n0. Back",
+        action: 'CON'
+      };
+    }
+
+    return {
+      sessionId: request.sessionId,
+      message: isAm ? "✅ እናመሰግናለን! ትዕዛዝዎ በስኬት ተከናውኗል።" : "✅ Thank you! Operation completed successfully.",
+      action: 'END'
+    };
   }
 }
 
