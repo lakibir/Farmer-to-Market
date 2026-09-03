@@ -262,16 +262,18 @@ export function renderNavbar(
 
             </div>
 
-            <!-- Notifications Bell -->
-            <button onclick="window.openNotificationsModal()" 
-              class="relative p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-colors cursor-pointer"
-              title="SMS Alerts & Notifications">
-              <i class="fa-regular fa-bell text-base"></i>
-              ${unreadNotifications > 0 ? `
-                <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
-                  ${unreadNotifications}
-                </span>` : ''}
-            </button>
+            <!-- Notifications Bell (Only when signed in) -->
+            ${isAuthenticated ? `
+              <button onclick="window.openNotificationsModal()" 
+                class="relative p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-colors cursor-pointer"
+                title="SMS Alerts & Notifications">
+                <i class="fa-regular fa-bell text-base"></i>
+                ${unreadNotifications > 0 ? `
+                  <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">
+                    ${unreadNotifications}
+                  </span>` : ''}
+              </button>
+            ` : ''}
 
             <!-- Bulk Cart Button -->
             <button onclick="window.toggleCart()" 

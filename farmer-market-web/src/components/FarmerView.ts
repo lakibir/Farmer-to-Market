@@ -46,6 +46,9 @@ export function renderFarmerView(
                 <i class="fa-solid fa-shield-halved text-slate-500"></i> ${lang === 'am' ? 'ያልተረጋገጠ መለያ' : 'Unverified Account'}
               </span>
             `}
+            <span class="trust-badge text-amber-900 bg-amber-50 border-amber-300 font-extrabold">
+              <i class="fa-solid fa-star text-amber-500"></i> ${api.getFarmerRatingStats(currentUser?.id || '').averageRating} (${api.getFarmerRatingStats(currentUser?.id || '').reviewCount} ${t.allReviews || 'Reviews'})
+            </span>
             <span class="trust-badge text-purple-800 bg-purple-50 border-purple-200">
               <i class="fa-solid fa-users text-purple-600"></i> ${currentUser?.repeatBuyerCount || 0} ${t.repeatBuyers}
             </span>
@@ -335,6 +338,80 @@ export function renderFarmerView(
           `).join('')}
         </div>
       </section>
+
+      <!-- Customer Reviews & Feedback Section -->
+      ${(() => {
+        const farmerId = currentUser?.id || '11111111-1111-1111-1111-111111111111';
+        const reviews = api.getReviewsForFarmer(farmerId);
+        const stats = api.getFarmerRatingStats(farmerId);
+        return `
+          <section class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-xl font-bold text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+                  <i class="fa-solid fa-star text-amber-500 mr-2"></i> ${t.verifiedBuyerReviews || 'Customer Reviews & Feedback'}
+                </h2>
+                <p class="text-xs text-slate-500 font-medium">Real-time ratings and comments from verified wholesale buyers who received your produce.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                  ★ ${stats.averageRating} / 5.0
+                </span>
+                <span class="text-xs font-bold px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-200">
+                  ${stats.reviewCount} ${t.allReviews || 'Verified Reviews'}
+                </span>
+              </div>
+            </div>
+
+            ${reviews.length === 0 ? `
+              <div class="glass-card p-8 text-center text-slate-500 text-xs">
+                <i class="fa-regular fa-comment-dots text-3xl mb-2 text-slate-300"></i>
+                <p>${t.noReviewsYet || 'No customer reviews yet. Reviews will appear here once buyers confirm delivery.'}</p>
+              </div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${reviews.map(rev => `
+                  <div class="glass-card p-4 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold text-xs flex items-center justify-center">
+                          ${rev.reviewerName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div class="font-bold text-slate-900 text-xs">${rev.reviewerName}</div>
+                          <span class="text-[10px] text-slate-400 font-medium">${rev.createdAt}</span>
+                        </div>
+                      </div>
+                      <div class="flex items-center text-amber-400 text-xs gap-0.5 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        ${[1, 2, 3, 4, 5].map(st => `
+                          <i class="fa-solid fa-star ${st <= rev.rating ? 'text-amber-500' : 'text-slate-200'}"></i>
+                        `).join('')}
+                        <span class="font-bold text-slate-700 ml-1 text-[11px]">${rev.rating}.0</span>
+                      </div>
+                    </div>
+
+                    ${rev.quickTags && rev.quickTags.length > 0 ? `
+                      <div class="flex flex-wrap gap-1">
+                        ${rev.quickTags.map(tag => `
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-100">
+                            ${tag}
+                          </span>
+                        `).join('')}
+                      </div>
+                    ` : ''}
+
+                    ${rev.comment ? `
+                      <p class="text-xs text-slate-700 leading-relaxed font-medium bg-slate-50 p-2.5 rounded-xl border border-slate-100 italic">
+                        "${rev.comment}"
+                      </p>
+                    ` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </section>
+        `;
+      })()}
       `}
 
       <!-- Post New Produce Listing Modal (Voice Note + Advance Harvest + Benchmarking) -->

@@ -33,8 +33,8 @@ public class PlaceOrderHandler(
         if (listing == null || listing.Status != ListingStatus.Active)
             return Result<PlaceOrderResultDto>.Failure("Listing is not available for orders.");
 
-        if (req.Dto.QtyKg < listing.MinOrderKg)
-            return Result<PlaceOrderResultDto>.Failure($"Minimum order quantity is {listing.MinOrderKg} kg.");
+        if (req.Dto.QtyKg <= 0)
+            return Result<PlaceOrderResultDto>.Failure("Order quantity must be greater than 0 kg.");
 
         if (req.Dto.QtyKg > listing.QtyKg)
             return Result<PlaceOrderResultDto>.Failure($"Only {listing.QtyKg} kg available in stock.");
@@ -56,7 +56,7 @@ public class PlaceOrderHandler(
         var orderId = Guid.NewGuid();
 
         // Initiate payment via configured gateway (Telebirr or Chapa)
-        var paymentInit = await payment.InitiatePaymentAsync(orderId, totalEtb, buyer.Phone, ct);
+        var paymentInit = await payment.InitiatePaymentAsync(orderId, totalEtb, buyer.Phone, buyer.Email, buyer.Name, ct);
 
         var order = new Order
         {
@@ -66,8 +66,8 @@ public class PlaceOrderHandler(
             QtyKg = req.Dto.QtyKg,
             TotalEtb = totalEtb,
             Status = OrderStatus.Pending,
-            EscrowHeld = true,
-            PaymentRef = paymentInit.TransactionRef,
+            EscrowHeld = false,
+            PaymentRef = paymentInit?.TransactionRef ?? $"FM-{orderId.ToString().ToUpperInvariant()[..8]}-{DateTime.UtcNow:yyyyMMddHHmmss}",
             DeliveryAddress = req.Dto.DeliveryAddress ?? buyer.Region,
             DeliveryNotes = req.Dto.DeliveryNotes,
             IsRecurring = req.Dto.IsRecurring,
@@ -85,8 +85,8 @@ public class PlaceOrderHandler(
             FarmerCut = farmerCut,
             DriverCut = driverCut,
             PlatformCut = platformCut,
-            TelebirrRef = paymentInit.TransactionRef,
-            Status = "Held",
+            TelebirrRef = paymentInit?.TransactionRef ?? order.PaymentRef,
+            Status = "Initiated",
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -105,15 +105,19 @@ public class PlaceOrderHandler(
 
         await db.SaveChangesAsync(ct);
 
+        var farmerPhone = listing.Farmer?.Phone
+            ?? (await db.Users.FirstOrDefaultAsync(u => u.Id == listing.FarmerId, ct))?.Phone
+            ?? "+251911000000";
+
         // Trigger SMS and SignalR
-        _ = sms.NotifyFarmerNewOrderAsync(listing.Farmer.Phone, listing.ProductName, order.QtyKg, totalEtb, "am", ct);
+        _ = sms.NotifyFarmerNewOrderAsync(farmerPhone, listing.ProductName, order.QtyKg, totalEtb, "am", ct);
         _ = signalR.NotifyNewOrderForFarmerAsync(listing.FarmerId, order.Id, listing.ProductName, order.QtyKg, ct);
 
         return Result<PlaceOrderResultDto>.Success(new PlaceOrderResultDto(
             order.Id,
             totalEtb,
-            paymentInit.PaymentUrl,
-            paymentInit.TransactionRef
+            paymentInit?.PaymentUrl ?? string.Empty,
+            paymentInit?.TransactionRef ?? order.PaymentRef
         ));
     }
 }

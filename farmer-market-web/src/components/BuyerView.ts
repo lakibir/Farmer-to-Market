@@ -460,12 +460,32 @@ export function renderBuyerView(
 
               <div class="space-y-2">
                 <label class="block text-xs font-bold text-slate-700">2. Payment method</label>
-                <div class="space-y-2">${api.getAccountData().paymentMethods.length ? api.getAccountData().paymentMethods.map((method: any) => `<label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:border-blue-400"><input type="radio" name="checkoutPayment" value="${method.id}" ${method.isPrimary ? 'checked' : ''} required /><span class="text-xs font-bold">${method.provider} · ${method.maskedDisplay || 'Provider wallet'}${method.isPrimary ? ' · Primary' : ''}</span></label>`).join('') : `<label class="flex items-center gap-3 p-3 rounded-xl border border-blue-300 bg-blue-50 cursor-pointer"><input type="radio" name="checkoutPayment" value="telebirr-wallet" checked required /><span class="text-xs font-bold">Telebirr wallet · ${api.getCurrentUser()?.phone || 'linked account'}</span></label><p class="text-[10px] text-slate-500">Payment is securely authorized by the configured gateway.</p>`}</div>
+                <div class="space-y-2">
+                  <label class="flex items-center gap-3 p-3 rounded-xl border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100/50 cursor-pointer transition-all">
+                    <input type="radio" name="checkoutPayment" value="chapa" checked required />
+                    <div class="flex items-center justify-between flex-1">
+                      <div>
+                        <span class="text-xs font-black text-emerald-950 flex items-center gap-2">
+                          <i class="fa-solid fa-credit-card text-emerald-700"></i> Chapa Gateway (Telebirr / CBE / Cards)
+                        </span>
+                        <span class="text-[10px] text-emerald-800 font-medium block mt-0.5">Instant Escrow Lock & Buyer Protection</span>
+                      </div>
+                      <span class="text-[9px] font-black bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">REAL CHAPA</span>
+                    </div>
+                  </label>
+                  
+                  <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-blue-300 cursor-pointer transition-all">
+                    <input type="radio" name="checkoutPayment" value="telebirr-wallet" required />
+                    <span class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                      <i class="fa-solid fa-mobile-screen-button text-blue-600"></i> Direct Telebirr · ${api.getCurrentUser()?.phone || 'Linked Account'}
+                    </span>
+                  </label>
+                </div>
               </div>
 
               <div class="pt-2">
-                <button type="submit" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-lg transition-colors cursor-pointer">
-                  <i class="fa-solid fa-lock mr-1.5"></i> Pay and place order
+                <button type="submit" id="checkoutPayBtn" class="w-full py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-lg transition-colors cursor-pointer flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-lock"></i> Authorize Escrow with Chapa
                 </button>
               </div>
             </form>
@@ -556,7 +576,7 @@ export function renderBuyerView(
               <div class="text-right">
                 <span class="text-base font-extrabold text-emerald-800">${activeOrderModal.totalEtb.toLocaleString()} ETB</span>
                 <span class="escrow-pill block text-[10px] mt-0.5">
-                  ${activeOrderModal.escrowHeld ? 'Escrow Held' : 'Funds Released'}
+                  ${activeOrderModal.escrowHeld ? 'Escrow Held (Locked)' : activeOrderModal.status === 'delivered' ? 'Funds Released' : 'Awaiting Chapa Payment'}
                 </span>
               </div>
             </div>
@@ -589,12 +609,12 @@ export function renderBuyerView(
             <!-- Timeline -->
             <div class="space-y-4 py-2">
               <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">
-                  <i class="fa-solid fa-check"></i>
+                <div class="w-8 h-8 rounded-full ${activeOrderModal.escrowHeld ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'} flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">
+                  <i class="fa-solid ${activeOrderModal.escrowHeld ? 'fa-check' : 'fa-clock'}"></i>
                 </div>
                 <div>
-                  <h5 class="text-sm font-bold text-slate-900">Order Placed & Escrow Locked</h5>
-                  <p class="text-xs text-slate-500">Telebirr transaction verified (${activeOrderModal.paymentRef || 'TB-20260819'})</p>
+                  <h5 class="text-sm font-bold text-slate-900">${activeOrderModal.escrowHeld ? 'Escrow Locked in PostgreSQL' : 'Awaiting Payment Verification'}</h5>
+                  <p class="text-xs text-slate-500">Ref: ${activeOrderModal.paymentRef || 'Pending'}</p>
                 </div>
               </div>
 
@@ -632,8 +652,22 @@ export function renderBuyerView(
             <!-- Actions -->
             <div class="pt-4 border-t border-slate-200 flex items-center gap-3">
               ${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? `
-                <div class="w-full p-3 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs text-center flex items-center justify-center gap-2">
-                  <i class="fa-solid fa-money-bill-transfer text-emerald-700"></i> Refund completed. Order closed.
+                <div class="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-emerald-500/10 border border-emerald-300 text-emerald-950 font-bold text-xs space-y-1 text-center shadow-xs">
+                  <div class="flex items-center justify-center gap-2 text-emerald-800 text-sm font-extrabold">
+                    <i class="fa-solid fa-circle-check text-emerald-600"></i> Full Refund Completed (100%)
+                  </div>
+                  <p class="text-slate-600 font-medium">
+                    ${activeOrderModal.totalEtb.toLocaleString()} ETB refunded directly to your Telebirr wallet. Order closed under Legal Arbitration.
+                  </p>
+                </div>
+              ` : activeOrderModal.disputeStatus === 'ResolvedPartialSplit' ? `
+                <div class="w-full p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 font-bold text-xs space-y-1 text-center shadow-xs">
+                  <div class="flex items-center justify-center gap-2 text-amber-800 text-sm font-extrabold">
+                    <i class="fa-solid fa-scale-balanced text-amber-600"></i> Partial Split Refund Completed
+                  </div>
+                  <p class="text-slate-600 font-medium">
+                    Partial refund credited to your Telebirr wallet according to official mediation decree.
+                  </p>
                 </div>
               ` : activeOrderModal.status !== 'delivered' && activeOrderModal.status !== 'disputed' ? `
                 <button onclick="window.confirmDelivery('${activeOrderModal.id}')" class="btn-primary flex-1 py-3 text-xs cursor-pointer">
@@ -651,8 +685,27 @@ export function renderBuyerView(
                   <i class="fa-solid fa-triangle-exclamation text-red-700 mr-1"></i> Dispute Active: Escrow Frozen Under Admin Arbitration
                 </div>
               ` : `
-                <div class="w-full p-3 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs text-center flex items-center justify-center gap-2">
-                  <i class="fa-solid fa-check-double text-emerald-700"></i> Delivery Completed & Escrow Released to Farmer
+                <div class="w-full space-y-2">
+                  <div class="p-3 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs text-center flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check-double text-emerald-700"></i> Delivery Completed & Escrow Released to Farmer
+                  </div>
+                  ${activeOrderModal.isRated ? `
+                    <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span class="font-extrabold text-amber-600">
+                          ${[1, 2, 3, 4, 5].map(st => `<i class="fa-solid fa-star ${st <= (activeOrderModal.reviewRating || 5) ? 'text-amber-500' : 'text-slate-300'}"></i>`).join('')}
+                        </span>
+                        <span class="font-medium text-slate-700 italic truncate max-w-[200px]">"${activeOrderModal.reviewComment || 'Great produce!'}"</span>
+                      </div>
+                      <button onclick="window.openRateModal('${activeOrderModal.id}')" class="text-emerald-700 hover:text-emerald-900 font-bold text-[11px] underline cursor-pointer">
+                        Edit Review
+                      </button>
+                    </div>
+                  ` : `
+                    <button onclick="window.openRateModal('${activeOrderModal.id}')" class="w-full btn-primary py-2.5 text-xs font-extrabold flex items-center justify-center gap-2 shadow-md bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 cursor-pointer">
+                      <i class="fa-solid fa-star text-amber-200"></i> ${t.rateFarmerBtn || 'Rate Farmer & Leave Review'}
+                    </button>
+                  `}
                 </div>
               `}
             </div>
@@ -742,6 +795,19 @@ function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
                   </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 shrink-0">
+                  ${o.status === 'delivered' ? `
+                    ${o.isRated ? `
+                      <button onclick="window.openRateModal('${o.id}')" class="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors" title="Edit your review">
+                        <i class="fa-solid fa-star text-amber-500"></i>
+                        <span>${o.reviewRating || 5}/5</span>
+                      </button>
+                    ` : `
+                      <button onclick="window.openRateModal('${o.id}')" class="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer transition-transform hover:scale-105">
+                        <i class="fa-solid fa-star"></i>
+                        <span>${t.rateFarmerBtn || 'Rate Farmer'}</span>
+                      </button>
+                    `}
+                  ` : ''}
                   <button onclick="window.openInvoiceModal('${o.id}')" class="btn-secondary text-xs py-1.5 px-3 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 cursor-pointer">
                     <i class="fa-solid fa-file-invoice mr-1"></i> ${t.viewInvoiceBtn}
                   </button>

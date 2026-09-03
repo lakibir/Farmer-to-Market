@@ -19,8 +19,9 @@ public interface IPaymentGateway
 {
     string ProviderName { get; }
 
-    Task<PaymentInitResult> InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, CancellationToken ct = default);
+    Task<PaymentInitResult> InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, string? buyerEmail = null, string? buyerName = null, CancellationToken ct = default);
     Task<EscrowSplitResult> ReleaseEscrowAsync(Guid orderId, decimal totalAmount, CancellationToken ct = default);
     Task<bool> RefundPaymentAsync(Guid orderId, decimal totalAmount, CancellationToken ct = default);
+    Task<bool> VerifyPaymentAsync(string txRef, CancellationToken ct = default);
     bool VerifyWebhookSignature(string payload, string signature);
 }

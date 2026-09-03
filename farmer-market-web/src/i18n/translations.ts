@@ -143,6 +143,25 @@ export const translations = {
     printDocument: "Print / Save PDF",
     closeDocument: "Close Document",
 
+    // Ratings & Reviews
+    rateFarmerBtn: "Rate & Review Farmer",
+    rateFarmerTitle: "Rate Your Produce & Farmer",
+    rateFarmerSubtitle: "Share your rating and feedback to build trust in the Ethiopian agricultural marketplace.",
+    rateYourExperience: "How was the produce quality and farmer service?",
+    starRatingLabel: "Star Rating",
+    reviewCommentLabel: "Detailed Comments & Feedback",
+    reviewCommentPlaceholder: "Describe produce freshness, packing grade, delivery timeliness, and farmer communication...",
+    quickTagsLabel: "Quick Highlights",
+    submitReviewBtn: "Submit Rating & Review",
+    reviewSubmittedSuccess: "Thank you! Your verified review and rating have been recorded.",
+    verifiedBuyerReviews: "Verified Customer Reviews & Feedback",
+    verifiedReviewsTitle: "Customer Reviews",
+    verifiedBuyerBadge: "Verified Wholesale Buyer",
+    ratingScoreText: "out of 5 stars",
+    allReviews: "All Reviews",
+    noReviewsYet: "No customer reviews yet. Be the first to review after delivery!",
+    ratedBadge: "Rated",
+
     // Farmer Portal - Voice Note & Benchmarks
     farmerPortalTitle: "Farmer Produce & Earnings Portal",
     postNewListing: "Post New Produce Listing",
@@ -432,6 +451,25 @@ export const translations = {
     viewArbitrationBtn: "የሽምግልና ውሳኔ ሰነድ",
     printDocument: "አትም / ፒዲኤፍ አስቀምጥ",
     closeDocument: "ሰነዱን ዝጋ",
+
+    // Ratings & Reviews
+    rateFarmerBtn: "ለአርሶ አደሩ ደረጃ ይስጡ እና አስተያየት ይጻፉ",
+    rateFarmerTitle: "ለተረከቡት ምርት እና ለአርሶ አደሩ ደረጃ ይስጡ",
+    rateFarmerSubtitle: "የእርስዎ አስተያየት እና ደረጃ በኢትዮጵያ የግብርና ገበያ ውስጥ መተማመንን ይገነባል።",
+    rateYourExperience: "የምርቱ ጥራት፣ ትኩስነት እና የአርሶ አደሩ አገልግሎት እንዴት ነበር?",
+    starRatingLabel: "የኮከብ ደረጃ",
+    reviewCommentLabel: "ዝርዝር አስተያየት እና ግምገማ",
+    reviewCommentPlaceholder: "ስለ ምርቱ ትኩስነት፣ አሸጋገግ፣ የአቅርቦት ፍጥነት እና የአርሶ አደሩ ግንኙነት ይጻፉ...",
+    quickTagsLabel: "ፈጣን መለያዎች",
+    submitReviewBtn: "ደረጃ እና አስተያየቱን መዝግብ",
+    reviewSubmittedSuccess: "እናመሰግናለን! የእርስዎ ደረጃ እና አስተያየት በተሳካ ሁኔታ ተመዝግቧል።",
+    verifiedBuyerReviews: "የተረጋገጡ የደንበኞች ደረጃ እና አስተያየቶች",
+    verifiedReviewsTitle: "የደንበኞች አስተያየቶች",
+    verifiedBuyerBadge: "የተረጋገጠ የጅምላ ገዢ",
+    ratingScoreText: "ከ 5 ኮከቦች",
+    allReviews: "ሁሉም አስተያየቶች",
+    noReviewsYet: "እስካሁን የተሰጠ አስተያየት የለም። ምርቱን ከተረከቡ በኋላ የመጀመሪያው አስተያየት ሰጪ ይሁኑ!",
+    ratedBadge: "ደረጃ ተሰጥቷል",
 
     // Farmer Portal - Voice Note & Benchmarks
     farmerPortalTitle: "የአርሶ አደር ምርት እና ገቢ ዳሽቦርድ",

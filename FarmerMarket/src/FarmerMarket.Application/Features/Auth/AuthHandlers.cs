@@ -13,7 +13,7 @@ namespace FarmerMarket.Application.Features.Auth;
 // 1. Request OTP Command
 public record RequestOtpCommand(string Phone) : IRequest<Result<RequestOtpResponseDto>>;
 
-public class RequestOtpHandler(IAppDbContext db, ISmsService sms, IOtpService otpService) : IRequestHandler<RequestOtpCommand, Result<RequestOtpResponseDto>>
+public class RequestOtpHandler(IAppDbContext db, ISmsService sms, IOtpService otpService, IEmailService email) : IRequestHandler<RequestOtpCommand, Result<RequestOtpResponseDto>>
 {
     public async Task<Result<RequestOtpResponseDto>> Handle(RequestOtpCommand req, CancellationToken ct)
     {
@@ -35,6 +35,7 @@ public class RequestOtpHandler(IAppDbContext db, ISmsService sms, IOtpService ot
                 Region = "Addis Ababa (Headquarters)",
                 Verified = true,
                 VerificationStatus = VerificationStatus.Approved,
+                Email = "admin@farmertomarket.et",
                 CreatedAt = DateTimeOffset.UtcNow.AddYears(-1)
             };
             db.Users.Add(user);
@@ -55,13 +56,24 @@ public class RequestOtpHandler(IAppDbContext db, ISmsService sms, IOtpService ot
         // Dispatch SMS via Twilio or local SMS simulator
         await sms.SendOtpAsync(phone, code, "am", ct);
 
+        // If user has an email registered, also dispatch OTP via email
+        if (!string.IsNullOrWhiteSpace(user.Email))
+        {
+            await email.SendOtpEmailAsync(user.Email, code, user.Name, "am", ct);
+        }
+
+        var message = !string.IsNullOrWhiteSpace(user.Email)
+            ? $"Verification code dispatched successfully via SMS and Email ({user.Email})."
+            : "Verification code dispatched successfully via SMS.";
+
         // Return success response with demo code for seamless developer/testing experience
         var response = new RequestOtpResponseDto(
-            Message: "Verification code dispatched successfully via SMS.",
+            Message: message,
             DemoCode: code,
             Phone: phone,
             UserName: user.Name,
-            Role: user.Role
+            Role: user.Role,
+            Email: user.Email
         );
 
         return Result<RequestOtpResponseDto>.Success(response);
@@ -89,6 +101,7 @@ public class VerifyOtpHandler(IAppDbContext db, IJwtService jwt, IOtpService otp
                 Region = "Addis Ababa (Headquarters)",
                 Verified = true,
                 VerificationStatus = VerificationStatus.Approved,
+                Email = "admin@farmertomarket.et",
                 CreatedAt = DateTimeOffset.UtcNow.AddYears(-1)
             };
             db.Users.Add(user);
@@ -105,7 +118,7 @@ public class VerifyOtpHandler(IAppDbContext db, IJwtService jwt, IOtpService otp
         var isValid = otpService.ValidateOtp(phone, req.Code.Trim());
         if (!isValid)
         {
-            return Result<AuthResponseDto>.Failure("Invalid or expired verification code. Please check your SMS or click Resend.");
+            return Result<AuthResponseDto>.Failure("Invalid or expired verification code. Please check your SMS/Email or click Resend.");
         }
 
         var token = jwt.GenerateToken(user);
@@ -122,7 +135,8 @@ public class VerifyOtpHandler(IAppDbContext db, IJwtService jwt, IOtpService otp
             user.KycDocumentNumber,
             user.RejectionReason,
             user.WalletBalanceEtb,
-            user.CreatedAt
+            user.CreatedAt,
+            user.Email
         );
 
         return Result<AuthResponseDto>.Success(new AuthResponseDto(token, userDto));
@@ -132,7 +146,7 @@ public class VerifyOtpHandler(IAppDbContext db, IJwtService jwt, IOtpService otp
 // 3. Register New User Command
 public record RegisterUserCommand(RegisterUserDto Dto) : IRequest<Result<AuthResponseDto>>;
 
-public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHandler<RegisterUserCommand, Result<AuthResponseDto>>
+public class RegisterUserHandler(IAppDbContext db, IJwtService jwt, IEmailService email) : IRequestHandler<RegisterUserCommand, Result<AuthResponseDto>>
 {
     public async Task<Result<AuthResponseDto>> Handle(RegisterUserCommand req, CancellationToken ct)
     {
@@ -144,6 +158,15 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHa
 
         if (string.IsNullOrWhiteSpace(dto.Name))
             return Result<AuthResponseDto>.Failure("Full legal name is required.");
+
+        // Optional Email Validation
+        string? cleanEmail = null;
+        if (!string.IsNullOrWhiteSpace(dto.Email))
+        {
+            cleanEmail = dto.Email.Trim().ToLowerInvariant();
+            if (!cleanEmail.Contains('@') || !cleanEmail.Contains('.'))
+                return Result<AuthResponseDto>.Failure("Please enter a valid email address (e.g. user@example.com).");
+        }
 
         // Check if phone already exists
         var existingUser = await db.Users.FirstOrDefaultAsync(u => u.Phone == phone, ct);
@@ -158,6 +181,7 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHa
             Phone = phone,
             Name = dto.Name.Trim(),
             NameAm = string.IsNullOrWhiteSpace(dto.NameAm) ? null : dto.NameAm.Trim(),
+            Email = cleanEmail,
             Role = dto.Role,
             Region = string.IsNullOrWhiteSpace(dto.Region) ? "Addis Ababa" : dto.Region.Trim(),
             Verified = false,
@@ -178,6 +202,12 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHa
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);
 
+        // Send Welcome email if email is provided
+        if (!string.IsNullOrWhiteSpace(cleanEmail))
+        {
+            _ = email.SendWelcomeEmailAsync(cleanEmail, user.Name, user.Role.ToString(), ct);
+        }
+
         var token = jwt.GenerateToken(user);
         var userDto = new UserDto(
             user.Id,
@@ -192,7 +222,8 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt) : IRequestHa
             user.KycDocumentNumber,
             user.RejectionReason,
             user.WalletBalanceEtb,
-            user.CreatedAt
+            user.CreatedAt,
+            user.Email
         );
 
         return Result<AuthResponseDto>.Success(new AuthResponseDto(token, userDto));
@@ -223,7 +254,8 @@ public class GetMeHandler(IAppDbContext db) : IRequestHandler<GetMeQuery, Result
             user.KycDocumentNumber,
             user.RejectionReason,
             user.WalletBalanceEtb,
-            user.CreatedAt
+            user.CreatedAt,
+            user.Email
         ));
     }
 }
@@ -245,7 +277,7 @@ public class UpdateProfileHandler(IAppDbContext db) : IRequestHandler<UpdateProf
 
         // Buyer-specific profile fields (only update if provided)
         if (req.Dto.Email != null)
-            user.Email = req.Dto.Email.Trim();
+            user.Email = string.IsNullOrWhiteSpace(req.Dto.Email) ? null : req.Dto.Email.Trim().ToLowerInvariant();
         if (req.Dto.LanguagePreference != null)
             user.LanguagePreference = req.Dto.LanguagePreference;
         if (req.Dto.SavedDeliveryAddress != null)
@@ -270,7 +302,8 @@ public class UpdateProfileHandler(IAppDbContext db) : IRequestHandler<UpdateProf
             user.KycDocumentNumber,
             user.RejectionReason,
             user.WalletBalanceEtb,
-            user.CreatedAt
+            user.CreatedAt,
+            user.Email
         ));
     }
 }

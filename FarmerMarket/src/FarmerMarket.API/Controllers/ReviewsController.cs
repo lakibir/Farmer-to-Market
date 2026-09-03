@@ -22,6 +22,13 @@ public class ReviewsController(IMediator mediator) : ControllerBase
         return Ok(result.Value);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetAllReviewsQuery(), ct);
+        return Ok(result);
+    }
+
     [HttpGet("user/{userId:guid}")]
     public async Task<IActionResult> GetReviewsForUser(Guid userId, CancellationToken ct)
     {

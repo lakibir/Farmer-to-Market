@@ -8,7 +8,8 @@ export function renderAuthModal(
   lastSentCode: string = '',
   matchedUserName: string = '',
   matchedUserRole: string = '',
-  errorMessage: string = ''
+  errorMessage: string = '',
+  matchedUserEmail: string = ''
 ): string {
   const t = translations[lang];
 
@@ -68,6 +69,11 @@ export function renderAuthModal(
                     <i class="fa-solid fa-user-plus"></i> Register This Phone Now
                   </button>
                 ` : ''}
+                ${mode === 'register' && (errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('sign in')) ? `
+                  <button type="button" onclick="window.setAuthMode('login')" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 text-white rounded-lg font-bold text-xs hover:bg-emerald-800 transition-colors shadow-xs cursor-pointer">
+                    <i class="fa-solid fa-right-to-bracket"></i> Switch to Sign In (ግባ)
+                  </button>
+                ` : ''}
               </div>
             </div>
           ` : ''}
@@ -96,7 +102,7 @@ export function renderAuthModal(
                 </div>
 
                 <button type="submit" id="requestOtpBtn" class="btn-primary w-full py-3.5 text-sm font-bold shadow-md cursor-pointer">
-                  <i class="fa-solid fa-paper-plane mr-1.5"></i> ${lang === 'am' ? 'የኤስኤምኤስ ማረጋገጫ ኮድ ላክ' : 'Verify & Send SMS Code'}
+                  <i class="fa-solid fa-paper-plane mr-1.5"></i> ${lang === 'am' ? 'የኤስኤምኤስ እና የኢሜይል ማረጋገጫ ኮድ ላክ' : 'Verify & Send SMS/Email Code'}
                 </button>
 
                 <!-- Quick Test Accounts from Seed Database -->
@@ -160,17 +166,26 @@ export function renderAuthModal(
                 
                 <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs flex items-center justify-between">
                   <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
-                      <i class="fa-solid fa-comment-sms"></i>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-xs shrink-0">
+                      <i class="fa-solid fa-envelope-circle-check"></i>
                     </div>
                     <div>
-                      <span class="block font-bold">${matchedUserName ? `Account: <strong>${matchedUserName}</strong> (${matchedUserRole})` : 'SMS Dispatched via Twilio Gateway'}</span>
-                      <span class="text-[11px] text-emerald-700 font-medium">Verified Phone: <strong>+251 ${pendingPhone}</strong></span>
-                      ${lastSentCode ? `
-                        <div class="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-white rounded-md border border-emerald-300 text-emerald-900 font-bold text-[10px]">
-                          <span>SMS Code:</span> <code class="font-mono text-emerald-800 text-xs font-black">${lastSentCode}</code>
+                      <span class="block font-extrabold text-slate-900">${matchedUserName ? `Account: <strong>${matchedUserName}</strong> (${matchedUserRole})` : 'Multi-Channel Verification'}</span>
+                      <span class="text-[11px] text-emerald-800 font-medium block">Phone: <strong>+251 ${pendingPhone}</strong></span>
+                      ${matchedUserEmail ? `
+                        <div class="text-[11px] text-emerald-950 font-bold flex items-center gap-1.5 mt-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 shadow-2xs">
+                          <i class="fa-solid fa-envelope text-emerald-600"></i> Code sent to: <span class="underline text-emerald-800">${matchedUserEmail}</span>
                         </div>
                       ` : ''}
+                      ${lastSentCode ? `
+                        <div class="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-100/90 rounded-md border border-emerald-300 text-emerald-950 font-bold text-[10px]">
+                          <span>Demo OTP Code:</span> <code class="font-mono text-emerald-900 text-xs font-black">${lastSentCode}</code>
+                        </div>
+                      ` : `
+                        <div class="text-[10px] text-slate-500 font-medium mt-1">
+                          <i class="fa-solid fa-inbox text-emerald-600 mr-1"></i> Please check your email inbox for the 6-digit code.
+                        </div>
+                      `}
                     </div>
                   </div>
                   <button type="button" onclick="window.resetOtpStep()" class="text-xs text-emerald-800 hover:text-emerald-950 underline font-bold cursor-pointer shrink-0">
@@ -187,9 +202,9 @@ export function renderAuthModal(
                     class="w-full py-3.5 px-4 rounded-xl border border-slate-300 text-center text-3xl font-mono font-black tracking-widest focus:ring-2 focus:ring-emerald-600 focus:outline-none bg-slate-50 text-slate-900 shadow-inner" />
                   
                   <div class="flex items-center justify-between mt-2 text-[11px] text-slate-500 font-medium">
-                    <span>Didn't receive SMS?</span>
+                    <span>Didn't receive code?</span>
                     <button type="button" onclick="window.handleRequestOtp(event)" class="text-emerald-700 hover:underline font-bold cursor-pointer">
-                      Resend SMS Code
+                      Resend Email / SMS Code
                     </button>
                   </div>
                 </div>
@@ -279,6 +294,23 @@ export function renderAuthModal(
                       class="w-full pl-14 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none bg-slate-50 focus:bg-white font-bold" />
                   </div>
                 </div>
+              </div>
+
+              <!-- Optional Email Address Field -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <i class="fa-solid fa-envelope text-emerald-600"></i> ${lang === 'am' ? 'የኢሜይል አድራሻ (አማራጭ)' : 'Email Address (Optional)'}
+                  </label>
+                  <span class="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/80">
+                    ${lang === 'am' ? 'ለኦቲፒ እና የትዕዛዝ ማሳወቂያዎች' : 'For OTP & Email Alerts'}
+                  </span>
+                </div>
+                <input type="email" id="regEmail" placeholder="e.g. tariku.haile@example.com (Optional)" 
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none bg-slate-50 focus:bg-white font-medium" />
+                <p class="text-[11px] text-slate-500 mt-1">
+                  ${lang === 'am' ? 'ኢሜይል ካስገቡ የማረጋገጫ ኮድ (OTP) እና ሁሉም የትዕዛዝ መልዕክቶች በኢሜይልዎ ይደርሳሉ።' : 'If provided, OTP verification codes and order updates will also be sent to your email.'}
+                </p>
               </div>
 
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 flex items-start gap-2.5">

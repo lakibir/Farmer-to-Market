@@ -28,6 +28,20 @@ export interface VerificationReview {
   timestamp: string;
 }
 
+export interface Review {
+  id: string;
+  orderId: string;
+  reviewerId: string;
+  reviewerName: string;
+  reviewerRole?: string;
+  revieweeId: string;
+  revieweeName: string;
+  rating: number; // 1 to 5
+  comment?: string;
+  quickTags?: string[];
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   phone: string;
@@ -225,6 +239,11 @@ export interface Order {
   disputeResolutionNotes?: string;
   isRecurring?: boolean;
   recurringFrequency?: string;
+  isRated?: boolean;
+  reviewRating?: number;
+  reviewComment?: string;
+  reviewQuickTags?: string[];
+  reviewedAt?: string;
   createdAt: string;
 }
 

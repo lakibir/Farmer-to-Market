@@ -9,7 +9,8 @@ public record RequestOtpResponseDto(
     string? DemoCode,
     string Phone,
     string? UserName,
-    UserRole? Role
+    UserRole? Role,
+    string? Email = null
 );
 
 public record VerifyOtpDto(string Phone, string Code);
@@ -20,7 +21,8 @@ public record RegisterUserDto(
     string? NameAm,
     UserRole Role,
     string Region,
-    string? Password = null
+    string? Password = null,
+    string? Email = null
 );
 
 public record AuthResponseDto(
@@ -41,7 +43,8 @@ public record UserDto(
     string? KycDocumentNumber,
     string? RejectionReason,
     decimal? WalletBalanceEtb,
-    DateTimeOffset CreatedAt
+    DateTimeOffset CreatedAt,
+    string? Email = null
 );
 
 public record UpdateProfileDto(

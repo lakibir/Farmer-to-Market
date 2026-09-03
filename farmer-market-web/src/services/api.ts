@@ -8,7 +8,8 @@ import {
   PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry, CreateUserDto,
   Banner, CreateBannerDto, UpdateListingDto,
   PermissionKey, PermissionDefinition, RolePermissionsMap,
-  CommodityPriceIndex, FairPriceRecommendationRequest, FairPriceRecommendationResult, UssdRequest, UssdResponse
+  CommodityPriceIndex, FairPriceRecommendationRequest, FairPriceRecommendationResult, UssdRequest, UssdResponse,
+  Review
 } from '../types';
 import { signalRService } from './signalr.service';
 
@@ -24,6 +25,7 @@ class ApiService {
   // Synced state from PostgreSQL / API
   private listings: Listing[] = [];
   private orders: Order[] = [];
+  private reviews: Review[] = [];
   private notifications: NotificationItem[] = [];
   private standingOrders: StandingOrder[] = [];
   private anomalyAlerts: AnomalyAlert[] = [];
@@ -844,6 +846,236 @@ class ApiService {
         active: true
       }
     ];
+
+    const defaultReviews: Review[] = [
+      {
+        id: "rev-001",
+        orderId: "b1b2c3d4-0001-0000-0000-000000000001",
+        reviewerId: "44444444-4444-4444-4444-444444444444",
+        reviewerName: "Bethlehem Tsegaye (FreshMart Wholesale)",
+        reviewerRole: "buyer",
+        revieweeId: "11111111-1111-1111-1111-111111111111",
+        revieweeName: "Abebe Bekele",
+        rating: 5,
+        comment: "Outstanding tomatoes! Freshly harvested from Bishoftu farm, zero transit bruises, and exact weight. Will reorder weekly with Telebirr escrow.",
+        quickTags: ["🌾 Fresh Produce", "📦 Great Packaging", "⏱️ Fast Dispatch", "🌿 Grade-A Quality"],
+        createdAt: "Yesterday 2:30 PM"
+      },
+      {
+        id: "rev-002",
+        orderId: "b1b2c3d4-0002-0000-0000-000000000002",
+        reviewerId: "44444444-4444-4444-4444-444444444444",
+        reviewerName: "FreshMart Bole Depot",
+        reviewerRole: "buyer",
+        revieweeId: "11111111-1111-1111-1111-111111111111",
+        revieweeName: "Abebe Bekele",
+        rating: 5,
+        comment: "Excellent communication and quality Grade-1 tomatoes. Escrow release was fast and driver arrived on time.",
+        quickTags: ["🤝 Polite & Responsive", "🌿 Grade-A Quality", "💰 Great Price"],
+        createdAt: "3 days ago"
+      },
+      {
+        id: "rev-003",
+        orderId: "b1b2c3d4-0003-0000-0000-000000000003",
+        reviewerId: "44444444-4444-4444-4444-444444444444",
+        reviewerName: "Addis Agro Processing",
+        reviewerRole: "buyer",
+        revieweeId: "22222222-2222-2222-2222-222222222222",
+        revieweeName: "Almaz Tadesse",
+        rating: 5,
+        comment: "Magna white teff quality is unmatched in Addis. Clean, stone-free, and well bagged with official waybill.",
+        quickTags: ["🌿 Grade-A Quality", "🌾 Fresh Produce", "📦 Great Packaging"],
+        createdAt: "5 days ago"
+      },
+      {
+        id: "rev-004",
+        orderId: "b1b2c3d4-0004-0000-0000-000000000004",
+        reviewerId: "44444444-4444-4444-4444-444444444444",
+        reviewerName: "Kaliti Juice & Fresh Hub",
+        reviewerRole: "buyer",
+        revieweeId: "33333333-3333-3333-3333-333333333333",
+        revieweeName: "Chala Gemechu",
+        rating: 4,
+        comment: "Great ripe Hass avocados. Fast freight transit from Hawassa corridor. Very satisfied with the harvest grade.",
+        quickTags: ["⏱️ Fast Dispatch", "💰 Great Price", "🌾 Fresh Produce"],
+        createdAt: "1 week ago"
+      }
+    ];
+
+    const savedReviewsStr = localStorage.getItem('farmerMarketReviews');
+    if (savedReviewsStr) {
+      try {
+        const saved: Review[] = JSON.parse(savedReviewsStr);
+        if (Array.isArray(saved) && saved.length > 0) {
+          this.reviews = saved;
+        } else {
+          this.reviews = defaultReviews;
+        }
+      } catch {
+        this.reviews = defaultReviews;
+      }
+    } else {
+      this.reviews = defaultReviews;
+    }
+
+    const defaultNotifications: NotificationItem[] = [
+      // ── Buyer Notifications ──
+      {
+        id: "notif-b-1",
+        userId: "44444444-4444-4444-4444-444444444444",
+        type: "order",
+        channel: "sms",
+        messageEn: "🌾 [Order Confirmed] Farmer Abebe Bekele confirmed your 150 kg Tomato order. Farm dispatch in progress.",
+        messageAm: "🌾 [ትዕዛዝ ተረጋግጧል] አርሶ አደር አበበ በቀለ የ 150 ኪ.ግ ቲማቲም ትዕዛዝዎን አረጋግጠዋል። ማጓጓዝ ተጀምሯል።",
+        read: false,
+        createdAt: new Date(Date.now() - 1800000).toISOString()
+      },
+      {
+        id: "notif-b-2",
+        userId: "44444444-4444-4444-4444-444444444444",
+        type: "refund",
+        channel: "in_app",
+        messageEn: "💰 [Telebirr Escrow Refund] Admin approved a Full Refund of 4,500 ETB for Order #B1B2C3D4. Funds credited to your Telebirr wallet.",
+        messageAm: "💰 [የቴሌብር ተመላሽ ገንዘብ] አስተዳዳሪው ለትዕዛዝ #B1B2C3D4 የ 4,500 ብር ሙሉ ተመላሽ አጽድቀዋል። ገንዘቡ ወደ ቴሌብር ሂሳብዎ ገብቷል።",
+        read: false,
+        createdAt: new Date(Date.now() - 7200000).toISOString()
+      },
+      {
+        id: "notif-b-3",
+        userId: "44444444-4444-4444-4444-444444444444",
+        type: "dispatch",
+        channel: "sms",
+        messageEn: "🚚 [Freight GPS Update] Driver Dawit is 15 minutes away from your Bole distribution depot.",
+        messageAm: "🚚 [የጭነት መገኛ መረጃ] አሽከርካሪ ዳዊት ወደ ቦሌ ማዕከልዎ ለመድረስ 15 ደቂቃ ይቀረዋል።",
+        read: true,
+        createdAt: new Date(Date.now() - 14400000).toISOString()
+      },
+
+      // ── Farmer Notifications ──
+      {
+        id: "notif-f-1",
+        userId: "11111111-1111-1111-1111-111111111111",
+        type: "order",
+        channel: "sms",
+        messageEn: "🌾 [New Wholesale Order] FreshMart Bole placed an order for 200 kg Red Tomatoes (9,000 ETB). Please confirm harvest readiness.",
+        messageAm: "🌾 [አዲስ የጅምላ ትዕዛዝ] ፍሬሽማርት ቦሌ ለ 200 ኪ.ግ ቀይ ቲማቲም (ብር 9,000) ትዕዛዝ ሰጥተዋል። እባክዎ ያረጋግጡ።",
+        read: false,
+        createdAt: new Date(Date.now() - 900000).toISOString()
+      },
+      {
+        id: "notif-f-2",
+        userId: "11111111-1111-1111-1111-111111111111",
+        type: "review",
+        channel: "in_app",
+        messageEn: "⭐ [New 5-Star Rating] Buyer Bethlehem left a verified 5★ rating: \"Outstanding tomatoes! Freshly harvested and zero transit bruises.\"",
+        messageAm: "⭐ [አዲስ 5-ኮከብ ደረጃ] ደንበኛ ቤተልሔም የ 5★ ደረጃ ሰጥተውዎታል፡ \"እጅግ በጣም ምርጥ ቲማቲም! ትኩስ እና ጥራት ያለው።\"",
+        read: false,
+        createdAt: new Date(Date.now() - 3600000).toISOString()
+      },
+      {
+        id: "notif-f-3",
+        userId: "11111111-1111-1111-1111-111111111111",
+        type: "payout",
+        channel: "sms",
+        messageEn: "💰 [Telebirr Payout Received] 48,200 ETB (90% produce share) deposited to your Telebirr wallet for completed deliveries.",
+        messageAm: "💰 [የቴሌብር ክፍያ ገቢ ሆነ] ብር 48,200 (90% የምርት ዋጋ) ለተጠናቀቁ ትዕዛዞች ወደ ቴሌብር ሂሳብዎ ገብቷል።",
+        read: true,
+        createdAt: new Date(Date.now() - 86400000).toISOString()
+      },
+      {
+        id: "notif-f-4",
+        userId: "11111111-1111-1111-1111-111111111111",
+        type: "kyc",
+        channel: "in_app",
+        messageEn: "🛡️ [Fayda KYC Verified] Your Kebele farming certification and National ID have been approved. Verified Producer badge activated!",
+        messageAm: "🛡️ [የፋይዳ ማረጋገጫ ጸድቋል] የቀበሌ እርሻ ማረጋገጫዎ እና ብሔራዊ መታወቂያዎ ጸድቋል። የተረጋገጠ አምራች ባጅ ነቅቷል!",
+        read: true,
+        createdAt: new Date(Date.now() - 172800000).toISOString()
+      },
+
+      // ── Driver / Transporter Notifications ──
+      {
+        id: "notif-d-1",
+        userId: "55555555-5555-5555-5555-555555555555",
+        type: "dispatch",
+        channel: "in_app",
+        messageEn: "🚚 [New Freight Route] Bishoftu → Addis Ababa East Shewa multi-farm route ready for pickup. Commission: 1,450 ETB + 350 ETB rural subsidy.",
+        messageAm: "🚚 [አዲስ የጉዞ መስመር] የቢሾፍቱ → አዲስ አበባ የጭነት መስመር ተዘጋጅቷል። ኮሚሽን፡ ብር 1,450 + ብር 350 ድጎማ።",
+        read: false,
+        createdAt: new Date(Date.now() - 1200000).toISOString()
+      },
+      {
+        id: "notif-d-2",
+        userId: "55555555-5555-5555-5555-555555555555",
+        type: "payout",
+        channel: "sms",
+        messageEn: "💰 [Trip Settlement] 5% freight fee (650 ETB) credited to Telebirr wallet for verified GPS drop-off.",
+        messageAm: "💰 [የጉዞ ክፍያ] 5% የትራንስፖርት ክፍያ (ብር 650) በ GPS ለተረጋገጠ ርክክብ ወደ ቴሌብር ሂሳብዎ ገብቷል።",
+        read: true,
+        createdAt: new Date(Date.now() - 10800000).toISOString()
+      },
+
+      // ── Admin & SuperAdmin Notifications ──
+      {
+        id: "notif-a-1",
+        userId: "99999999-9999-9999-9999-999999999999",
+        type: "admin_alert",
+        channel: "in_app",
+        messageEn: "🛡️ [KYC Verification Queue] 3 new smallholder farmers submitted Kebele certifications for Fayda validation.",
+        messageAm: "🛡️ [የማረጋገጫ ወረፋ] 3 አዳዲስ አርሶ አደሮች የቀበሌ ማረጋገጫ ሰነዶችን አቅርበዋል።",
+        read: false,
+        createdAt: new Date(Date.now() - 600000).toISOString()
+      },
+      {
+        id: "notif-a-2",
+        userId: "99999999-9999-9999-9999-999999999999",
+        type: "dispute",
+        channel: "in_app",
+        messageEn: "⚖️ [Legal Arbitration Closed] Order #B1B2C3D4 dispute arbitrated. Full refund executed via Telebirr API.",
+        messageAm: "⚖️ [የግልግል ዳኝነት ተጠናቀቀ] ለትዕዛዝ #B1B2C3D4 የተደረገው ክርክር ተጠናቆ ተመላሽ ተደርጓል።",
+        read: true,
+        createdAt: new Date(Date.now() - 5400000).toISOString()
+      }
+    ];
+
+    const savedNotifsStr = localStorage.getItem('farmerMarketNotifications');
+    if (savedNotifsStr) {
+      try {
+        const savedN: NotificationItem[] = JSON.parse(savedNotifsStr);
+        if (Array.isArray(savedN) && savedN.length > 0) {
+          // Merge defaults with any saved so new users get proper notifications
+          const combined = [...savedN];
+          defaultNotifications.forEach(defN => {
+            if (!combined.some(n => n.id === defN.id || (n.userId === defN.userId && n.messageEn === defN.messageEn))) {
+              combined.push(defN);
+            }
+          });
+          this.notifications = combined;
+        } else {
+          this.notifications = defaultNotifications;
+        }
+      } catch {
+        this.notifications = defaultNotifications;
+      }
+    } else {
+      this.notifications = defaultNotifications;
+    }
+  }
+
+  public saveNotificationsToStorage() {
+    try {
+      localStorage.setItem('farmerMarketNotifications', JSON.stringify(this.notifications));
+    } catch (e) {
+      console.warn('Failed to save notifications to storage', e);
+    }
+  }
+
+  private saveReviewsToStorage() {
+    try {
+      localStorage.setItem('farmerMarketReviews', JSON.stringify(this.reviews));
+    } catch (e) {
+      console.warn('Failed to save reviews to storage', e);
+    }
   }
 
   private loadOfflineQueue() {
@@ -1014,7 +1246,7 @@ class ApiService {
   public async updateTwoFactor(setting: any) { const result = await this.accountRequest('two-factor', { method: 'PUT', body: JSON.stringify(setting) }); await this.fetchAccountData(); return result; }
   public async revokeOtherSessions() { await this.accountRequest('sessions/revoke-others', { method: 'POST' }); await this.fetchAccountData(); }
 
-  public async requestOtp(phone: string): Promise<{ demoCode?: string; message: string; phone: string; userName?: string; role?: string }> {
+  public async requestOtp(phone: string): Promise<{ demoCode?: string; message: string; phone: string; userName?: string; role?: string; email?: string }> {
     const cleanPhone = phone.startsWith('+251') ? phone.replace(/\s+/g, '') : '+251' + phone.replace(/^0+/, '').replace(/\s+/g, '');
     try {
       const res = await fetch('/api/auth/request-otp', {
@@ -1027,21 +1259,14 @@ class ApiService {
         return await res.json();
       }
 
-      // Check if user exists in local seed list
-      const localUser = this.allUsers.find(u => u.phone.replace(/\s+/g, '') === cleanPhone);
-      if (localUser) {
-        return {
-          demoCode: '888888',
-          message: `Verification code dispatched via SMS simulator for ${localUser.name}.`,
-          phone: cleanPhone,
-          userName: localUser.name,
-          role: localUser.role
-        };
-      }
-
       const err = await res.json().catch(() => ({ error: 'Failed to request OTP' }));
       throw new Error(err.error || 'Failed to request OTP. Please check your phone number.');
     } catch (err: any) {
+      if (err.message && !err.message.includes('Failed to fetch')) {
+        throw err;
+      }
+
+      // Network unreachable fallback for offline demo
       const localUser = this.allUsers.find(u => u.phone.replace(/\s+/g, '') === cleanPhone);
       if (localUser) {
         return {
@@ -1049,7 +1274,8 @@ class ApiService {
           message: `Verification code dispatched via SMS simulator for ${localUser.name}.`,
           phone: cleanPhone,
           userName: localUser.name,
-          role: localUser.role
+          role: localUser.role,
+          email: localUser.email
         };
       }
       throw err;
@@ -1076,6 +1302,7 @@ class ApiService {
           phone: data.user.phone,
           name: data.user.name,
           nameAm: data.user.nameAm,
+          email: data.user.email,
           role: (data.user.role || 'buyer').toLowerCase() as UserRole,
           region: data.user.region,
           verified: data.user.verified ?? (vStatus === 'Approved'),
@@ -1105,11 +1332,17 @@ class ApiService {
         this.notify();
         return user;
       }
-    } catch (e) {
+
+      const err = await res.json().catch(() => ({ error: 'Invalid verification code' }));
+      throw new Error(err.error || 'Invalid verification code');
+    } catch (e: any) {
+      if (e.message && !e.message.includes('Failed to fetch')) {
+        throw e;
+      }
       console.warn('Network verifyOtp failed, checking local seed users', e);
     }
 
-    // Local fallback for Super Admin and seeded accounts
+    // Local fallback only for network failure on Super Admin and seeded accounts
     const localUser = this.allUsers.find(u => u.phone.replace(/\s+/g, '') === cleanPhone);
     if (localUser) {
       this.currentUser = localUser;
@@ -1124,9 +1357,10 @@ class ApiService {
     throw new Error('Invalid verification code or phone number.');
   }
 
-  public async registerUser(name: string, nameAm: string | undefined, phone: string, role: UserRole, region: string): Promise<User> {
+  public async registerUser(name: string, nameAm: string | undefined, phone: string, role: UserRole, region: string, email?: string): Promise<User> {
     const cleanPhone = phone.startsWith('+251') ? phone.replace(/\s+/g, '') : '+251' + phone.replace(/^0+/, '').replace(/\s+/g, '');
     const roleFormatted = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+    const cleanEmail = email && email.trim() ? email.trim() : undefined;
 
     let createdUser: User;
 
@@ -1139,7 +1373,8 @@ class ApiService {
           nameAm: nameAm || null,
           phone: cleanPhone,
           role: roleFormatted,
-          region
+          region,
+          email: cleanEmail || null
         })
       });
 
@@ -1153,6 +1388,7 @@ class ApiService {
           phone: data.user.phone,
           name: data.user.name,
           nameAm: data.user.nameAm,
+          email: data.user.email || cleanEmail,
           role: (data.user.role || 'buyer').toLowerCase() as UserRole,
           region: data.user.region,
           verified: false,
@@ -1177,12 +1413,17 @@ class ApiService {
         throw new Error(err.error || 'Registration failed');
       }
     } catch (err: any) {
-      console.warn('Backend register call fallback to local state', err);
+      if (err.message && !err.message.includes('Failed to fetch')) {
+        // Real API rejection error from backend (e.g. duplicate number, validation failure)
+        throw err;
+      }
+      console.warn('Backend register call offline fallback to local state', err);
       createdUser = {
         id: 'user-' + Date.now(),
         phone: cleanPhone,
         name,
         nameAm: nameAm || name,
+        email: cleanEmail,
         role,
         region,
         verified: false,
@@ -1271,9 +1512,8 @@ class ApiService {
           voiceNoteUrl: l.voiceNoteUrl,
           voiceNoteTranscript: l.voiceNoteTranscript,
           marketBenchmarkPrice: l.marketBenchmarkPrice || l.pricePerKg,
-          moderationStatus: l.moderationStatus || 'Approved',
-          farmerRating: l.farmerRating || 4.9,
-          reviewCount: l.reviewCount || 14,
+          farmerRating: this.getFarmerRatingStats(l.farmerId).reviewCount > 0 ? this.getFarmerRatingStats(l.farmerId).averageRating : (l.farmerRating || 4.9),
+          reviewCount: this.getFarmerRatingStats(l.farmerId).reviewCount > 0 ? this.getFarmerRatingStats(l.farmerId).reviewCount : (l.reviewCount || 14),
           repeatBuyerCount: 18,
           onTimeDeliveryRate: 99,
           createdAt: l.createdAt
@@ -1505,14 +1745,19 @@ class ApiService {
             disputeReason: o.disputeReason,
             disputePhoto: o.disputePhoto,
             requestedRefundPercent: o.requestedRefundPercent || 100,
-            disputeStatus: o.disputeStatus || 'None',
             disputeResolutionNotes: o.disputeResolutionNotes,
             isRecurring: o.isRecurring || false,
             recurringFrequency: o.recurringFrequency,
             confirmedAt: o.confirmedAt,
+            isRated: !!this.reviews.find(r => r.orderId === o.id) || o.isRated,
+            reviewRating: this.reviews.find(r => r.orderId === o.id)?.rating || o.reviewRating,
+            reviewComment: this.reviews.find(r => r.orderId === o.id)?.comment || o.reviewComment,
+            reviewQuickTags: this.reviews.find(r => r.orderId === o.id)?.quickTags || o.reviewQuickTags,
+            reviewedAt: this.reviews.find(r => r.orderId === o.id)?.createdAt || o.reviewedAt,
             createdAt: o.createdAt
           };
         });
+        this.recalculateAllFarmerRatings();
         this.notify();
         return this.orders;
       }
@@ -1531,9 +1776,12 @@ class ApiService {
     return this.orders; // Admin
   }
 
-  public async placeOrder(listingId: string, qtyKg: number, deliveryAddress?: string, isRecurring = false, frequency = 'Weekly', paymentMethodId?: string): Promise<Order> {
+  public async placeOrder(listingId: string, qtyKg: number, deliveryAddress?: string, isRecurring = false, frequency = 'Weekly', paymentMethodId?: string): Promise<{ order: Order; paymentUrl?: string; outTradeNo?: string }> {
     const listing = this.listings.find(l => l.id === listingId);
     if (!listing) throw new Error("Listing not found");
+
+    const isGuid = (val?: string) => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    const validPaymentMethodId = isGuid(paymentMethodId) ? paymentMethodId : null;
 
     const res = await fetch('/api/orders', {
       method: 'POST',
@@ -1542,30 +1790,138 @@ class ApiService {
         listingId,
         qtyKg,
         deliveryAddress: deliveryAddress || this.currentUser?.region || 'Addis Ababa (Bole)',
-        paymentMethodId: paymentMethodId || null,
+        paymentMethodId: validPaymentMethodId,
         isRecurring,
         recurringFrequency: isRecurring ? frequency : null
       })
     });
 
     if (!res.ok) {
-      throw new Error('Failed to place order in database');
+      if (res.status === 401) {
+        throw new Error('Please sign in first to place your order.');
+      }
+      if (res.status === 403) {
+        throw new Error('Your account permissions do not allow placing this order.');
+      }
+      const err = await res.json().catch(() => null);
+      let errorMsg = err?.error || err?.message;
+      if (!errorMsg && err?.errors) {
+        errorMsg = Object.values(err.errors).flat().join(', ');
+      }
+      throw new Error(errorMsg || `Failed to place order (HTTP ${res.status})`);
     }
+
+    const initData = await res.json().catch(() => null);
 
     await this.fetchOrders();
     await this.fetchListings();
-    return this.orders[0] || this.orders.find(o => o.listingId === listingId)!;
+    const order = this.orders[0] || this.orders.find(o => o.listingId === listingId)!;
+    const paymentUrl = initData?.telebirrPaymentUrl || initData?.TelebirrPaymentUrl || initData?.paymentUrl || initData?.checkoutUrl || undefined;
+    const outTradeNo = initData?.outTradeNo || initData?.OutTradeNo || undefined;
+
+    // ── Dispatch notifications for Farmer, Buyer, and Transporters ──
+    const buyerName = this.currentUser?.name || 'Wholesale Buyer';
+    const prodName = listing.productName;
+    const prodNameAm = listing.nameAm || prodName;
+    const totalEtb = order ? order.totalEtb : Math.round(qtyKg * listing.pricePerKg);
+
+    // 1. Farmer notification
+    this.addNotification({
+      id: 'notif-ord-f-' + Date.now(),
+      userId: listing.farmerId,
+      type: 'order',
+      channel: 'sms',
+      messageEn: `🌾 [New Order Alert] ${buyerName} placed an order for ${qtyKg} kg of ${prodName} (${totalEtb.toLocaleString()} ETB). Telebirr escrow held. Please confirm dispatch.`,
+      messageAm: `🌾 [አዲስ ትዕዛዝ] ${buyerName} ለ ${qtyKg} ኪ.ግ ${prodNameAm} ትዕዛዝ አቅርበዋል (ብር ${totalEtb.toLocaleString()})። የቴሌብር ክፍያ በዋስትና ተይዟል። እባክዎ ያረጋግጡ።`,
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+
+    // 2. Buyer confirmation notification
+    if (this.currentUser) {
+      this.addNotification({
+        id: 'notif-ord-b-' + Date.now(),
+        userId: this.currentUser.id,
+        type: 'order',
+        channel: 'in_app',
+        messageEn: `📦 [Order Placed] Order placed for ${qtyKg} kg ${prodName} (${totalEtb.toLocaleString()} ETB). Farmer ${listing.farmerName} notified for pickup dispatch.`,
+        messageAm: `📦 [ትዕዛዝ ተቀምጧል] ለ ${qtyKg} ኪ.ግ ${prodNameAm} (ብር ${totalEtb.toLocaleString()}) ትዕዛዝዎ ተልኳል። አርሶ አደር ${listing.farmerNameAm || listing.farmerName} እንዲያረጋግጡ ተልኳል።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    // 3. Driver dispatch notification
+    this.addNotification({
+      id: 'notif-ord-d-' + Date.now(),
+      userId: '55555555-5555-5555-5555-555555555555',
+      type: 'dispatch',
+      channel: 'in_app',
+      messageEn: `🚚 [New Freight Dispatch] ${qtyKg} kg ${prodName} route available from ${listing.region} to ${deliveryAddress || 'Addis Ababa'}. Pickup ready soon.`,
+      messageAm: `🚚 [አዲስ የጭነት መስመር] የ ${qtyKg} ኪ.ግ ${prodNameAm} ጭነት ከ${listing.region} ወደ ${deliveryAddress || 'አዲስ አበባ'} ይገኛል።`,
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+
+    return {
+      order,
+      paymentUrl,
+      outTradeNo
+    };
+  }
+
+  public async verifyChapaPayment(txRef: string): Promise<any> {
+    try {
+      const res = await fetch(`/api/payments/chapa/verify/${encodeURIComponent(txRef)}`);
+      if (res.ok) {
+        const data = await res.json();
+        await this.fetchOrders();
+        this.notify();
+        return data;
+      }
+    } catch (e) {
+      console.warn('Verify Chapa payment error', e);
+    }
+    return null;
   }
 
   public async confirmOrderByFarmer(orderId: string) {
+    const order = this.orders.find(o => o.id === orderId);
     await fetch(`/api/orders/${orderId}/confirm`, {
       method: 'PUT',
       headers: this.getAuthHeaders()
     });
     await this.fetchOrders();
+
+    if (order) {
+      // 1. Notify Buyer
+      this.addNotification({
+        id: 'notif-conf-b-' + Date.now(),
+        userId: order.buyerId,
+        type: 'order',
+        channel: 'sms',
+        messageEn: `✅ [Order Confirmed] Farmer ${order.farmerName} has packaged and confirmed order #${order.id.slice(0, 8).toUpperCase()} (${order.productName}). Driver dispatching to farm.`,
+        messageAm: `✅ [ትዕዛዝ ተረጋግጧል] አርሶ አደር ${order.farmerNameAm || order.farmerName} ትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} አረጋግጠዋል። አሽከርካሪ ወደ እርሻው በመጓዝ ላይ ነው።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      // 2. Notify Driver
+      this.addNotification({
+        id: 'notif-conf-d-' + Date.now(),
+        userId: order.driverId || '55555555-5555-5555-5555-555555555555',
+        type: 'dispatch',
+        channel: 'in_app',
+        messageEn: `🚚 [Ready for Pickup] Order #${order.id.slice(0, 8).toUpperCase()} (${order.qtyKg} kg ${order.productName}) is packaged and ready for farm loading at ${order.farmerRegion || 'Oromia'}.`,
+        messageAm: `🚚 [ለመጫን ዝግጁ] ትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} (${order.qtyKg} ኪ.ግ ${order.productNameAm || order.productName}) በእርሻው ላይ ተዘጋጅቷል።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
   }
 
   public async pickupOrderByDriver(orderId: string, photo?: string) {
+    const order = this.orders.find(o => o.id === orderId);
     if (this.isOfflineMode) {
       this.offlineQueue.push({
         id: 'off-' + Date.now(),
@@ -1576,7 +1932,6 @@ class ApiService {
         synced: false
       });
       this.saveOfflineQueue();
-      const order = this.orders.find(o => o.id === orderId);
       if (order) {
         order.status = 'picked_up';
         order.pickupPhoto = photo;
@@ -1591,9 +1946,36 @@ class ApiService {
       body: JSON.stringify({ pickupPhoto: photo || 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&auto=format&fit=crop&q=80' })
     });
     await this.fetchOrders();
+
+    if (order) {
+      // 1. Notify Buyer
+      this.addNotification({
+        id: 'notif-pick-b-' + Date.now(),
+        userId: order.buyerId,
+        type: 'dispatch',
+        channel: 'sms',
+        messageEn: `🚚 [Produce In Transit] Driver ${order.driverName || 'Dawit'} picked up your ${order.qtyKg} kg ${order.productName} with verified GPS photo proof. In transit to destination.`,
+        messageAm: `🚚 [በጉዞ ላይ ነው] አሽከርካሪ ${order.driverName || 'ዳዊት'} ${order.qtyKg} ኪ.ግ ${order.productNameAm || order.productName} ከእርሻው ተረክቦ በመጓዝ ላይ ነው።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      // 2. Notify Farmer
+      this.addNotification({
+        id: 'notif-pick-f-' + Date.now(),
+        userId: order.farmerId,
+        type: 'order',
+        channel: 'in_app',
+        messageEn: `🚚 [Farm Pickup Complete] Driver ${order.driverName || 'Dawit'} loaded order #${order.id.slice(0, 8).toUpperCase()}. Payout will release upon buyer delivery confirmation.`,
+        messageAm: `🚚 [ምርት ተጭኗል] አሽከርካሪ ${order.driverName || 'ዳዊት'} ትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} ጭኗል። ክፍያው ደንበኛው ሲረከብ ይለቀቃል።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
   }
 
   public async confirmDeliveryByBuyer(orderId: string, proofPhoto?: string, lat?: number, lng?: number) {
+    const order = this.orders.find(o => o.id === orderId);
     await fetch(`/api/orders/${orderId}/deliver`, {
       method: 'PUT',
       headers: this.getAuthHeaders(),
@@ -1604,11 +1986,53 @@ class ApiService {
       })
     });
     await this.fetchOrders();
+
+    if (order) {
+      const farmerCut = order.farmerCut || Math.round(order.totalEtb * 0.90);
+      const driverCut = order.driverCut || Math.round(order.totalEtb * 0.05);
+
+      // 1. Notify Farmer: Payout released
+      this.addNotification({
+        id: 'notif-del-f-' + Date.now(),
+        userId: order.farmerId,
+        type: 'payout',
+        channel: 'sms',
+        messageEn: `💰 [Telebirr Payout Released] Buyer confirmed delivery for order #${order.id.slice(0, 8).toUpperCase()}. 90% produce share (${farmerCut.toLocaleString()} ETB) credited to your Telebirr wallet!`,
+        messageAm: `💰 [የቴሌብር ክፍያ ተለቋል] ደንበኛው የትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} ርክክብ አረጋግጠዋል። 90% የምርት ዋጋ (${farmerCut.toLocaleString()} ብር) ወደ ቴሌብር ሂሳብዎ ገብቷል!`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      // 2. Notify Driver: Delivery fee + Subsidy credited
+      this.addNotification({
+        id: 'notif-del-d-' + Date.now(),
+        userId: order.driverId || '55555555-5555-5555-5555-555555555555',
+        type: 'payout',
+        channel: 'sms',
+        messageEn: `💰 [Freight Fee Credited] 5% delivery fee (${driverCut.toLocaleString()} ETB) + rural road subsidy deposited to your Telebirr driver wallet.`,
+        messageAm: `💰 [የትራንስፖርት ክፍያ ገቢ ሆነ] 5% የትራንስፖርት ክፍያ (${driverCut.toLocaleString()} ብር) እና የገጠር ድጎማ ወደ ቴሌብር ሂሳብዎ ገብቷል።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      // 3. Notify Buyer: Rate Farmer prompt
+      this.addNotification({
+        id: 'notif-del-b-' + Date.now(),
+        userId: order.buyerId,
+        type: 'review',
+        channel: 'in_app',
+        messageEn: `⭐ [Rate Your Farmer] Delivery of ${order.qtyKg} kg ${order.productName} completed. Leave a verified star rating to help farmer ${order.farmerName}.`,
+        messageAm: `⭐ [አርሶ አደሩን ደረጃ ይስጡ] የ ${order.qtyKg} ኪ.ግ ${order.productNameAm || order.productName} ርክክብ ተጠናቋል። እባክዎ ለአርሶ አደር ${order.farmerNameAm || order.farmerName} ደረጃ ይስጡ።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
   }
 
   public async disputeOrder(orderId: string, reason: string, photo?: string, refundPercent = 50) {
+    const order = this.orders.find(o => o.id === orderId);
     const res = await fetch(`/api/orders/${orderId}/dispute`, {
-      method: 'PUT',
+      method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
         reason,
@@ -1619,22 +2043,415 @@ class ApiService {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Could not submit the dispute.');
     await this.fetchOrders();
+
+    if (order) {
+      // 1. Notify Admin
+      this.addNotification({
+        id: 'notif-disp-a-' + Date.now(),
+        userId: '99999999-9999-9999-9999-999999999999',
+        type: 'dispute',
+        channel: 'in_app',
+        messageEn: `⚠️ [Dispute Raised] Order #${order.id.slice(0, 8).toUpperCase()} (${order.productName}) disputed by Buyer ${order.buyerName}. Reason: "${reason}". Escrow frozen under arbitration.`,
+        messageAm: `⚠️ [ቅሬታ ቀርቧል] ለትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} በገዢ ${order.buyerName} ቅሬታ ቀርቧል። ምክንያት፡ "${reason}"። ክፍያው በግልግል ሂደት ታግዷል።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      // 2. Notify Farmer
+      this.addNotification({
+        id: 'notif-disp-f-' + Date.now(),
+        userId: order.farmerId,
+        type: 'dispute',
+        channel: 'sms',
+        messageEn: `⚠️ [Dispute Notice] Buyer filed a dispute for Order #${order.id.slice(0, 8).toUpperCase()} (${order.productName}). Reason: "${reason}". Admin arbitration is in progress.`,
+        messageAm: `⚠️ [የቅሬታ ማስታወቂያ] ለትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} ቅሬታ ቀርቧል። ምክንያት፡ "${reason}"። የአስተዳዳሪ ግልግል በሂደት ላይ ነው።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+    }
   }
 
   public async resolveDispute(orderId: string, resolution: 'ReleaseToFarmer' | 'RefundBuyer' | 'PartialSplit', farmerShare = 50, buyerRefund = 50) {
-    const res = await fetch(`/api/admin/orders/${orderId}/resolve-dispute`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify({
-        resolution,
-        notes: `Arbitrated via Admin Console (${resolution})`,
-        farmerSharePercent: farmerShare,
-        buyerRefundPercent: buyerRefund
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Could not resolve the dispute.');
+    const order = this.orders.find(o => o.id === orderId);
+
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/resolve-dispute`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          resolution,
+          notes: `Arbitrated via Admin Console (${resolution})`,
+          farmerSharePercent: farmerShare,
+          buyerRefundPercent: buyerRefund
+        })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.warn('Backend resolve dispute returned error', data);
+      }
+    } catch (e) {
+      console.warn('Backend resolve dispute error, proceeding with local resolution', e);
+    }
+
+    if (order) {
+      order.status = resolution === 'RefundBuyer' ? 'cancelled' : 'delivered';
+      order.escrowHeld = false;
+      order.disputeStatus = resolution === 'RefundBuyer' ? 'ResolvedRefundBuyer' : resolution === 'PartialSplit' ? 'ResolvedPartialSplit' : 'ResolvedReleaseFarmer';
+      order.disputeResolutionNotes = `Arbitrated via Admin Console (${resolution})`;
+
+      const totalEtb = order.totalEtb;
+      const refundAmount = resolution === 'RefundBuyer' 
+        ? totalEtb 
+        : resolution === 'PartialSplit' 
+          ? Math.round(totalEtb * (buyerRefund / 100)) 
+          : 0;
+
+      // ── CREATE BUYER IN-APP & SMS REFUND NOTIFICATIONS ──
+      if (refundAmount > 0) {
+        const buyerNotif: NotificationItem = {
+          id: 'ref-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          userId: order.buyerId,
+          type: 'refund',
+          channel: 'in_app',
+          messageEn: `💰 [Telebirr Escrow Refund] Admin approved a ${resolution === 'RefundBuyer' ? 'Full 100%' : `${buyerRefund}% Partial`} Refund of ${refundAmount.toLocaleString()} ETB for order #${order.id.slice(0, 8).toUpperCase()} (${order.productName}). Funds have been credited to your Telebirr wallet.`,
+          messageAm: `💰 [የቴሌብር ተመላሽ ገንዘብ] አስተዳዳሪው ለትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} (${order.productNameAm || order.productName}) የ ${refundAmount.toLocaleString()} ብር ተመላሽ አጽድቀዋል። ገንዘቡ ወደ ቴሌብር ሂሳብዎ ገብቷል።`,
+          read: false,
+          createdAt: new Date().toISOString(),
+          sentAt: new Date().toISOString()
+        };
+
+        const buyerSmsNotif: NotificationItem = {
+          id: 'sms-ref-' + Date.now(),
+          userId: order.buyerId,
+          type: 'refund',
+          channel: 'sms',
+          messageEn: `[Telebirr SMS] Refund of ${refundAmount.toLocaleString()} ETB for Order #${order.id.slice(0, 8).toUpperCase()} completed. Ref: TB-REF-${order.id.slice(0, 6).toUpperCase()}. Wallet updated.`,
+          messageAm: `[የቴሌብር SMS] ለትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} የ ${refundAmount.toLocaleString()} ብር ተመላሽ ተጠናቋል። ማጣቀሻ ቁጥር: TB-REF-${order.id.slice(0, 6).toUpperCase()}።`,
+          read: false,
+          createdAt: new Date().toISOString(),
+          sentAt: new Date().toISOString()
+        };
+
+        this.notifications.unshift(buyerNotif, buyerSmsNotif);
+        this.saveNotificationsToStorage();
+
+        // Update buyer wallet balance if found
+        const buyerUser = this.allUsers.find(u => u.id === order.buyerId);
+        if (buyerUser) {
+          buyerUser.walletBalanceEtb = (buyerUser.walletBalanceEtb || 0) + refundAmount;
+        }
+        if (this.currentUser && this.currentUser.id === order.buyerId) {
+          this.currentUser.walletBalanceEtb = (this.currentUser.walletBalanceEtb || 0) + refundAmount;
+        }
+
+        // Add audit log
+        this.addAuditLog({
+          actorId: this.currentUser?.id || 'admin',
+          actorName: this.currentUser?.name || 'Compliance Admin',
+          actorRole: 'admin',
+          action: 'DISPUTE_REFUND_BUYER',
+          category: 'DISPUTE',
+          targetResource: 'Order',
+          targetId: order.id,
+          ipAddress: '196.188.12.45',
+          userAgent: navigator.userAgent,
+          details: `Processed ${resolution === 'RefundBuyer' ? 'Full' : `${buyerRefund}% Partial`} refund of ${refundAmount.toLocaleString()} ETB for Buyer ${order.buyerName} on order #${order.id.slice(0, 8)}.`
+        });
+      } else {
+        const buyerNotif: NotificationItem = {
+          id: 'disp-close-' + Date.now(),
+          userId: order.buyerId,
+          type: 'dispute_resolution',
+          channel: 'in_app',
+          messageEn: `⚖️ [Arbitration Decree] Dispute for Order #${order.id.slice(0, 8).toUpperCase()} (${order.productName}) has been concluded. Escrow released to Farmer ${order.farmerName}.`,
+          messageAm: `⚖️ [የግልግል ዳኝነት ውሳኔ] ለትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} የቀረበው ቅሬታ ተዘግቷል። ክፍያው ለአርሶ አደር ${order.farmerNameAm || order.farmerName} ተለቋል።`,
+          read: false,
+          createdAt: new Date().toISOString()
+        };
+        this.notifications.unshift(buyerNotif);
+        this.saveNotificationsToStorage();
+      }
+    }
+
     await this.fetchOrders();
+    this.notify();
+  }
+
+  // ==================== RATINGS & REVIEWS API ====================
+
+  public getReviews(revieweeId?: string): Review[] {
+    if (revieweeId) {
+      return this.reviews.filter(r => r.revieweeId === revieweeId);
+    }
+    return this.reviews;
+  }
+
+  public getReviewsForFarmer(farmerId: string): Review[] {
+    const cleanId = (farmerId || '').toLowerCase().trim();
+    if (!cleanId) return [];
+    const farmerUser = this.getUserById(farmerId);
+    const farmerName = farmerUser?.name?.toLowerCase().trim();
+
+    return this.reviews.filter(r => {
+      const rId = (r.revieweeId || '').toLowerCase().trim();
+      const rName = (r.revieweeName || '').toLowerCase().trim();
+      if (rId && (rId === cleanId || cleanId.includes(rId) || rId.includes(cleanId))) return true;
+      if (farmerName && rName && (rName.includes(farmerName) || farmerName.includes(rName))) return true;
+      return false;
+    });
+  }
+
+  public getReviewsForListing(listingId: string): Review[] {
+    const listing = this.getListingById(listingId);
+    if (!listing) return [];
+    return this.getReviewsForFarmer(listing.farmerId);
+  }
+
+  public getFarmerRatingStats(farmerId: string): {
+    averageRating: number;
+    reviewCount: number;
+    distribution: Record<number, number>;
+    distributionCounts: Record<number, number>;
+  } {
+    const farmerReviews = this.getReviewsForFarmer(farmerId);
+    if (farmerReviews.length === 0) {
+      return {
+        averageRating: 5.0,
+        reviewCount: 0,
+        distribution: { 5: 100, 4: 0, 3: 0, 2: 0, 1: 0 },
+        distributionCounts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+      };
+    }
+
+    const total = farmerReviews.length;
+    const sum = farmerReviews.reduce((acc, r) => acc + r.rating, 0);
+    const avg = Number((sum / total).toFixed(1));
+
+    const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    farmerReviews.forEach(r => {
+      const rounded = Math.min(5, Math.max(1, Math.round(r.rating)));
+      counts[rounded] = (counts[rounded] || 0) + 1;
+    });
+
+    const distribution: Record<number, number> = {
+      5: Math.round((counts[5] / total) * 100),
+      4: Math.round((counts[4] / total) * 100),
+      3: Math.round((counts[3] / total) * 100),
+      2: Math.round((counts[2] / total) * 100),
+      1: Math.round((counts[1] / total) * 100)
+    };
+
+    return {
+      averageRating: avg,
+      reviewCount: total,
+      distribution,
+      distributionCounts: counts
+    };
+  }
+
+  public recalculateFarmerRatings(farmerId: string) {
+    const stats = this.getFarmerRatingStats(farmerId);
+    const cleanId = (farmerId || '').toLowerCase().trim();
+    this.listings.forEach(l => {
+      const lFarmerId = (l.farmerId || '').toLowerCase().trim();
+      if (lFarmerId === cleanId || (cleanId && lFarmerId.includes(cleanId))) {
+        l.farmerRating = stats.averageRating;
+        l.reviewCount = stats.reviewCount;
+      }
+    });
+    this.notify();
+  }
+
+  public recalculateAllFarmerRatings() {
+    this.listings.forEach(l => {
+      const stats = this.getFarmerRatingStats(l.farmerId);
+      if (stats.reviewCount > 0) {
+        l.farmerRating = stats.averageRating;
+        l.reviewCount = stats.reviewCount;
+      }
+    });
+    this.orders.forEach(o => {
+      const matched = this.reviews.find(r => r.orderId === o.id);
+      if (matched) {
+        o.isRated = true;
+        o.reviewRating = matched.rating;
+        o.reviewComment = matched.comment;
+        o.reviewQuickTags = matched.quickTags;
+        o.reviewedAt = matched.createdAt;
+      }
+    });
+  }
+
+  public async fetchReviewsForUser(userId: string): Promise<Review[]> {
+    try {
+      const res = await fetch(`/api/reviews/user/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const fetched: Review[] = data.map((d: any) => ({
+            id: d.id,
+            orderId: d.orderId,
+            reviewerId: d.reviewerId,
+            reviewerName: d.reviewerName,
+            reviewerRole: 'buyer',
+            revieweeId: d.revieweeId,
+            revieweeName: d.revieweeName,
+            rating: d.rating,
+            comment: d.comment,
+            createdAt: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'Recently'
+          }));
+
+          fetched.forEach(fr => {
+            if (!this.reviews.some(r => r.id === fr.id || (r.orderId && r.orderId === fr.orderId))) {
+              this.reviews.unshift(fr);
+            }
+          });
+          localStorage.setItem('farmerMarketReviews', JSON.stringify(this.reviews));
+          this.recalculateFarmerRatings(userId);
+          return this.getReviewsForFarmer(userId);
+        }
+      }
+    } catch (e) {
+      console.warn('Fetch reviews for user failed, using local cache', e);
+    }
+    return this.getReviewsForFarmer(userId);
+  }
+
+  public async fetchReviews(): Promise<Review[]> {
+    try {
+      const res = await fetch('/api/reviews');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const fetched: Review[] = data.map((d: any) => ({
+            id: d.id,
+            orderId: d.orderId,
+            reviewerId: d.reviewerId,
+            reviewerName: d.reviewerName,
+            reviewerRole: 'buyer',
+            revieweeId: d.revieweeId,
+            revieweeName: d.revieweeName,
+            rating: d.rating,
+            comment: d.comment,
+            createdAt: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : 'Recently'
+          }));
+
+          fetched.forEach(fr => {
+            if (!this.reviews.some(r => r.id === fr.id || (r.orderId && r.orderId === fr.orderId))) {
+              this.reviews.unshift(fr);
+            }
+          });
+          localStorage.setItem('farmerMarketReviews', JSON.stringify(this.reviews));
+          this.recalculateAllFarmerRatings();
+        }
+      }
+    } catch (e) {
+      console.warn('Fetch all reviews failed, using local cache', e);
+    }
+    return this.reviews;
+  }
+
+  public async createReview(
+    orderId: string,
+    revieweeId: string,
+    rating: number,
+    comment?: string,
+    quickTags?: string[]
+  ): Promise<Review> {
+    const clampedRating = Math.max(1, Math.min(5, Math.round(rating)));
+    const reviewer = this.currentUser || {
+      id: "44444444-4444-4444-4444-444444444444",
+      name: "Bethlehem Tsegaye",
+      role: "buyer" as UserRole
+    };
+
+    const revieweeUser = this.getUserById(revieweeId);
+    const revieweeName = revieweeUser?.name || "Farmer";
+
+    const newReview: Review = {
+      id: "rev-" + Date.now(),
+      orderId,
+      reviewerId: reviewer.id,
+      reviewerName: reviewer.name,
+      reviewerRole: reviewer.role,
+      revieweeId,
+      revieweeName,
+      rating: clampedRating,
+      comment: comment?.trim() || undefined,
+      quickTags: quickTags && quickTags.length > 0 ? quickTags : undefined,
+      createdAt: "Just now"
+    };
+
+    // 1. Try sending to backend API
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (this.token && isGuid.test(orderId) && isGuid.test(revieweeId)) {
+      try {
+        const res = await fetch('/api/reviews', {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            orderId,
+            revieweeId,
+            rating: clampedRating,
+            comment: comment?.trim() || null
+          })
+        });
+        if (res.ok) {
+          const created = await res.json();
+          if (created && created.id) {
+            newReview.id = created.id;
+          }
+        }
+      } catch (err) {
+        console.warn('Remote review submission fallback to local state', err);
+      }
+    }
+
+    // 2. Add to local reviews list
+    this.reviews.unshift(newReview);
+    this.saveReviewsToStorage();
+
+    // 3. Mark the order as rated in local state
+    const order = this.orders.find(o => o.id === orderId);
+    if (order) {
+      order.isRated = true;
+      order.reviewRating = clampedRating;
+      order.reviewComment = comment?.trim() || undefined;
+      order.reviewQuickTags = quickTags;
+      order.reviewedAt = new Date().toISOString();
+    }
+
+    // 4. Recalculate farmer dynamic ratings
+    this.recalculateFarmerRatings(revieweeId);
+
+    // 5. Notify farmer of new customer review
+    this.addNotification({
+      id: 'notif-rev-' + Date.now(),
+      userId: revieweeId,
+      type: 'review',
+      channel: 'in_app',
+      messageEn: `⭐ [New Customer Rating] ${reviewer.name} rated you ${clampedRating}/5 stars: "${comment?.trim() || 'Verified produce delivery'}"`,
+      messageAm: `⭐ [አዲስ የደንበኛ አስተያየት] ${reviewer.name} የ ${clampedRating}/5 ኮከብ ደረጃ ሰጥተውዎታል፡ "${comment?.trim() || 'ጥሩ ጥራት ያለው ምርት'}"`,
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+
+    // 6. Add audit log
+    this.addAuditLog({
+      actorId: reviewer.id,
+      actorName: reviewer.name,
+      actorRole: reviewer.role || 'buyer',
+      action: 'SUBMIT_PRODUCE_REVIEW',
+      category: 'FINANCE',
+      targetResource: 'Review',
+      targetId: newReview.id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Submitted ${clampedRating}-star review for order #${orderId.slice(0, 8)} (${revieweeName}). Comment: "${(comment || '').slice(0, 40)}..."`
+    });
+
+    this.notify();
+    return newReview;
   }
 
   // ==================== LEGAL & COMPLIANCE DOCUMENTS ====================
@@ -1840,6 +2657,23 @@ class ApiService {
       } catch (e) {
         console.warn('KYC update remote failed, updating local state', e);
       }
+
+      // Notify the verified user
+      this.addNotification({
+        id: 'notif-kyc-' + Date.now(),
+        userId,
+        type: 'kyc',
+        channel: 'sms',
+        messageEn: approve
+          ? `🛡️ [Fayda KYC Verification Approved] Your national ID, Kebele farming certification, and business documents have been verified. Verified Producer badge activated!`
+          : `⚠️ [KYC Verification Notice] Your document submission requires revision. Please check your account profile or re-upload documents.`,
+        messageAm: approve
+          ? `🛡️ [የፋይዳ ማረጋገጫ ጸድቋል] የእርስዎ ብሔራዊ መታወቂያ እና የቀበሌ እርሻ ሰነዶች ተረጋግጠዋል። የተረጋገጠ አምራች ባጅ ነቅቷል!`
+          : `⚠️ [የሰነድ ማረጋገጫ ማስታወቂያ] ያስገቡት ሰነድ ማስተካከያ ይፈልጋል። እባክዎ ሰነዶችን እንደገና ያስገቡ።`,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
       this.notify();
     }
   }
@@ -2113,8 +2947,45 @@ class ApiService {
   }
 
   public getNotifications(): NotificationItem[] {
-    if (!this.isUserLoggedIn || !this.currentUser) return [];
-    return this.notifications.filter(n => n.userId === this.currentUser!.id || this.currentUser!.role === 'admin');
+    if (!this.isUserLoggedIn || !this.currentUser || !this.isAuthenticated()) {
+      return [];
+    }
+    const currentId = (this.currentUser.id || '').toLowerCase().trim();
+    const currentRole = (this.currentUser.role || 'buyer').toLowerCase();
+
+    return this.notifications.filter(n => {
+      const nUserId = (n.userId || '').toLowerCase().trim();
+      // Admin / SuperAdmin see all management and dispute alerts
+      if (currentRole === 'admin' || currentRole === 'superadmin') {
+        return true;
+      }
+      // Direct user ID match
+      if (nUserId && (nUserId === currentId || currentId.includes(nUserId) || nUserId.includes(currentId))) return true;
+      // Broadcast messages
+      if (n.type === 'broadcast') return true;
+      // Farmer notifications
+      if (currentRole === 'farmer' && (n.type === 'order' || n.type === 'review' || n.type === 'payout' || n.type === 'kyc' || n.type === 'dispute') && (!nUserId || nUserId.startsWith('11111111') || nUserId === currentId)) return true;
+      // Driver notifications
+      if (currentRole === 'driver' && (n.type === 'dispatch' || n.type === 'payout') && (!nUserId || nUserId.startsWith('55555555') || nUserId === currentId)) return true;
+      // Buyer notifications
+      if (currentRole === 'buyer' && (n.type === 'refund' || n.type === 'order' || n.type === 'dispatch' || n.type === 'dispute_resolution' || n.type === 'review') && (!nUserId || nUserId.startsWith('44444444') || nUserId === currentId)) return true;
+      return false;
+    });
+  }
+
+  public markAllNotificationsRead() {
+    const list = this.getNotifications();
+    list.forEach(n => {
+      n.read = true;
+    });
+    this.saveNotificationsToStorage();
+    this.notify();
+  }
+
+  public addNotification(notif: NotificationItem) {
+    this.notifications.unshift(notif);
+    this.saveNotificationsToStorage();
+    this.notify();
   }
 
   public async broadcastSms(msgEn: string, msgAm: string, targetRole: string) {
@@ -2475,10 +3346,12 @@ class ApiService {
     await Promise.allSettled([
       this.fetchListings(),
       this.fetchOrders(),
+      this.fetchReviews(),
       this.fetchSummaries(),
       this.fetchVerificationQueue(),
       this.fetchUsers()
     ]);
+    this.recalculateAllFarmerRatings();
     this.notify();
   }
 
@@ -4071,4 +4944,5 @@ class ApiService {
 }
 
 export const api = new ApiService();
+
 

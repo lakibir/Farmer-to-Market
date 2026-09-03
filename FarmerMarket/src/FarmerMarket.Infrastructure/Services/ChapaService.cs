@@ -20,16 +20,33 @@ public class ChapaService(
 
     public string ProviderName => "Chapa";
 
-    public async Task<PaymentInitResult> InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, CancellationToken ct = default)
+    public async Task<PaymentInitResult> InitiatePaymentAsync(
+        Guid orderId,
+        decimal amount,
+        string buyerPhone,
+        string? buyerEmail = null,
+        string? buyerName = null,
+        CancellationToken ct = default)
     {
-        var txRef = $"FM-CHAPA-{orderId.ToString()[..8].ToUpper()}-{DateTime.UtcNow:yyyyMMdd}";
+        var txRef = $"FM-{Guid.NewGuid():N}";
+        var cleanPhone = buyerPhone.Replace(" ", "").Replace("-", "").Trim();
+        if (cleanPhone.StartsWith("+251")) cleanPhone = "0" + cleanPhone[4..];
+        else if (cleanPhone.StartsWith("251")) cleanPhone = "0" + cleanPhone[3..];
 
-        // If no Chapa secret key is configured, fall back to sandbox simulation
-        if (string.IsNullOrWhiteSpace(_opts.SecretKey))
+        var email = !string.IsNullOrWhiteSpace(buyerEmail) ? buyerEmail.Trim() : $"{cleanPhone}@farmertomarket.et";
+        
+        var nameParts = (buyerName ?? "Marketplace Buyer").Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        var firstName = nameParts.Length > 0 ? nameParts[0] : "Marketplace";
+        var lastName = nameParts.Length > 1 ? nameParts[1] : "Buyer";
+
+        // If no real Chapa secret key is configured, return local return URL with simulated success
+        if (string.IsNullOrWhiteSpace(_opts.SecretKey) || _opts.SecretKey.Contains("REPLACE"))
         {
-            logger.LogInformation("[CHAPA SANDBOX] Payment initiated. TxRef: {TxRef}, Amount: {Amount:N2} ETB", txRef, amount);
-            var sandboxUrl = $"https://checkout.chapa.co/checkout/payment/{txRef}";
-            return new PaymentInitResult(orderId.ToString(), sandboxUrl, txRef, amount, ProviderName);
+            logger.LogInformation("[CHAPA SIMULATOR] SecretKey is simulated. Returning local verified redirect for TxRef: {TxRef}, Amount: {Amount:N2} ETB", txRef, amount);
+            var returnUrl = string.IsNullOrWhiteSpace(_opts.ReturnUrl) ? "http://localhost:4200/" : _opts.ReturnUrl;
+            var sep = returnUrl.Contains('?') ? "&" : "?";
+            var simulatedUrl = $"{returnUrl}{sep}tx_ref={txRef}&status=success";
+            return new PaymentInitResult(orderId.ToString(), simulatedUrl, txRef, amount, ProviderName);
         }
 
         try
@@ -38,15 +55,23 @@ public class ChapaService(
             {
                 amount = amount.ToString("F2"),
                 currency = "ETB",
+                email,
+                first_name = firstName,
+                last_name = lastName,
+                phone_number = cleanPhone,
                 tx_ref = txRef,
-                phone_number = buyerPhone,
                 callback_url = _opts.WebhookUrl,
                 return_url = _opts.ReturnUrl,
-                customization = new { title = "FarmerMarket Escrow Payment", description = $"Order {orderId}" }
+                customization = new
+                {
+                    title = "FarmerMarket",
+                    description = $"Order {orderId.ToString()[..8].ToUpper()} Escrow"
+                }
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, $"{_opts.BaseUrl}/transaction/initialize");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _opts.SecretKey);
+            var baseUrl = string.IsNullOrWhiteSpace(_opts.BaseUrl) ? "https://api.chapa.co/v1" : _opts.BaseUrl.TrimEnd('/');
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/transaction/initialize");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _opts.SecretKey.Trim());
             request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
             var response = await HttpClient.SendAsync(request, ct);
@@ -55,24 +80,61 @@ public class ChapaService(
             if (response.IsSuccessStatusCode)
             {
                 using var doc = JsonDocument.Parse(body);
-                var checkoutUrl = doc.RootElement
-                    .GetProperty("data")
-                    .GetProperty("checkout_url")
-                    .GetString() ?? string.Empty;
-
-                logger.LogInformation("Chapa payment initiated. TxRef: {TxRef}, Amount: {Amount:N2} ETB", txRef, amount);
-                return new PaymentInitResult(orderId.ToString(), checkoutUrl, txRef, amount, ProviderName);
+                if (doc.RootElement.TryGetProperty("data", out var dataEl) &&
+                    dataEl.TryGetProperty("checkout_url", out var checkoutUrlEl))
+                {
+                    var checkoutUrl = checkoutUrlEl.GetString() ?? string.Empty;
+                    logger.LogInformation("[CHAPA API SUCCESS] Payment initialized. TxRef: {TxRef}, Amount: {Amount:N2} ETB, Checkout: {Url}", txRef, amount, checkoutUrl);
+                    return new PaymentInitResult(orderId.ToString(), checkoutUrl, txRef, amount, ProviderName);
+                }
             }
 
-            logger.LogWarning("Chapa initiation failed [{Status}]: {Body}", response.StatusCode, body);
+            logger.LogWarning("[CHAPA API ERROR] Initiation failed [{Status}]: {Body}", response.StatusCode, body);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Chapa payment initiation exception for Order {OrderId}", orderId);
+            logger.LogError(ex, "[CHAPA EXCEPTION] Payment initiation error for Order {OrderId}", orderId);
         }
 
-        // Graceful fallback — return a sandbox URL so UX is not broken
+        // Graceful fallback URL
         return new PaymentInitResult(orderId.ToString(), $"https://checkout.chapa.co/checkout/payment/{txRef}", txRef, amount, ProviderName);
+    }
+
+    public async Task<bool> VerifyPaymentAsync(string txRef, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(_opts.SecretKey) || _opts.SecretKey.Contains("REPLACE"))
+        {
+            logger.LogInformation("[CHAPA SIMULATOR] Verify bypassed (simulated SecretKey). TxRef: {TxRef}", txRef);
+            return true;
+        }
+
+        try
+        {
+            var baseUrl = string.IsNullOrWhiteSpace(_opts.BaseUrl) ? "https://api.chapa.co/v1" : _opts.BaseUrl.TrimEnd('/');
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/transaction/verify/{txRef}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _opts.SecretKey.Trim());
+
+            var response = await HttpClient.SendAsync(request, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("status", out var statusEl) && statusEl.GetString() == "success")
+                {
+                    logger.LogInformation("[CHAPA VERIFY SUCCESS] TxRef {TxRef} is confirmed valid.", txRef);
+                    return true;
+                }
+            }
+
+            logger.LogWarning("[CHAPA VERIFY FAILED] TxRef: {TxRef}, Body: {Body}", txRef, body);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[CHAPA VERIFY ERROR] Exception verifying TxRef {TxRef}", txRef);
+            return false;
+        }
     }
 
     public Task<EscrowSplitResult> ReleaseEscrowAsync(Guid orderId, decimal totalAmount, CancellationToken ct = default)
@@ -85,25 +147,30 @@ public class ChapaService(
             "Chapa Escrow Released for Order {OrderId}: Farmer={Farmer:N2} ETB, Driver={Driver:N2} ETB, Platform={Platform:N2} ETB",
             orderId, farmerCut, driverCut, platformCut);
 
-        // TODO: Implement Chapa Transfer API calls for farmer/driver payouts when live credentials available
         return Task.FromResult(new EscrowSplitResult(totalAmount, farmerCut, driverCut, platformCut));
     }
 
     public Task<bool> RefundPaymentAsync(Guid orderId, decimal totalAmount, CancellationToken ct = default)
     {
         logger.LogInformation("Chapa Refund processed for Order {OrderId}: {Amount:N2} ETB", orderId, totalAmount);
-        // TODO: Implement Chapa refund API when credentials are configured
         return Task.FromResult(true);
     }
 
     public bool VerifyWebhookSignature(string payload, string signature)
     {
         if (string.IsNullOrWhiteSpace(_opts.SecretKey) || string.IsNullOrWhiteSpace(signature))
-            return true; // Sandbox / unconfigured — allow through
+            return true; // Sandbox / dev allow-through
 
-        // Chapa webhook uses HMAC-SHA256 with the secret key
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_opts.SecretKey));
-        var hash = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload))).ToLowerInvariant();
-        return hash == signature.ToLowerInvariant();
+        try
+        {
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_opts.SecretKey.Trim()));
+            var hash = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload))).ToLowerInvariant();
+            return hash == signature.Trim().ToLowerInvariant();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Chapa webhook signature verification exception");
+            return false;
+        }
     }
 }

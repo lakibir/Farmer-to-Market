@@ -1,5 +1,6 @@
-import { Listing } from '../types';
+import { Listing, Review } from '../types';
 import { translations, Language } from '../i18n/translations';
+import { api } from '../services/api';
 
 export class ProduceDetailModal {
   private currentLang: Language = 'en';
@@ -208,9 +209,9 @@ export class ProduceDetailModal {
 
                     <div class="text-right">
                       <div class="flex items-center justify-end text-amber-500 text-sm font-black">
-                        <i class="fa-solid fa-star mr-1"></i> ${listing.farmerRating || 4.9}
+                        <i class="fa-solid fa-star mr-1"></i> ${api.getFarmerRatingStats(listing.farmerId).averageRating}
                       </div>
-                      <div class="text-[10px] text-slate-400 font-medium">${listing.reviewCount || 24} Verified Reviews</div>
+                      <div class="text-[10px] text-slate-400 font-medium">${api.getFarmerRatingStats(listing.farmerId).reviewCount} ${t.verifiedReviewsTitle || 'Verified Reviews'}</div>
                     </div>
                   </div>
 
@@ -372,6 +373,118 @@ export class ProduceDetailModal {
               ` : ''}
 
             </div>
+
+            <!-- Verified Customer Reviews & Feedback Section -->
+            ${(() => {
+              const reviews = api.getReviewsForFarmer(listing.farmerId);
+              const stats = api.getFarmerRatingStats(listing.farmerId);
+              return `
+                <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+                    <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2 ${isAm ? 'lang-am' : ''}">
+                      <i class="fa-solid fa-star-half-stroke text-amber-500"></i>
+                      ${t.verifiedBuyerReviews}
+                    </h3>
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      ${stats.reviewCount} ${t.allReviews || 'Verified Reviews'}
+                    </span>
+                  </div>
+
+                  <!-- Rating Overview & Breakdown Grid -->
+                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 rounded-2xl bg-gradient-to-br from-amber-50/50 via-slate-50 to-emerald-50/40 border border-slate-200/80 items-center">
+                    
+                    <!-- Big Score (4 Cols) -->
+                    <div class="sm:col-span-4 text-center sm:text-left sm:border-r border-slate-200 sm:pr-4 space-y-1">
+                      <div class="text-4xl font-black text-slate-900 flex items-center justify-center sm:justify-start gap-1">
+                        ${stats.averageRating}
+                        <span class="text-base font-bold text-slate-400">/ 5.0</span>
+                      </div>
+                      <div class="flex items-center justify-center sm:justify-start text-amber-400 text-sm gap-0.5">
+                        ${[1, 2, 3, 4, 5].map(star => `
+                          <i class="fa-solid fa-star ${star <= Math.round(stats.averageRating) ? 'text-amber-400' : 'text-slate-300'}"></i>
+                        `).join('')}
+                      </div>
+                      <p class="text-[11px] text-slate-500 font-medium">
+                        Based on ${stats.reviewCount} verified smallholder escrow deliveries
+                      </p>
+                    </div>
+
+                    <!-- Star Breakdown Bars (8 Cols) -->
+                    <div class="sm:col-span-8 space-y-1.5 text-xs">
+                      ${[5, 4, 3, 2, 1].map(stars => {
+                        const pct = stats.distribution[stars] || 0;
+                        const count = stats.distributionCounts[stars] || 0;
+                        return `
+                          <div class="flex items-center gap-2">
+                            <span class="w-8 text-[11px] font-bold text-slate-600 shrink-0 text-right">${stars} ★</span>
+                            <div class="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+                              <div class="h-full bg-amber-400 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                            </div>
+                            <span class="w-12 text-[10px] text-slate-400 font-bold shrink-0 text-right">${count} (${pct}%)</span>
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+
+                  </div>
+
+                  <!-- Reviews & Comments List -->
+                  ${reviews.length === 0 ? `
+                    <div class="p-6 text-center text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <i class="fa-regular fa-comment-dots text-2xl mb-1 text-slate-300"></i>
+                      <p class="font-bold text-slate-600">${t.noReviewsYet}</p>
+                    </div>
+                  ` : `
+                    <div class="space-y-3 pt-1">
+                      ${reviews.map(rev => `
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2 hover:bg-slate-50/80 transition-colors">
+                          <div class="flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-2.5">
+                              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                                ${rev.reviewerName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div class="flex items-center gap-1.5">
+                                  <span class="font-bold text-slate-900 text-xs">${rev.reviewerName}</span>
+                                  <span class="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-md">
+                                    <i class="fa-solid fa-circle-check text-[8px]"></i> ${t.verifiedBuyerBadge}
+                                  </span>
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-medium">${rev.createdAt}</span>
+                              </div>
+                            </div>
+
+                            <div class="flex items-center text-amber-400 text-xs gap-0.5 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                              ${[1, 2, 3, 4, 5].map(st => `
+                                <i class="fa-solid fa-star ${st <= rev.rating ? 'text-amber-400' : 'text-slate-200'}"></i>
+                              `).join('')}
+                              <span class="font-bold text-slate-700 ml-1 text-[11px]">${rev.rating}.0</span>
+                            </div>
+                          </div>
+
+                          ${rev.quickTags && rev.quickTags.length > 0 ? `
+                            <div class="flex flex-wrap gap-1 pt-0.5">
+                              ${rev.quickTags.map(tag => `
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700">
+                                  ${tag}
+                                </span>
+                              `).join('')}
+                            </div>
+                          ` : ''}
+
+                          ${rev.comment ? `
+                            <p class="text-xs text-slate-700 leading-relaxed font-medium bg-white p-2.5 rounded-xl border border-slate-100 italic">
+                              "${rev.comment}"
+                            </p>
+                          ` : ''}
+                        </div>
+                      `).join('')}
+                    </div>
+                  `}
+
+                </div>
+              `;
+            })()}
 
             <!-- Interactive Bulk Order & Quantity Calculator Bar -->
             <div class="bg-gradient-to-br from-slate-900 via-slate-850 to-emerald-950 text-white p-5 sm:p-6 rounded-2xl shadow-xl border border-emerald-900/60 space-y-5">

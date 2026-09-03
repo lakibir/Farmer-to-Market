@@ -20,6 +20,7 @@ import { renderBuyerAccountView, BuyerAccountTab } from './components/BuyerAccou
 import { renderFarmerAccountView, FarmerAccountTab } from './components/FarmerAccountView';
 import { ussdSimulator } from './components/UssdSimulatorModal';
 import { marketIntelligenceModal } from './components/MarketIntelligenceModal';
+import { renderRateReviewModal, RateModalState } from './components/RateReviewModal';
 
 // Toast Notification Manager
 function showToast(message: string, icon: string = 'fa-circle-check', color: string = 'border-emerald-500') {
@@ -50,13 +51,37 @@ class App {
   private activeCategory: string = 'All';
   private selectedRegion: string = 'All';
   private searchQuery: string = '';
-  private cart: CartItem[] = [];
+  private loadCartFromStorage(): CartItem[] {
+    try {
+      const saved = localStorage.getItem('farmer_market_cart');
+      if (saved) {
+        const parsed: CartItem[] = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(item => item && item.listing && item.qtyKg > 0);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load cart from localStorage', e);
+    }
+    return [];
+  }
+
+  private saveCartToStorage() {
+    try {
+      localStorage.setItem('farmer_market_cart', JSON.stringify(this.cart));
+    } catch (e) {
+      console.warn('Failed to save cart to localStorage', e);
+    }
+  }
+
+  private cart: CartItem[] = this.loadCartFromStorage();
   private isCartOpen: boolean = false;
   private isNotificationsModalOpen: boolean = false;
   private isCreateListingModalOpen: boolean = false;
   private activeOrderModal: Order | null = null;
   private activeTelebirrModal: { isOpen: boolean; totalEtb: number; listingId?: string; qtyKg?: number } | null = null;
   private activeDisputeModal: { isOpen: boolean; order: Order } | null = null;
+  private activeRateModal: RateModalState | null = null;
 
   // Produce Detail Post Modal State
   private activeProduceModalId: string | null = null;
@@ -107,6 +132,7 @@ class App {
   private lastSentCode: string = '';
   private matchedUserName: string = '';
   private matchedUserRole: string = '';
+  private matchedUserEmail: string = '';
   private authErrorMessage: string = '';
 
   // Field Agent & Verification Modals
@@ -122,6 +148,27 @@ class App {
 
     // Connect to SignalR Order Hub
     signalRService.startConnection(api.getToken() || undefined);
+
+    // Handle Chapa payment return redirect & auto-verify
+    const urlParams = new URLSearchParams(window.location.search);
+    const chapaTxRef = urlParams.get('tx_ref') || urlParams.get('trx_ref');
+    const statusParam = urlParams.get('status');
+
+    if (chapaTxRef) {
+      if (statusParam === 'failed' || statusParam === 'canceled') {
+        showToast('Chapa payment was cancelled or failed.', 'fa-circle-xmark', 'border-rose-500');
+      } else {
+        api.verifyChapaPayment(chapaTxRef).then(res => {
+          if (res) {
+            showToast('Chapa payment verified! Escrow is now securely locked in database.', 'fa-circle-check', 'border-emerald-500');
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+          } else {
+            showToast('Chapa payment was not completed or failed verification.', 'fa-circle-xmark', 'border-rose-500');
+          }
+        });
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
     // ── Order Status Changes (buyer + farmer + driver views) ──────
     signalRService.onOrderStatusChanged(async (orderId, status, message) => {
@@ -418,11 +465,12 @@ class App {
             this.lastSentCode,
             this.matchedUserName,
             this.matchedUserRole,
-            this.authErrorMessage
+            this.authErrorMessage,
+            this.matchedUserEmail
           ) : ''}
       
       <!-- Notifications Modal -->
-      ${this.isNotificationsModalOpen ? renderNotificationsModal(this.lang, notifications) : ''}
+      ${this.isNotificationsModalOpen && api.isAuthenticated() ? renderNotificationsModal(this.lang, notifications) : ''}
 
       <!-- Verification Wizard Modal Container -->
       <div id="verificationWizardModal"></div>
@@ -469,19 +517,26 @@ class App {
         </div>
       ` : ''}
 
+      <!-- Rate & Review Modal -->
+      ${this.activeRateModal?.isOpen ? renderRateReviewModal(
+        this.lang,
+        api.getOrders().find(o => o.id === this.activeRateModal?.orderId),
+        this.activeRateModal
+      ) : ''}
+
       <!-- Super Admin Governance Modals -->
       ${renderSuperAdminModals(
-        this.lang,
-        this.isSuperAdminCreateUserModalOpen,
-        this.isSuperAdminEditUserModalOpen,
-        this.editTargetUserId,
-        this.isSuperAdminAddZoneModalOpen,
-        this.isSuperAdminAddBlacklistModalOpen,
-        this.isSuperAdminBannerModalOpen,
-        this.editTargetBannerId,
-        this.isListingEditModalOpen,
-        this.editTargetListingId
-      )}
+                this.lang,
+                this.isSuperAdminCreateUserModalOpen,
+                this.isSuperAdminEditUserModalOpen,
+                this.editTargetUserId,
+                this.isSuperAdminAddZoneModalOpen,
+                this.isSuperAdminAddBlacklistModalOpen,
+                this.isSuperAdminBannerModalOpen,
+                this.editTargetBannerId,
+                this.isListingEditModalOpen,
+                this.editTargetListingId
+              )}
     `;
   }
 
@@ -530,6 +585,7 @@ class App {
       } else {
         this.cart.push({ listing: item, qtyKg: finalQty });
       }
+      this.saveCartToStorage();
       this.activeProduceModalId = null;
       this.isCartOpen = true;
       showToast(this.lang === 'am' ? `${finalQty} ኪ.ግ ${item.nameAm || item.productName} ወደ ጋሪ ተጨምሯል` : `Added ${finalQty} kg of ${item.productName} to bulk cart!`, 'fa-cart-plus');
@@ -1128,6 +1184,7 @@ class App {
       this.authErrorMessage = '';
       this.matchedUserName = '';
       this.matchedUserRole = '';
+      this.matchedUserEmail = '';
       this.isAuthModalOpen = true;
       this.render();
     };
@@ -1192,8 +1249,13 @@ class App {
         this.lastSentCode = res.demoCode || '';
         this.matchedUserName = res.userName || '';
         this.matchedUserRole = res.role || '';
+        this.matchedUserEmail = res.email || '';
         this.otpStep = true;
-        showToast(`SMS verification code dispatched to +251 ${phoneInput}`, 'fa-comment-sms', 'border-emerald-500');
+        if (res.email) {
+          showToast(`Security code dispatched to +251 ${phoneInput} and ${res.email}`, 'fa-shield-halved', 'border-emerald-500');
+        } else {
+          showToast(`SMS verification code dispatched to +251 ${phoneInput}`, 'fa-comment-sms', 'border-emerald-500');
+        }
       } catch (err: any) {
         this.authErrorMessage = err.message || 'No account registered with this phone number. Please register first.';
       }
@@ -1227,6 +1289,8 @@ class App {
         else if (user.role === 'admin') this.activeTab = 'admin';
         else this.activeTab = 'marketplace';
 
+        this.cart = this.loadCartFromStorage();
+
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         showToast(`Welcome back, ${user.name}! (${user.role.toUpperCase()})`, 'fa-circle-check', 'border-emerald-500');
       } catch (err: any) {
@@ -1243,6 +1307,7 @@ class App {
       const phone = (document.getElementById('regPhone') as HTMLInputElement)?.value.trim() || '';
       const region = (document.getElementById('regRegion') as HTMLSelectElement)?.value || 'Oromia (Bishoftu)';
       const role = (document.querySelector('input[name="regRole"]:checked') as HTMLInputElement)?.value as UserRole || 'buyer';
+      const email = (document.getElementById('regEmail') as HTMLInputElement)?.value.trim() || undefined;
 
       const btn = document.getElementById('registerSubmitBtn') as HTMLButtonElement;
       if (btn) {
@@ -1251,7 +1316,7 @@ class App {
       }
 
       try {
-        const user = await api.registerUser(name, nameAm, phone, role, region);
+        const user = await api.registerUser(name, nameAm, phone, role, region, email);
         this.isAuthModalOpen = false;
         this.authErrorMessage = '';
 
@@ -1259,6 +1324,8 @@ class App {
         else if (user.role === 'driver') this.activeTab = 'driver';
         else if (user.role === 'admin') this.activeTab = 'admin';
         else this.activeTab = 'marketplace';
+
+        this.cart = this.loadCartFromStorage();
 
         confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
         showToast(`Welcome to Farmer-to-Market, ${user.name}!`, 'fa-circle-check', 'border-emerald-500');
@@ -1275,7 +1342,7 @@ class App {
     w.handleLogout = () => {
       api.logout();
       this.activeTab = 'marketplace';
-      this.cart = [];
+      // Cart is preserved in localStorage across sessions
       showToast('Logged out successfully', 'fa-arrow-right-from-bracket');
       this.render();
     };
@@ -1290,6 +1357,8 @@ class App {
           else if (user.role === 'driver') this.activeTab = 'driver';
           else if (user.role === 'admin') this.activeTab = 'admin';
           else this.activeTab = 'marketplace';
+
+          this.cart = this.loadCartFromStorage();
 
           confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
           showToast(`Switched to profile: ${user.name} (${user.role.toUpperCase()})`, 'fa-user-shield');
@@ -1311,6 +1380,7 @@ class App {
       } else {
         this.cart.push({ listing, qtyKg: listing.minOrderKg });
       }
+      this.saveCartToStorage();
 
       showToast(`Added ${listing.productName} to bulk cart`, 'fa-cart-plus');
       this.render();
@@ -1324,6 +1394,7 @@ class App {
         } else {
           item.qtyKg = newQty;
         }
+        this.saveCartToStorage();
       }
       this.render();
     };
@@ -1368,17 +1439,29 @@ class App {
           throw new Error('The selected produce is no longer available.');
         }
         let placedOrder: Order | null = null;
+        let lastPaymentUrl: string | undefined;
+
         for (const item of checkoutItems) {
           const listing = item.listing;
           if (!listing) throw new Error('The selected produce is no longer available.');
-          placedOrder = await api.placeOrder(listing.id, item.qtyKg, deliveryAddress, false, 'Weekly', payment.value === 'telebirr-wallet' ? undefined : payment.value);
+          const res = await api.placeOrder(listing.id, item.qtyKg, deliveryAddress, false, 'Weekly', payment.value === 'telebirr-wallet' ? undefined : payment.value);
+          placedOrder = res.order;
+          if (res.paymentUrl) lastPaymentUrl = res.paymentUrl;
         }
+
         this.cart = [];
+        this.saveCartToStorage();
         this.isCartOpen = false;
         this.activeTelebirrModal = null;
 
+        if (lastPaymentUrl && (lastPaymentUrl.includes('chapa.co') || lastPaymentUrl.startsWith('https://'))) {
+          showToast('Redirecting to Chapa Gateway for payment...', 'fa-arrow-up-right-from-square', 'border-emerald-500');
+          window.location.href = lastPaymentUrl;
+          return;
+        }
+
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-        showToast(`Payment authorized via ${payment.value === 'telebirr-wallet' ? 'Telebirr' : 'your selected provider'}. Farmer notified; driver follows after farmer confirmation.`, 'fa-lock', 'border-blue-500');
+        showToast('Payment authorized via Telebirr. Farmer notified.', 'fa-lock', 'border-blue-500');
 
         if (placedOrder) {
           this.activeOrderModal = placedOrder;
@@ -1403,6 +1486,20 @@ class App {
       this.render();
     };
 
+    w.openNotificationsModal = () => {
+      if (!api.isAuthenticated() || !api.getCurrentUser()) {
+        w.openAuthModal('login');
+        return;
+      }
+      this.isNotificationsModalOpen = true;
+      this.render();
+    };
+
+    w.closeNotificationsModal = () => {
+      this.isNotificationsModalOpen = false;
+      this.render();
+    };
+
     w.confirmFarmerOrder = async (orderId: string) => {
       await api.confirmOrderByFarmer(orderId);
       signalRService.joinOrder(orderId);
@@ -1414,17 +1511,122 @@ class App {
       await api.confirmDeliveryByBuyer(orderId);
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
       showToast('Delivery Confirmed! 90% released to Farmer, 5% to Driver.', 'fa-hand-holding-dollar', 'border-emerald-500');
+      
+      // Immediately open Rate & Review modal for real rating and feedback
+      const order = api.getOrders().find(o => o.id === orderId);
+      this.activeRateModal = {
+        isOpen: true,
+        orderId,
+        rating: 5,
+        comment: '',
+        selectedTags: ['🌾 Fresh Harvest', '📦 Grade-1 Packaging']
+      };
       this.render();
+    };
+
+    // ==================== RATINGS & REVIEWS HANDLERS ====================
+    w.openRateModal = (orderId: string) => {
+      const order = api.getOrders().find(o => o.id === orderId);
+      this.activeRateModal = {
+        isOpen: true,
+        orderId,
+        rating: order?.reviewRating || 5,
+        comment: order?.reviewComment || '',
+        selectedTags: order?.reviewQuickTags && order.reviewQuickTags.length > 0
+          ? [...order.reviewQuickTags]
+          : ['🌾 Fresh Harvest', '📦 Grade-1 Packaging']
+      };
+      this.render();
+    };
+
+    w.closeRateModal = () => {
+      this.activeRateModal = null;
+      this.render();
+    };
+
+    w.setModalRating = (rating: number) => {
+      if (this.activeRateModal) {
+        this.activeRateModal.rating = rating;
+        this.render();
+      }
+    };
+
+    w.toggleModalReviewTag = (tag: string) => {
+      if (this.activeRateModal) {
+        if (this.activeRateModal.selectedTags.includes(tag)) {
+          this.activeRateModal.selectedTags = this.activeRateModal.selectedTags.filter(t => t !== tag);
+        } else {
+          this.activeRateModal.selectedTags.push(tag);
+        }
+        this.render();
+      }
+    };
+
+    w.updateModalReviewComment = (comment: string) => {
+      if (this.activeRateModal) {
+        this.activeRateModal.comment = comment;
+        const countEl = document.getElementById('reviewCommentCharCount');
+        if (countEl) countEl.innerText = `${comment.length} / 500`;
+      }
+    };
+
+    w.handleReviewFormSubmit = async (e: Event) => {
+      e.preventDefault();
+      if (!this.activeRateModal) return;
+      const { orderId, rating, comment, selectedTags } = this.activeRateModal;
+      const order = api.getOrders().find(o => o.id === orderId);
+      if (!order) {
+        showToast('Order record not found.', 'fa-circle-xmark', 'border-rose-500');
+        return;
+      }
+
+      try {
+        await api.createReview(orderId, order.farmerId, rating, comment, selectedTags);
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        showToast(
+          this.lang === 'am'
+            ? 'እናመሰግናለን! የእርስዎ ደረጃ እና አስተያየት በተሳካ ሁኔታ ተመዝግቧል።'
+            : 'Thank you! Your verified rating and review have been recorded.',
+          'fa-star',
+          'border-amber-500'
+        );
+        this.activeRateModal = null;
+        if (this.activeOrderModal && this.activeOrderModal.id === orderId) {
+          this.activeOrderModal.isRated = true;
+          this.activeOrderModal.reviewRating = rating;
+          this.activeOrderModal.reviewComment = comment;
+          this.activeOrderModal.reviewQuickTags = selectedTags;
+        }
+        this.render();
+      } catch (err: any) {
+        showToast(err.message || 'Could not submit review.', 'fa-circle-xmark', 'border-rose-500');
+      }
     };
 
     w.adminResolveDispute = async (orderId: string, resolution: 'ReleaseToFarmer' | 'RefundBuyer' | 'PartialSplit') => {
       try {
         await api.resolveDispute(orderId, resolution);
-        showToast(`Dispute resolved: ${resolution}. Buyer and farmer records updated.`, 'fa-gavel', 'border-purple-500');
+        if (resolution === 'RefundBuyer' || resolution === 'PartialSplit') {
+          confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+          showToast(
+            this.lang === 'am'
+              ? 'ቅሬታው ተፈቷል፡ ለገዢው በቴሌብር ተመላሽ ተደርጓል። ማሳወቂያ ለገዢው ተልኳል።'
+              : 'Dispute resolved: Buyer refunded via Telebirr. Immediate notification sent to buyer.',
+            'fa-money-bill-transfer',
+            'border-emerald-500'
+          );
+        } else {
+          showToast(`Dispute resolved: Escrow released to farmer.`, 'fa-gavel', 'border-purple-500');
+        }
         this.render();
       } catch (error: any) {
         showToast(error.message || 'Could not resolve the dispute.', 'fa-circle-xmark', 'border-rose-500');
       }
+    };
+
+    w.markAllNotificationsRead = () => {
+      api.markAllNotificationsRead();
+      this.render();
     };
 
     w.toggleCreateListingModal = () => {
@@ -2006,7 +2208,7 @@ class App {
     w.deleteUserAccount = (userId: string) => {
       const user = api.getUserById(userId);
       if (!user) return;
-      
+
       const confirmMsg = this.lang === 'am'
         ? `ተጠቃሚ '${user.name}' (${user.phone})ን በቋሚነት መሰረዝ ይፈልጋሉ? ይህ እርምጃ ሊመለስ አይችልም።`
         : `Are you sure you want to permanently delete user '${user.name}' (${user.phone})? This action cannot be undone.`;

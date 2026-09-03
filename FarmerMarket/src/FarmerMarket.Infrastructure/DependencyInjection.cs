@@ -23,14 +23,16 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(TelebirrOptions.SectionName));
 
         services.AddOptions<ChapaOptions>()
-            .Bind(configuration.GetSection(ChapaOptions.SectionName))
-            .ValidateDataAnnotations(); // Fail fast if SecretKey is missing when Chapa is the active provider
+            .Bind(configuration.GetSection(ChapaOptions.SectionName));
 
         services.AddOptions<SmsOptions>()
             .Bind(configuration.GetSection(SmsOptions.SectionName));
 
         services.AddOptions<EscrowOptions>()
             .Bind(configuration.GetSection(EscrowOptions.SectionName));
+
+        services.AddOptions<EmailOptions>()
+            .Bind(configuration.GetSection(EmailOptions.SectionName));
 
         // ─── Database ─────────────────────────────────────────────────────────
         var connectionString = configuration.GetConnectionString("Default")
@@ -58,6 +60,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtService, JwtService>();
         services.AddSingleton<IOtpService, OtpService>();
         services.AddSingleton<ISignalRNotifier, FallbackSignalRNotifier>();
+        services.AddScoped<IEmailService, EmailService>();
 
         // ─── Payment Gateway (config-driven provider selection) ───────────────
         services.AddScoped<TelebirrService>();

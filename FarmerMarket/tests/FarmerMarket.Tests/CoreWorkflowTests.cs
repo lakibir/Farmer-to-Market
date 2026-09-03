@@ -35,8 +35,9 @@ public class CoreWorkflowTests
         using var db = CreateInMemoryDbContext();
         var mockSms = new Mock<ISmsService>();
         var mockOtp = new Mock<IOtpService>();
+        var mockEmail = new Mock<IEmailService>();
 
-        var handler = new RequestOtpHandler(db, mockSms.Object, mockOtp.Object);
+        var handler = new RequestOtpHandler(db, mockSms.Object, mockOtp.Object, mockEmail.Object);
 
         // Act
         var result = await handler.Handle(new RequestOtpCommand("+251999999999"), default);
@@ -69,8 +70,9 @@ public class CoreWorkflowTests
         mockSms.Setup(x => x.SendOtpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
             .ReturnsAsync(true);
         var mockOtp = new Mock<IOtpService>();
+        var mockEmail = new Mock<IEmailService>();
 
-        var handler = new RequestOtpHandler(db, mockSms.Object, mockOtp.Object);
+        var handler = new RequestOtpHandler(db, mockSms.Object, mockOtp.Object, mockEmail.Object);
 
         // Act
         var result = await handler.Handle(new RequestOtpCommand("+251911223344"), default);
@@ -84,14 +86,53 @@ public class CoreWorkflowTests
     }
 
     [Fact]
+    public async Task RequestOtp_With_Email_User_Should_Dispatch_Email_Otp()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+        var existingUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Phone = "+251911223344",
+            Name = "Tariku Haile",
+            Email = "tariku.haile@example.com",
+            Role = UserRole.Farmer,
+            Region = "Oromia (Bishoftu)"
+        };
+        db.Users.Add(existingUser);
+        await db.SaveChangesAsync();
+
+        var mockSms = new Mock<ISmsService>();
+        mockSms.Setup(x => x.SendOtpAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
+            .ReturnsAsync(true);
+        var mockOtp = new Mock<IOtpService>();
+        var mockEmail = new Mock<IEmailService>();
+        mockEmail.Setup(x => x.SendOtpEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
+            .ReturnsAsync(true);
+
+        var handler = new RequestOtpHandler(db, mockSms.Object, mockOtp.Object, mockEmail.Object);
+
+        // Act
+        var result = await handler.Handle(new RequestOtpCommand("+251911223344"), default);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.Email.Should().Be("tariku.haile@example.com");
+        result.Value.Message.Should().Contain("Email");
+        mockEmail.Verify(x => x.SendOtpEmailAsync("tariku.haile@example.com", It.IsAny<string>(), "Tariku Haile", "am", default), Times.Once);
+    }
+
+    [Fact]
     public async Task RegisterUser_Should_Create_User_In_Database()
     {
         // Arrange
         using var db = CreateInMemoryDbContext();
         var mockJwt = new Mock<IJwtService>();
         mockJwt.Setup(x => x.GenerateToken(It.IsAny<User>())).Returns("fake-jwt-token");
+        var mockEmail = new Mock<IEmailService>();
 
-        var handler = new RegisterUserHandler(db, mockJwt.Object);
+        var handler = new RegisterUserHandler(db, mockJwt.Object, mockEmail.Object);
 
         // Act
         var result = await handler.Handle(new RegisterUserCommand(new RegisterUserDto(
@@ -107,10 +148,46 @@ public class CoreWorkflowTests
         result.Value.Should().NotBeNull();
         result.Value!.User.Name.Should().Be("Bethlehem Tilahun");
         result.Value.User.Role.Should().Be(UserRole.Buyer);
+        result.Value.User.Email.Should().BeNull();
 
         var saved = await db.Users.FirstOrDefaultAsync(u => u.Phone == "+251955667788");
         saved.Should().NotBeNull();
         saved!.Role.Should().Be(UserRole.Buyer);
+    }
+
+    [Fact]
+    public async Task RegisterUser_With_Optional_Email_Should_Save_Email_And_Send_Welcome_Email()
+    {
+        // Arrange
+        using var db = CreateInMemoryDbContext();
+        var mockJwt = new Mock<IJwtService>();
+        mockJwt.Setup(x => x.GenerateToken(It.IsAny<User>())).Returns("fake-jwt-token");
+        var mockEmail = new Mock<IEmailService>();
+        mockEmail.Setup(x => x.SendWelcomeEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
+            .ReturnsAsync(true);
+
+        var handler = new RegisterUserHandler(db, mockJwt.Object, mockEmail.Object);
+
+        // Act
+        var result = await handler.Handle(new RegisterUserCommand(new RegisterUserDto(
+            Phone: "0911554433",
+            Name: "Kassahun Tolessa",
+            NameAm: "ካሳሁን ቶለሳ",
+            Role: UserRole.Farmer,
+            Region: "Oromia (Bishoftu)",
+            Email: "kassahun@example.com"
+        )), default);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.User.Email.Should().Be("kassahun@example.com");
+
+        var saved = await db.Users.FirstOrDefaultAsync(u => u.Phone == "+251911554433");
+        saved.Should().NotBeNull();
+        saved!.Email.Should().Be("kassahun@example.com");
+
+        mockEmail.Verify(x => x.SendWelcomeEmailAsync("kassahun@example.com", "Kassahun Tolessa", "Farmer", default), Times.Once);
     }
 
     [Fact]
@@ -155,7 +232,7 @@ public class CoreWorkflowTests
         await db.SaveChangesAsync();
 
         var mockPayment = new Mock<IPaymentGateway>();
-        mockPayment.Setup(x => x.InitiatePaymentAsync(It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<string>(), default))
+        mockPayment.Setup(x => x.InitiatePaymentAsync(It.IsAny<Guid>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PaymentInitResult("ord1", "https://telebirr.et/pay?test", "TB-TEST-001", 4500m, "Telebirr"));
 
         var mockSms = new Mock<ISmsService>();

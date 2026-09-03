@@ -53,4 +53,28 @@ public class PaymentsController(IMediator mediator) : ControllerBase
 
         return Ok(new { code = 0, message = "SUCCESS" });
     }
+
+    [HttpPost("chapa/webhook")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ChapaWebhook([FromBody] System.Text.Json.JsonElement payload, CancellationToken ct)
+    {
+        var signature = Request.Headers["x-chapa-signature"].FirstOrDefault()
+            ?? Request.Headers["Chapa-Signature"].FirstOrDefault()
+            ?? string.Empty;
+
+        var result = await mediator.Send(new ProcessChapaWebhookCommand(payload, signature), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+
+        return Ok(new { status = "success" });
+    }
+
+    [HttpGet("chapa/verify/{txRef}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyChapaPayment(string txRef, CancellationToken ct)
+    {
+        var result = await mediator.Send(new VerifyChapaPaymentCommand(txRef), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+
+        return Ok(result.Value);
+    }
 }

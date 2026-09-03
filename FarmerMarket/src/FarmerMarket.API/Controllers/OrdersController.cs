@@ -14,12 +14,12 @@ namespace FarmerMarket.API.Controllers;
 public class OrdersController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
-    [Authorize(Roles = "buyer,admin")]
+    [Authorize]
     public async Task<IActionResult> PlaceOrder([FromBody] PlaceOrderDto dto, CancellationToken ct)
     {
         var buyerId = User.GetUserId();
         var result = await mediator.Send(new PlaceOrderCommand(buyerId, dto), ct);
-        if (!result.IsSuccess) return Conflict(new { error = result.Error });
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 
         return Ok(result.Value);
     }

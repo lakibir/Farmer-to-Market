@@ -77,3 +77,31 @@ public class GetReviewsByUserHandler(IAppDbContext db) : IRequestHandler<GetRevi
         )).ToList();
     }
 }
+
+// 3. Get All Reviews Query
+public record GetAllReviewsQuery : IRequest<List<ReviewDto>>;
+
+public class GetAllReviewsHandler(IAppDbContext db) : IRequestHandler<GetAllReviewsQuery, List<ReviewDto>>
+{
+    public async Task<List<ReviewDto>> Handle(GetAllReviewsQuery req, CancellationToken ct)
+    {
+        var list = await db.Reviews.AsNoTracking()
+            .Include(r => r.Reviewer)
+            .Include(r => r.Reviewee)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync(ct);
+
+        return list.Select(r => new ReviewDto(
+            r.Id,
+            r.OrderId,
+            r.ReviewerId,
+            r.Reviewer != null ? r.Reviewer.Name : "Buyer",
+            r.RevieweeId,
+            r.Reviewee != null ? r.Reviewee.Name : "Farmer",
+            r.Rating,
+            r.Comment,
+            r.CreatedAt
+        )).ToList();
+    }
+}
+

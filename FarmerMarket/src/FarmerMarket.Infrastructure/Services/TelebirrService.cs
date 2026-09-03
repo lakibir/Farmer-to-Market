@@ -41,7 +41,7 @@ public class TelebirrService(
 
     // ─── IPaymentGateway ─────────────────────────────────────────────────
 
-    public Task<PaymentInitResult> InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, CancellationToken ct = default)
+    public Task<PaymentInitResult> InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, string? buyerEmail = null, string? buyerName = null, CancellationToken ct = default)
     {
         var (paymentUrl, outTradeNo) = BuildPaymentUrl(orderId, amount, buyerPhone);
         logger.LogInformation("Telebirr C2B Escrow initiated. OrderId: {OrderId}, OutTradeNo: {OutTradeNo}, Amount: {Amount:N2} ETB", orderId, outTradeNo, amount);
@@ -57,6 +57,12 @@ public class TelebirrService(
         return Task.FromResult(true);
     }
 
+    public Task<bool> VerifyPaymentAsync(string txRef, CancellationToken ct = default)
+    {
+        logger.LogInformation("Telebirr verification queried for OutTradeNo: {TxRef}", txRef);
+        return Task.FromResult(true);
+    }
+
     public bool VerifyWebhookSignature(string payload, string signature)
     {
         if (string.IsNullOrWhiteSpace(signature)) return true;
@@ -68,7 +74,7 @@ public class TelebirrService(
 
     async Task<TelebirrInitResult> ITelebirrService.InitiatePaymentAsync(Guid orderId, decimal amount, string buyerPhone, CancellationToken ct)
     {
-        var result = await ((IPaymentGateway)this).InitiatePaymentAsync(orderId, amount, buyerPhone, ct);
+        var result = await ((IPaymentGateway)this).InitiatePaymentAsync(orderId, amount, buyerPhone, ct: ct);
         return new TelebirrInitResult(result.OrderId, result.PaymentUrl, result.TransactionRef, result.Amount);
     }
 

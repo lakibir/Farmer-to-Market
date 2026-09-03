@@ -138,3 +138,95 @@ public class ProcessTelebirrWebhookHandler(IAppDbContext db) : IRequestHandler<P
         return Result.Success();
     }
 }
+
+// 5. Process Chapa Webhook Command
+public record ProcessChapaWebhookCommand(System.Text.Json.JsonElement Payload, string Signature) : IRequest<Result>;
+
+public class ProcessChapaWebhookHandler(
+    IAppDbContext db,
+    IPaymentGateway paymentGateway,
+    ISignalRNotifier signalR) : IRequestHandler<ProcessChapaWebhookCommand, Result>
+{
+    public async Task<Result> Handle(ProcessChapaWebhookCommand req, CancellationToken ct)
+    {
+        var rawJson = req.Payload.GetRawText();
+        if (!paymentGateway.VerifyWebhookSignature(rawJson, req.Signature))
+        {
+            return Result.Failure("Invalid Chapa webhook signature.");
+        }
+
+        string? txRef = null;
+        string? chapaRef = null;
+        string? status = null;
+
+        if (req.Payload.TryGetProperty("tx_ref", out var txRefEl)) txRef = txRefEl.GetString();
+        if (req.Payload.TryGetProperty("reference", out var refEl)) chapaRef = refEl.GetString();
+        if (req.Payload.TryGetProperty("status", out var statusEl)) status = statusEl.GetString();
+
+        if (string.IsNullOrWhiteSpace(txRef))
+            return Result.Failure("Missing tx_ref in Chapa webhook payload.");
+
+        var order = await db.Orders
+            .Include(o => o.Payment)
+            .Include(o => o.Listing)
+            .FirstOrDefaultAsync(o => o.PaymentRef == txRef, ct);
+
+        if (order == null)
+            return Result.Failure($"Order not found for Chapa tx_ref '{txRef}'.");
+
+        if (status?.Equals("success", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            order.EscrowHeld = true;
+            if (order.Payment != null)
+            {
+                order.Payment.Status = "Held";
+                order.Payment.TelebirrRef = chapaRef ?? txRef;
+            }
+            await db.SaveChangesAsync(ct);
+            _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Pending, "Chapa escrow payment confirmed.", ct);
+        }
+
+        return Result.Success();
+    }
+}
+
+// 6. Verify Chapa Payment Query
+public record VerifyChapaPaymentCommand(string TxRef) : IRequest<Result<object>>;
+
+public class VerifyChapaPaymentHandler(
+    IAppDbContext db,
+    IPaymentGateway paymentGateway,
+    ISignalRNotifier signalR) : IRequestHandler<VerifyChapaPaymentCommand, Result<object>>
+{
+    public async Task<Result<object>> Handle(VerifyChapaPaymentCommand req, CancellationToken ct)
+    {
+        var order = await db.Orders
+            .Include(o => o.Payment)
+            .Include(o => o.Listing)
+            .FirstOrDefaultAsync(o => o.PaymentRef == req.TxRef, ct);
+
+        if (order == null)
+            return Result<object>.Failure($"Order not found for transaction '{req.TxRef}'.");
+
+        var isValid = await paymentGateway.VerifyPaymentAsync(req.TxRef, ct);
+        if (!isValid)
+            return Result<object>.Failure("Chapa transaction verification failed or is not yet complete.");
+
+        order.EscrowHeld = true;
+        if (order.Payment != null)
+        {
+            order.Payment.Status = "Held";
+        }
+        await db.SaveChangesAsync(ct);
+        _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Pending, "Chapa escrow payment confirmed.", ct);
+
+        return Result<object>.Success(new
+        {
+            orderId = order.Id,
+            status = order.Status.ToString(),
+            escrowHeld = order.EscrowHeld,
+            paymentRef = order.PaymentRef,
+            amount = order.TotalEtb
+        });
+    }
+}
