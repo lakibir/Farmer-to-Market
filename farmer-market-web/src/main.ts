@@ -120,6 +120,19 @@ class App {
   private editTargetListingId: string | null = null;
   private selectedRbacRole: UserRole = 'admin';
 
+  // Super Admin Financials & Payouts State
+  private superAdminFinancialSubTab: 'payouts' | 'ledger' | 'tax' | 'config' = 'payouts';
+  private superAdminPayoutStatusFilter: string = 'all';
+  private superAdminPayoutRoleFilter: string = 'all';
+  private superAdminPayoutRiskFilter: string = 'all';
+  private superAdminPayoutSearchQuery: string = '';
+  private selectedPayoutIds: string[] = [];
+  private isSuperAdminRejectModalOpen: boolean = false;
+  private rejectTargetPayoutId: string | null = null;
+  private isSuperAdminSimulatePayoutModalOpen: boolean = false;
+  private isSuperAdminPayoutDetailModalOpen: boolean = false;
+  private detailTargetPayoutId: string | null = null;
+
   // Voice Note State
   private isRecordingVoice: boolean = false;
   private voiceRecordTimer: any = null;
@@ -330,7 +343,13 @@ class App {
         this.activeSuperAdminTab,
         this.superAdminUserRoleFilter,
         this.superAdminAuditCategoryFilter,
-        this.selectedRbacRole
+        this.selectedRbacRole,
+        this.superAdminFinancialSubTab,
+        this.superAdminPayoutStatusFilter,
+        this.superAdminPayoutRoleFilter,
+        this.superAdminPayoutRiskFilter,
+        this.superAdminPayoutSearchQuery,
+        this.selectedPayoutIds
       );
     } else if (this.activeTab === 'admin' && isAuthenticated && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')) {
       const stats = api.getPlatformStats();
@@ -519,10 +538,10 @@ class App {
 
       <!-- Rate & Review Modal -->
       ${this.activeRateModal?.isOpen ? renderRateReviewModal(
-        this.lang,
-        api.getOrders().find(o => o.id === this.activeRateModal?.orderId),
-        this.activeRateModal
-      ) : ''}
+                this.lang,
+                api.getOrders().find(o => o.id === this.activeRateModal?.orderId),
+                this.activeRateModal
+              ) : ''}
 
       <!-- Super Admin Governance Modals -->
       ${renderSuperAdminModals(
@@ -535,7 +554,12 @@ class App {
                 this.isSuperAdminBannerModalOpen,
                 this.editTargetBannerId,
                 this.isListingEditModalOpen,
-                this.editTargetListingId
+                this.editTargetListingId,
+                this.isSuperAdminRejectModalOpen,
+                this.rejectTargetPayoutId,
+                this.isSuperAdminSimulatePayoutModalOpen,
+                this.isSuperAdminPayoutDetailModalOpen,
+                this.detailTargetPayoutId
               )}
     `;
   }
@@ -1511,7 +1535,7 @@ class App {
       await api.confirmDeliveryByBuyer(orderId);
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
       showToast('Delivery Confirmed! 90% released to Farmer, 5% to Driver.', 'fa-hand-holding-dollar', 'border-emerald-500');
-      
+
       // Immediately open Rate & Review modal for real rating and feedback
       const order = api.getOrders().find(o => o.id === orderId);
       this.activeRateModal = {
@@ -2308,21 +2332,186 @@ class App {
       this.render();
     };
 
+    w.setSuperAdminFinancialSubTab = (tab: 'payouts' | 'ledger' | 'tax' | 'config') => {
+      this.superAdminFinancialSubTab = tab;
+      this.render();
+    };
+
+    w.setPayoutStatusFilter = (status: string) => {
+      this.superAdminPayoutStatusFilter = status;
+      this.render();
+    };
+
+    w.setPayoutRoleFilter = (role: string) => {
+      this.superAdminPayoutRoleFilter = role;
+      this.render();
+    };
+
+    w.setPayoutRiskFilter = (risk: string) => {
+      this.superAdminPayoutRiskFilter = risk;
+      this.render();
+    };
+
+    w.handlePayoutSearch = (query: string) => {
+      this.superAdminPayoutSearchQuery = query;
+      this.render();
+    };
+
     w.approveHighValuePayout = (id: string) => {
       const user = api.getCurrentUser();
       const success = api.approvePayout(id, user?.name || 'Dr. Dawit Haile (Super Admin)');
       if (success) {
         confetti({ particleCount: 90, spread: 60, origin: { y: 0.6 } });
-        showToast('High-value Telebirr payout approved & released!', 'fa-circle-check', 'border-emerald-500');
+        showToast(
+          this.lang === 'am' ? 'ከፍተኛ የቴሌብር ክፍያ በዋና አድሚን ፀድቆ ተለቋል!' : 'High-value Telebirr payout approved & released!',
+          'fa-circle-check',
+          'border-emerald-500'
+        );
         this.render();
       }
     };
 
-    w.rejectHighValuePayout = (id: string) => {
+    w.approveAllPendingPayouts = () => {
       const user = api.getCurrentUser();
-      api.rejectPayout(id, user?.name || 'Dr. Dawit Haile (Super Admin)', 'Manual Super Admin audit flag');
-      showToast('Payout declined & flagged for compliance investigation.', 'fa-ban', 'border-red-500');
+      const pendingIds = api.getPendingPayoutApprovals().filter(p => p.status === 'Pending').map(p => p.id);
+      if (pendingIds.length === 0) {
+        showToast('No pending payouts to authorize.', 'fa-info-circle', 'border-slate-500');
+        return;
+      }
+
+      const res = api.batchApprovePayouts(pendingIds, user?.name || 'Dr. Dawit Haile (Super Admin)');
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+      showToast(
+        this.lang === 'am'
+          ? `የ${res.approvedCount} ተጠቃሚዎች ክፍያ (${res.totalAmountEtb.toLocaleString()} ብር) በአንድ ጊዜ ፀድቆ ተለቋል!`
+          : `Batch authorized ${res.approvedCount} payouts (${res.totalAmountEtb.toLocaleString()} ETB) simultaneously!`,
+        'fa-check-double',
+        'border-emerald-500'
+      );
       this.render();
+    };
+
+    w.openRejectPayoutModal = (id: string) => {
+      this.rejectTargetPayoutId = id;
+      this.isSuperAdminRejectModalOpen = true;
+      this.render();
+    };
+
+    w.handleRejectReasonChange = (val: string) => {
+      const noteInput = document.getElementById('payoutRejectCustomNote') as HTMLTextAreaElement;
+      if (!noteInput) return;
+      if (val !== 'custom') {
+        noteInput.value = `Flagged for: ${val}. Immediate compliance audit required.`;
+      } else {
+        noteInput.value = '';
+        noteInput.focus();
+      }
+    };
+
+    w.handleRejectPayoutSubmit = (e: Event, id: string) => {
+      e.preventDefault();
+      const user = api.getCurrentUser();
+      const selectVal = (document.getElementById('payoutRejectReasonSelect') as HTMLSelectElement)?.value || 'Compliance audit flag';
+      const customNote = (document.getElementById('payoutRejectCustomNote') as HTMLTextAreaElement)?.value;
+      const finalReason = selectVal === 'custom' || customNote ? (customNote || selectVal) : selectVal;
+
+      api.rejectPayout(id, user?.name || 'Dr. Dawit Haile (Super Admin)', finalReason);
+      this.isSuperAdminRejectModalOpen = false;
+      this.rejectTargetPayoutId = null;
+
+      showToast(
+        this.lang === 'am' ? 'የክፍያ ጥያቄው ውድቅ ተደርጎ ለደህንነት ምርመራ ታግዷል።' : 'Payout declined & flagged for compliance investigation.',
+        'fa-ban',
+        'border-red-500'
+      );
+      this.render();
+    };
+
+    w.openSimulatePayoutModal = () => {
+      this.isSuperAdminSimulatePayoutModalOpen = true;
+      this.render();
+    };
+
+    w.handleSimulatePayoutSubmit = (e: Event) => {
+      e.preventDefault();
+      const name = (document.getElementById('simPayoutName') as HTMLInputElement)?.value;
+      const phone = (document.getElementById('simPayoutPhone') as HTMLInputElement)?.value;
+      const role = ((document.getElementById('simPayoutRole') as HTMLSelectElement)?.value || 'farmer') as UserRole;
+      const amount = Number((document.getElementById('simPayoutAmount') as HTMLInputElement)?.value) || 75000;
+      const risk = ((document.getElementById('simPayoutRisk') as HTMLSelectElement)?.value || 'High') as 'Low' | 'Medium' | 'High';
+      const crop = (document.getElementById('simPayoutCrop') as HTMLInputElement)?.value;
+      const region = (document.getElementById('simPayoutRegion') as HTMLInputElement)?.value;
+      const reason = (document.getElementById('simPayoutReason') as HTMLInputElement)?.value;
+
+      api.createPayoutApproval({
+        recipientId: `sim-user-${Date.now().toString().slice(-4)}`,
+        recipientName: name,
+        recipientPhone: phone,
+        recipientRole: role,
+        amountEtb: amount,
+        riskScore: risk,
+        cropName: crop,
+        region: region,
+        triggerReason: reason
+      });
+
+      this.isSuperAdminSimulatePayoutModalOpen = false;
+      confetti({ particleCount: 60, spread: 50, origin: { y: 0.6 } });
+      showToast(
+        this.lang === 'am' ? `አዲስ የ${amount.toLocaleString()} ብር የክፍያ ጥያቄ ተፈጥሯል` : `Injected high-value payout request (${amount.toLocaleString()} ETB)`,
+        'fa-money-bill-transfer',
+        'border-amber-500'
+      );
+      this.render();
+    };
+
+    w.resetSuperAdminPayouts = () => {
+      api.resetPayoutsToDefault();
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+      showToast(
+        this.lang === 'am' ? 'የክፍያ ጥያቄዎች ወደ መጀመሪያው (4) ተመልሰዋል!' : 'Reset to default initial payout requests (4 pending)!',
+        'fa-rotate-left',
+        'border-emerald-500'
+      );
+      this.render();
+    };
+
+    w.openPayoutDetailModal = (id: string) => {
+      this.detailTargetPayoutId = id;
+      this.isSuperAdminPayoutDetailModalOpen = true;
+      this.render();
+    };
+
+    w.manualReleaseOrderEscrow = (orderId: string) => {
+      const user = api.getCurrentUser();
+      const note = prompt('Provide authorization rationale for manual escrow release:', 'Super Admin validated physical buyer receipt.');
+      if (!note) return;
+
+      const success = api.manualReleaseOrderEscrow(orderId, user?.name || 'Dr. Dawit Haile (Super Admin)', note);
+      if (success) {
+        confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+        showToast(
+          this.lang === 'am' ? 'የትዕዛዝ ገንዘብ በእጅ ተለቋል!' : `Manual escrow release authorized for Order #${orderId.slice(0, 8).toUpperCase()}`,
+          'fa-lock-open',
+          'border-emerald-500'
+        );
+        this.render();
+      }
+    };
+
+    w.exportFinancialStatement = (format: string = 'csv') => {
+      const csvData = api.exportFinancialStatementCsv();
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `FarmerMarket_Financial_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast('Financial ledger exported to CSV successfully!', 'fa-file-arrow-down', 'border-emerald-500');
     };
 
     w.toggleFeatureFlag = (key: string) => {
@@ -2425,6 +2614,48 @@ class App {
       const backup = api.triggerDatabaseBackup();
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
       showToast(`PostgreSQL backup snapshot generated (${backup.backupId})!`, 'fa-database', 'border-blue-500');
+      this.render();
+    };
+
+    w.runDbMaintenance = () => {
+      api.optimizeDatabase();
+      showToast('VACUUM ANALYZE and spatial indexing optimization complete!', 'fa-bolt', 'border-emerald-500');
+      this.render();
+    };
+
+    w.resetSuperAdminZones = () => {
+      api.resetDeliveryZonesToDefault();
+      showToast('Delivery zones reset to 6 default Ethiopian corridors.', 'fa-rotate-left', 'border-teal-500');
+      this.render();
+    };
+
+    w.resetSuperAdminFlags = () => {
+      api.resetFeatureFlagsToDefault();
+      showToast('Feature flags reset to baseline configuration.', 'fa-rotate-left', 'border-indigo-500');
+      this.render();
+    };
+
+    w.resetSuperAdminBlacklist = () => {
+      api.resetBlacklistToDefault();
+      showToast('Blacklist reset to default entries.', 'fa-rotate-left', 'border-red-500');
+      this.render();
+    };
+
+    w.resetSuperAdminRules = () => {
+      api.resetBusinessRulesToDefault();
+      showToast('Business rules reset to platform defaults.', 'fa-rotate-left', 'border-amber-500');
+      this.render();
+    };
+
+    w.resetSuperAdminAuditLogs = () => {
+      api.resetAuditLogsToDefault();
+      showToast('Audit logs reset to baseline entries (5 logs).', 'fa-rotate-left', 'border-blue-500');
+      this.render();
+    };
+
+    w.resetAllSuperAdminData = () => {
+      api.resetAllSuperAdminDataToDefault();
+      showToast('All Super Admin governance parameters reset to default.', 'fa-arrows-rotate', 'border-rose-500');
       this.render();
     };
 

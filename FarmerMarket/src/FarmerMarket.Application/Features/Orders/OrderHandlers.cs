@@ -66,7 +66,7 @@ public class PlaceOrderHandler(
             QtyKg = req.Dto.QtyKg,
             TotalEtb = totalEtb,
             Status = OrderStatus.Pending,
-            EscrowHeld = false,
+            EscrowHeld = true,
             PaymentRef = paymentInit?.TransactionRef ?? $"FM-{orderId.ToString().ToUpperInvariant()[..8]}-{DateTime.UtcNow:yyyyMMddHHmmss}",
             DeliveryAddress = req.Dto.DeliveryAddress ?? buyer.Region,
             DeliveryNotes = req.Dto.DeliveryNotes,
@@ -86,7 +86,7 @@ public class PlaceOrderHandler(
             DriverCut = driverCut,
             PlatformCut = platformCut,
             TelebirrRef = paymentInit?.TransactionRef ?? order.PaymentRef,
-            Status = "Initiated",
+            Status = "Held",
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -423,6 +423,48 @@ public class DisputeOrderHandler(IAppDbContext db, ISignalRNotifier signalR) : I
         await db.SaveChangesAsync(ct);
 
         _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Disputed, $"Dispute raised: {req.Dto.Reason}. Under Admin arbitration.", ct);
+
+        return Result.Success();
+    }
+}
+
+// 8. Cancel & Refund Order Command (Buyer / Admin)
+public record CancelOrderCommand(Guid OrderId, Guid UserId, string Reason) : IRequest<Result>;
+
+public class CancelOrderHandler(
+    IAppDbContext db,
+    ITelebirrService payment,
+    ISignalRNotifier signalR) : IRequestHandler<CancelOrderCommand, Result>
+{
+    public async Task<Result> Handle(CancelOrderCommand req, CancellationToken ct)
+    {
+        var order = await db.Orders
+            .Include(o => o.Payment)
+            .Include(o => o.Listing)
+            .FirstOrDefaultAsync(o => o.Id == req.OrderId, ct);
+
+        if (order == null) return Result.Failure("Order not found.");
+        if (order.Status == OrderStatus.Delivered) return Result.Failure("Cannot cancel a delivered order. Please open a dispute instead.");
+
+        order.Status = OrderStatus.Cancelled;
+        order.EscrowHeld = false;
+        order.DisputeStatus = "ResolvedRefundBuyer";
+        order.DisputeResolutionNotes = $"Cancelled and refunded: {req.Reason}";
+
+        if (order.Payment != null)
+        {
+            order.Payment.Status = "Refunded";
+            await payment.RefundPaymentAsync(order.Id, order.TotalEtb, ct);
+        }
+
+        if (order.Listing != null)
+        {
+            order.Listing.QtyKg += order.QtyKg;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Cancelled, $"Order cancelled and 100% refunded ({order.TotalEtb:N2} ETB) via Telebirr.", ct);
 
         return Result.Success();
     }

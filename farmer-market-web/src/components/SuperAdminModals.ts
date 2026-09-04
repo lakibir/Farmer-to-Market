@@ -12,7 +12,12 @@ export function renderSuperAdminModals(
   isBannerModalOpen: boolean = false,
   editTargetBannerId: string | null = null,
   isListingEditModalOpen: boolean = false,
-  editTargetListingId: string | null = null
+  editTargetListingId: string | null = null,
+  isRejectPayoutModalOpen: boolean = false,
+  rejectTargetPayoutId: string | null = null,
+  isSimulatePayoutModalOpen: boolean = false,
+  isPayoutDetailModalOpen: boolean = false,
+  detailTargetPayoutId: string | null = null
 ): string {
   const t = translations[lang];
 
@@ -567,6 +572,253 @@ export function renderSuperAdminModals(
         </div>
       `;
     })() : ''}
+
+    <!-- Reject High-Value Payout Modal -->
+    ${isRejectPayoutModalOpen && rejectTargetPayoutId ? (() => {
+      const payout = api.getAllPayoutApprovals().find(p => p.id === rejectTargetPayoutId);
+      if (!payout) return '';
+
+      return `
+        <div class="modal-backdrop" onclick="if(event.target === this) window.closeSuperAdminModal()">
+          <div class="glass-card max-w-lg w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleIn">
+            <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-rose-950 p-6 text-white relative">
+              <button onclick="window.closeSuperAdminModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                <i class="fa-solid fa-xmark text-sm"></i>
+              </button>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-red-500/20 border border-red-400/30 text-red-400 flex items-center justify-center text-xl font-black">
+                  <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-widest text-red-400">Multi-Sig Compliance Flag</span>
+                  <h3 class="text-lg font-black text-white">Decline High-Value Payout</h3>
+                </div>
+              </div>
+            </div>
+
+            <form onsubmit="window.handleRejectPayoutSubmit(event, '${payout.id}')" class="p-6 space-y-4 text-xs">
+              
+              <!-- Recipient & Amount Summary -->
+              <div class="p-3.5 rounded-2xl bg-red-50/70 border border-red-200 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-800">${payout.recipientName}</span>
+                  <span class="font-black text-red-800 text-sm font-mono">${payout.amountEtb.toLocaleString()} ETB</span>
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-slate-500">
+                  <span class="font-mono">${payout.recipientPhone} · ${payout.recipientRole.toUpperCase()}</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-black bg-red-100 text-red-800">${payout.riskScore} RISK</span>
+                </div>
+                <p class="text-[11px] text-slate-600 font-semibold pt-1 border-t border-red-200/60">
+                  Trigger: ${payout.triggerReason}
+                </p>
+              </div>
+
+              <!-- Rejection Reason Select -->
+              <div>
+                <label class="block mb-1.5 font-bold text-slate-800">Compliance Audit Reason *</label>
+                <select id="payoutRejectReasonSelect" required onchange="window.handleRejectReasonChange(this.value)" class="input-field text-xs font-bold bg-slate-50">
+                  <option value="Kebele / Fayda ID mismatch or unverified farming certificate">📄 Kebele / Fayda ID mismatch or unverified Kebele farming certificate</option>
+                  <option value="Suspected duplicate consignment or inflated harvest claim">⚠️ Suspected duplicate consignment or inflated harvest volume claim</option>
+                  <option value="Active unresolved dispute on underlying order">⚖️ Active unresolved dispute on underlying marketplace delivery</option>
+                  <option value="High-frequency withdrawal anomaly flagged by risk engine">🚨 High-frequency withdrawal anomaly flagged by platform risk engine</option>
+                  <option value="custom">✏️ Custom Audit Rationale (Provide specifics below)...</option>
+                </select>
+              </div>
+
+              <!-- Custom Reason Details -->
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Detailed Auditor Rationale & Instructions</label>
+                <textarea id="payoutRejectCustomNote" rows="3" placeholder="Specify investigation notes or requirements needed for the recipient to appeal..." class="input-field text-xs"></textarea>
+                <p class="text-[10px] text-slate-400 mt-1">This explanation will be logged to the immutable audit trail and sent via SMS to the recipient.</p>
+              </div>
+
+              <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="window.closeSuperAdminModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold shadow-md cursor-pointer flex items-center gap-1.5">
+                  <i class="fa-solid fa-ban"></i> Confirm Decline & Flag Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    })() : ''}
+
+    <!-- Simulate High-Value Payout Modal -->
+    ${isSimulatePayoutModalOpen ? `
+      <div class="modal-backdrop" onclick="if(event.target === this) window.closeSuperAdminModal()">
+        <div class="glass-card max-w-lg w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleIn">
+          <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950 p-6 text-white relative">
+            <button onclick="window.closeSuperAdminModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-400 flex items-center justify-center text-xl font-black">
+                <i class="fa-solid fa-vial-circle-check"></i>
+              </div>
+              <div>
+                <span class="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">Governance Testing Engine</span>
+                <h3 class="text-lg font-black text-white">Simulate High-Value Payout</h3>
+              </div>
+            </div>
+          </div>
+
+          <form onsubmit="window.handleSimulatePayoutSubmit(event)" class="p-6 space-y-4 text-xs">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Beneficiary / Union Name *</label>
+                <input type="text" id="simPayoutName" required placeholder="e.g. Bale Wheat Cooperative" value="Ada'a Magna Teff Union" class="input-field text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Beneficiary Phone *</label>
+                <input type="tel" id="simPayoutPhone" required placeholder="+251911..." value="+251911987654" class="input-field text-xs font-bold font-mono" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Role *</label>
+                <select id="simPayoutRole" class="input-field text-xs font-bold bg-slate-50">
+                  <option value="farmer">🌾 Farmer / Cooperative</option>
+                  <option value="driver">🚚 Freight Driver</option>
+                </select>
+              </div>
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Withdrawal Amount (ETB) *</label>
+                <input type="number" id="simPayoutAmount" required min="50000" step="1000" value="85000" class="input-field text-xs font-bold font-mono" />
+              </div>
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Risk Level *</label>
+                <select id="simPayoutRisk" class="input-field text-xs font-bold bg-slate-50">
+                  <option value="Low">🟢 Low Risk</option>
+                  <option value="Medium">🟡 Medium Risk</option>
+                  <option value="High" selected>🔴 High Risk</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Associated Produce / Crop</label>
+                <input type="text" id="simPayoutCrop" placeholder="e.g. White Magna Teff" value="Export-Grade White Teff (150 Quintals)" class="input-field text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block mb-1 font-bold text-slate-700">Region / Origin</label>
+                <input type="text" id="simPayoutRegion" placeholder="e.g. Oromia (Bishoftu)" value="Oromia (Bishoftu / Ada'a)" class="input-field text-xs font-bold" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block mb-1 font-bold text-slate-700">Trigger Explanation *</label>
+              <input type="text" id="simPayoutReason" required value="Commercial wholesale settlement exceeding 50k ETB multi-sig threshold" class="input-field text-xs" />
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button type="button" onclick="window.closeSuperAdminModal()" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer">
+                Cancel
+              </button>
+              <button type="submit" class="btn-primary py-2 px-5 font-bold shadow-md cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-plus"></i> Inject Payout Request
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Payout Detail & Audit Certificate Modal -->
+    ${isPayoutDetailModalOpen && detailTargetPayoutId ? (() => {
+      const payout = api.getAllPayoutApprovals().find(p => p.id === detailTargetPayoutId);
+      if (!payout) return '';
+      const tax = payout.withholdingTaxEtb || Math.round(payout.amountEtb * 0.02);
+      const net = payout.netDisbursedEtb || (payout.amountEtb - tax);
+
+      return `
+        <div class="modal-backdrop" onclick="if(event.target === this) window.closeSuperAdminModal()">
+          <div class="glass-card max-w-lg w-full bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleIn">
+            <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950 p-6 text-white relative">
+              <button onclick="window.closeSuperAdminModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                <i class="fa-solid fa-xmark text-sm"></i>
+              </button>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center text-xl font-black">
+                  <i class="fa-solid fa-stamp"></i>
+                </div>
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">Telebirr Multi-Sig Certificate</span>
+                  <h3 class="text-lg font-black text-white">Settlement Audit Record</h3>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-6 space-y-4 text-xs">
+              
+              <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-emerald-900">Total Settlement Value:</span>
+                  <span class="text-lg font-black text-emerald-800 font-mono">${payout.amountEtb.toLocaleString()} ETB</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-emerald-200">
+                  <div>
+                    <span class="text-emerald-700 block">2% MOR Withholding:</span>
+                    <span class="font-bold text-amber-800 font-mono">-${tax.toLocaleString()} ETB</span>
+                  </div>
+                  <div>
+                    <span class="text-emerald-700 block">Net Disbursed:</span>
+                    <span class="font-black text-emerald-900 font-mono">${net.toLocaleString()} ETB</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="glass-card p-4 border-slate-200 space-y-2">
+                <div class="flex items-center justify-between text-slate-700">
+                  <span class="text-slate-500 font-medium">Beneficiary:</span>
+                  <span class="font-bold text-slate-900">${payout.recipientName}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-700">
+                  <span class="text-slate-500 font-medium">Phone Number:</span>
+                  <span class="font-mono font-bold text-slate-900">${payout.recipientPhone}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-700">
+                  <span class="text-slate-500 font-medium">Assigned Role:</span>
+                  <span class="font-bold uppercase text-slate-900">${payout.recipientRole}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-700">
+                  <span class="text-slate-500 font-medium">Telebirr Transaction Reference:</span>
+                  <span class="font-mono font-black text-emerald-700">${payout.telebirrTxId || 'TB-ET-982104'}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-700">
+                  <span class="text-slate-500 font-medium">Status:</span>
+                  <span class="font-black ${payout.status === 'Approved' ? 'text-emerald-700' : payout.status === 'Rejected' ? 'text-red-700' : 'text-amber-700'}">${payout.status.toUpperCase()}</span>
+                </div>
+                ${payout.reviewedBy ? `
+                  <div class="flex items-center justify-between text-slate-700 pt-1 border-t border-slate-100">
+                    <span class="text-slate-500 font-medium">Authorized By:</span>
+                    <span class="font-bold text-slate-900">${payout.reviewedBy}</span>
+                  </div>
+                ` : ''}
+                ${payout.reviewedAt ? `
+                  <div class="flex items-center justify-between text-slate-700">
+                    <span class="text-slate-500 font-medium">Authorized At:</span>
+                    <span class="font-mono text-slate-600">${payout.reviewedAt}</span>
+                  </div>
+                ` : ''}
+              </div>
+
+              <div class="pt-2 flex items-center justify-end">
+                <button onclick="window.closeSuperAdminModal()" class="btn-primary py-2 px-6 font-bold cursor-pointer">
+                  Close Certificate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    })() : ''}
   `;
 }
+
 

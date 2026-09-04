@@ -687,6 +687,15 @@ export interface PayoutApprovalItem {
   requestedAt: string;
   reviewedBy?: string;
   reviewedAt?: string;
+  rejectionReason?: string;
+  telebirrTxId?: string;
+  orderId?: string;
+  cropName?: string;
+  region?: string;
+  withholdingTaxEtb?: number;
+  netDisbursedEtb?: number;
+  tinNumber?: string;
+  faydaId?: string;
 }
 
 export interface GlobalBusinessRules {

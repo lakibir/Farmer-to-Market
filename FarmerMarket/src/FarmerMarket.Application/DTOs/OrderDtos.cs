@@ -80,6 +80,8 @@ public record DisputeOrderDto(
     int RequestedRefundPercent = 100
 );
 
+public record CancelOrderDto(string? Reason = null);
+
 public record StandingOrderDto(
     Guid Id,
     Guid ListingId,

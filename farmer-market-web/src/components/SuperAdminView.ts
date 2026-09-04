@@ -21,7 +21,13 @@ export function renderSuperAdminView(
   activeTab: SuperAdminTab = 'users',
   userRoleFilter: string = 'all',
   auditCategoryFilter: string = 'all',
-  selectedRbacRole: UserRole = 'admin'
+  selectedRbacRole: UserRole = 'admin',
+  financialSubTab: 'payouts' | 'ledger' | 'tax' | 'config' = 'payouts',
+  payoutStatusFilter: string = 'all',
+  payoutRoleFilter: string = 'all',
+  payoutRiskFilter: string = 'all',
+  payoutSearchQuery: string = '',
+  selectedPayoutIds: string[] = []
 ): string {
   const t = translations[lang];
   const users = api.getAllUsers();
@@ -159,7 +165,28 @@ export function renderSuperAdminView(
       </div>
 
       <!-- Tab Content Panels -->
-      ${renderActiveTabContent(lang, activeTab, filteredUsers, userRoleFilter, roleCount, config, filteredAuditLogs, auditCategoryFilter, zones, featureFlags, payouts, rules, blacklist, selectedRbacRole)}
+      ${renderActiveTabContent(
+        lang,
+        activeTab,
+        filteredUsers,
+        userRoleFilter,
+        roleCount,
+        config,
+        filteredAuditLogs,
+        auditCategoryFilter,
+        zones,
+        featureFlags,
+        payouts,
+        rules,
+        blacklist,
+        selectedRbacRole,
+        financialSubTab,
+        payoutStatusFilter,
+        payoutRoleFilter,
+        payoutRiskFilter,
+        payoutSearchQuery,
+        selectedPayoutIds
+      )}
 
     </div>
   `;
@@ -179,7 +206,13 @@ function renderActiveTabContent(
   payouts: PayoutApprovalItem[],
   rules: GlobalBusinessRules,
   blacklist: BlacklistEntry[],
-  selectedRbacRole: UserRole = 'admin'
+  selectedRbacRole: UserRole = 'admin',
+  financialSubTab: 'payouts' | 'ledger' | 'tax' | 'config' = 'payouts',
+  payoutStatusFilter: string = 'all',
+  payoutRoleFilter: string = 'all',
+  payoutRiskFilter: string = 'all',
+  payoutSearchQuery: string = '',
+  selectedPayoutIds: string[] = []
 ): string {
   const t = translations[lang];
 
@@ -195,7 +228,7 @@ function renderActiveTabContent(
     case 'config':
       return renderConfigTab(lang, config);
     case 'financials':
-      return renderFinancialsTab(lang, payouts);
+      return renderFinancialsTab(lang, payouts, config, financialSubTab, payoutStatusFilter, payoutRoleFilter, payoutRiskFilter, payoutSearchQuery, selectedPayoutIds);
     case 'audit':
       return renderAuditTab(lang, auditLogs, auditCategoryFilter);
     case 'zones':
@@ -416,8 +449,8 @@ function renderPermissionsTab(lang: Language, selectedRole: UserRole = 'admin'):
       <!-- Role Selector Tabs -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         ${roles.map(r => {
-          const isSelected = r.key === selectedRole;
-          return `
+    const isSelected = r.key === selectedRole;
+    return `
             <button onclick="window.setRbacSelectedRole('${r.key}')" class="p-3 rounded-2xl border transition-all text-left flex flex-col justify-between gap-2 cursor-pointer ${isSelected ? 'bg-purple-900 text-white border-purple-800 shadow-md ring-2 ring-purple-600/30' : 'glass-card text-slate-700 hover:border-purple-300'}">
               <div class="flex items-center justify-between">
                 <i class="fa-solid ${r.icon} text-base ${isSelected ? 'text-purple-300' : ''}"></i>
@@ -431,7 +464,7 @@ function renderPermissionsTab(lang: Language, selectedRole: UserRole = 'admin'):
               </div>
             </button>
           `;
-        }).join('')}
+  }).join('')}
       </div>
 
       <!-- Selected Role RBAC Configuration Card -->
@@ -461,10 +494,10 @@ function renderPermissionsTab(lang: Language, selectedRole: UserRole = 'admin'):
         <!-- Permissions By Category -->
         <div class="space-y-6">
           ${categories.map(cat => {
-            const catPerms = allPermissions.filter(p => p.category === cat);
-            if (catPerms.length === 0) return '';
+    const catPerms = allPermissions.filter(p => p.category === cat);
+    if (catPerms.length === 0) return '';
 
-            return `
+    return `
               <div class="space-y-3">
                 <div class="flex items-center gap-2 text-xs font-black text-slate-800 uppercase tracking-wider">
                   <i class="fa-solid ${categoryIcons[cat] || 'fa-shield'}"></i>
@@ -474,10 +507,10 @@ function renderPermissionsTab(lang: Language, selectedRole: UserRole = 'admin'):
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   ${catPerms.map(p => {
-                    const isGranted = selectedRole === 'superadmin' ? true : !!currentRolePerms[p.key];
-                    const isLocked = selectedRole === 'superadmin';
+      const isGranted = selectedRole === 'superadmin' ? true : !!currentRolePerms[p.key];
+      const isLocked = selectedRole === 'superadmin';
 
-                    return `
+      return `
                       <div class="p-3.5 rounded-2xl border transition-all ${isGranted ? 'bg-emerald-50/40 border-emerald-200 ring-1 ring-emerald-500/10' : 'bg-slate-50/60 border-slate-200 opacity-80'} flex flex-col justify-between gap-2.5">
                         <div class="flex items-start justify-between gap-2">
                           <div>
@@ -502,11 +535,11 @@ function renderPermissionsTab(lang: Language, selectedRole: UserRole = 'admin'):
                         </p>
                       </div>
                     `;
-                  }).join('')}
+    }).join('')}
                 </div>
               </div>
             `;
-          }).join('')}
+  }).join('')}
         </div>
       </div>
 
@@ -694,66 +727,602 @@ function renderConfigTab(lang: Language, config: PlatformConfig): string {
 }
 
 // 4. FINANCIALS & HIGH-VALUE PAYOUTS TAB
-function renderFinancialsTab(lang: Language, payouts: PayoutApprovalItem[]): string {
+function renderFinancialsTab(
+  lang: Language,
+  payouts: PayoutApprovalItem[],
+  config: PlatformConfig,
+  financialSubTab: 'payouts' | 'ledger' | 'tax' | 'config' = 'payouts',
+  statusFilter: string = 'all',
+  roleFilter: string = 'all',
+  riskFilter: string = 'all',
+  searchQuery: string = '',
+  selectedPayoutIds: string[] = []
+): string {
+  const orders = api.getOrders();
+  const stats = api.getPlatformStats();
+
+  const totalGMV = orders.reduce((acc, o) => acc + o.totalEtb, 0) || stats.totalTransactionVolumeEtb;
+  const totalFarmerCut = orders.filter(o => o.status === 'delivered').reduce((acc, o) => acc + o.farmerCut, 0) || Math.round(totalGMV * ((config.farmerSharePercent || 90) / 100));
+  const totalDriverCut = orders.filter(o => o.status === 'delivered').reduce((acc, o) => acc + o.driverCut, 0) || Math.round(totalGMV * ((config.driverSharePercent || 5) / 100));
+  const totalPlatformCut = orders.filter(o => o.status === 'delivered').reduce((acc, o) => acc + o.platformCut, 0) || Math.round(totalGMV * ((config.platformFeePercent || 5) / 100));
+  const activeEscrow = orders.filter(o => o.escrowHeld).reduce((acc, o) => acc + o.totalEtb, 0) || stats.activeEscrowHeldEtb;
+  const totalWithholdingTax = Math.round(totalGMV * ((config.withholdingTaxPercent || 2) / 100));
+
   const pendingPayouts = payouts.filter(p => p.status === 'Pending');
+  const approvedPayouts = payouts.filter(p => p.status === 'Approved');
+  const rejectedPayouts = payouts.filter(p => p.status === 'Rejected');
+  const totalPendingAmount = pendingPayouts.reduce((acc, p) => acc + p.amountEtb, 0);
+
+  // Filter payouts
+  const query = (searchQuery || '').toLowerCase().trim();
+  const filteredPayouts = payouts.filter(p => {
+    if (statusFilter !== 'all' && p.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
+    if (roleFilter !== 'all' && p.recipientRole.toLowerCase() !== roleFilter.toLowerCase()) return false;
+    if (riskFilter !== 'all' && p.riskScore.toLowerCase() !== riskFilter.toLowerCase()) return false;
+    if (query) {
+      const matchName = p.recipientName.toLowerCase().includes(query);
+      const matchPhone = p.recipientPhone.toLowerCase().includes(query);
+      const matchId = p.id.toLowerCase().includes(query);
+      const matchCrop = (p.cropName || '').toLowerCase().includes(query);
+      const matchTx = (p.telebirrTxId || '').toLowerCase().includes(query);
+      if (!matchName && !matchPhone && !matchId && !matchCrop && !matchTx) return false;
+    }
+    return true;
+  });
 
   return `
     <div class="space-y-6">
-      <div>
-        <h2 class="text-xl font-extrabold text-slate-900">
-          ${lang === 'am' ? 'የፋይናንስ ቁጥጥር እና ከፍተኛ ክፍያዎች ማረጋገጫ' : 'Financial Oversight & High-Value Payout Authorizations'}
-        </h2>
-        <p class="text-xs text-slate-500 font-medium">
-          ${lang === 'am' ? 'ከ50,000 ብር በላይ የሆኑ የጅምላ ክፍያዎች በዋና አድሚን ይፈቀዳሉ።' : 'Multi-sig authorization queue for high-volume transactions, commission reconciliation, and tax summaries.'}
-        </p>
+      
+      <!-- Top Title & Gateway Operations Bar -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-800 border border-amber-500/20 text-xs font-bold mb-1">
+            <i class="fa-solid fa-money-bill-transfer text-amber-600"></i> ${lang === 'am' ? 'የገንዘብ እና የክፍያ ቁጥጥር ማዕከል' : 'Telebirr Escrow & Multi-Sig Payout Governance'}
+          </div>
+          <h2 class="text-xl font-extrabold text-slate-900">
+            ${lang === 'am' ? 'የፋይናንስ ቁጥጥር እና ከፍተኛ ክፍያዎች ማረጋገጫ' : 'Financial Oversight & Multi-Sig Payout Engine'}
+          </h2>
+          <p class="text-xs text-slate-500 font-medium max-w-2xl">
+            ${lang === 'am' ? 'ከ50,000 ብር በላይ የሆኑ የጅምላ ክፍያዎች ባለብዙ ፊርማ (Multi-Sig) ማረጋገጫ፣ የ90/5/5 የክፍያ ድርሻ እና የገቢዎች ሚኒስቴር 2% የግብር ተቀናሽ ቁጥጥር።' : 'Real-time multi-sig authorization queue for high-value payouts (>50k ETB), 90/5/5 escrow split reconciliation, and Ministry of Revenues (MOR) tax compliance.'}
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="window.resetSuperAdminPayouts()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-300 flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-rotate-left text-slate-500"></i> ${lang === 'am' ? 'ወደ ቀዳሚው መልስ' : 'Reset Defaults'}
+          </button>
+          <button onclick="window.openSimulatePayoutModal()" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-plus"></i> ${lang === 'am' ? 'አዲስ የክፍያ ጥያቄ ፍጠር' : 'Simulate Payout'}
+          </button>
+          <button onclick="window.exportFinancialStatement('csv')" class="btn-secondary py-2 px-3.5 text-xs font-bold cursor-pointer flex items-center gap-1.5">
+            <i class="fa-solid fa-file-csv text-emerald-700"></i> ${lang === 'am' ? 'ፋይናንስ ሪፖርት አውርድ' : 'Export Ledger CSV'}
+          </button>
+        </div>
       </div>
 
-      <!-- High-Value Payout Approval Cards -->
-      <div class="space-y-3">
-        <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-stamp text-amber-600"></i> Pending Payout Authorizations (${pendingPayouts.length})
-        </h3>
-
-        ${pendingPayouts.length === 0 ? `
-          <div class="p-8 text-center glass-card border-slate-200">
-            <i class="fa-solid fa-circle-check text-emerald-500 text-3xl mb-2"></i>
-            <p class="text-xs font-bold text-slate-700">All high-value payouts are currently reviewed and authorized.</p>
+      <!-- Live Gateway Status Bar -->
+      <div class="glass-card p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white border-slate-700 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black">
+            <i class="fa-solid fa-shield-halved"></i>
           </div>
-        ` : `
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            ${pendingPayouts.map(p => `
-              <div class="glass-card p-5 border-l-4 ${p.riskScore === 'High' ? 'border-red-600' : p.riskScore === 'Medium' ? 'border-amber-600' : 'border-emerald-600'} space-y-3">
-                <div class="flex items-start justify-between">
-                  <div>
-                    <span class="text-xs font-bold text-slate-900 block">${p.recipientName}</span>
-                    <span class="text-[11px] text-slate-500 font-mono">${p.recipientPhone} · ${p.recipientRole.toUpperCase()}</span>
-                  </div>
-                  <span class="px-2 py-0.5 rounded text-[10px] font-black ${p.riskScore === 'High' ? 'bg-red-100 text-red-800' : p.riskScore === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
-                    ${p.riskScore.toUpperCase()} RISK
-                  </span>
-                </div>
+          <div>
+            <span class="font-extrabold text-white block">Telebirr Merchant Escrow API · v2.4 Core Gateway</span>
+            <span class="text-[11px] text-slate-300 font-mono">AppID: ${config.telebirrAppId || 'ET-TEL-99201'} · ShortCode: ${config.telebirrShortCode || '8842'} · Multi-Sig Threshold: ${config.highValuePayoutThresholdEtb.toLocaleString()} ETB</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          ${config.emergencyEscrowFrozen ? `
+            <span class="px-3 py-1 rounded-lg bg-red-500 text-white font-black text-[11px] flex items-center gap-1 animate-pulse">
+              <i class="fa-solid fa-lock"></i> ESCROW FROZEN
+            </span>
+          ` : `
+            <span class="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-[11px] flex items-center gap-1">
+              <i class="fa-solid fa-circle-check text-emerald-400"></i> Gateway Live & Synchronized
+            </span>
+          `}
+          <button onclick="window.toggleEmergencyEscrowFreeze()" class="px-3 py-1 rounded-lg ${config.emergencyEscrowFrozen ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600/80 hover:bg-red-600'} text-white font-bold text-[11px] cursor-pointer transition-colors">
+            ${config.emergencyEscrowFrozen ? 'Unfreeze Escrow' : 'Emergency Freeze'}
+          </button>
+        </div>
+      </div>
 
-                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                  <div class="flex items-center justify-between">
-                    <span class="text-slate-500 font-medium">Requested Withdrawal:</span>
-                    <span class="text-base font-black text-emerald-700">${p.amountEtb.toLocaleString()} ETB</span>
-                  </div>
-                  <p class="text-[11px] text-slate-600 mt-1 font-semibold">Trigger: ${p.triggerReason}</p>
-                </div>
+      <!-- Executive Financial KPI Dashboard (6 Metric Cards) -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        
+        <div class="glass-card p-4 border-l-4 border-slate-900 space-y-1">
+          <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+            <span>${lang === 'am' ? 'ጠቅላላ የገበያ ግብይት' : 'Gross GMV Settled'}</span>
+            <i class="fa-solid fa-chart-line text-slate-700"></i>
+          </div>
+          <div class="text-base sm:text-lg font-black text-slate-900 font-mono">
+            ${totalGMV.toLocaleString()} <span class="text-[10px] font-bold text-slate-500">ETB</span>
+          </div>
+          <p class="text-[10px] text-slate-500 font-semibold">${orders.length} platform orders</p>
+        </div>
 
-                <div class="flex items-center gap-2 pt-1">
-                  <button onclick="window.approveHighValuePayout('${p.id}')" class="btn-primary flex-1 py-2 text-xs font-bold cursor-pointer">
-                    <i class="fa-solid fa-check mr-1"></i> Authorize Telebirr Payout
+        <div class="glass-card p-4 border-l-4 border-blue-600 space-y-1">
+          <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+            <span>${lang === 'am' ? 'በቴሌብር የተያዘ' : 'Active Escrow Vault'}</span>
+            <i class="fa-solid fa-vault text-blue-600"></i>
+          </div>
+          <div class="text-base sm:text-lg font-black text-blue-700 font-mono">
+            ${activeEscrow.toLocaleString()} <span class="text-[10px] font-bold text-blue-600">ETB</span>
+          </div>
+          <p class="text-[10px] text-blue-800 font-semibold">Held in custody</p>
+        </div>
+
+        <div class="glass-card p-4 border-l-4 border-emerald-600 space-y-1">
+          <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+            <span>${lang === 'am' ? 'ለአርሶ አደር (90%)' : 'Farmer Share (90%)'}</span>
+            <i class="fa-solid fa-wheat-awn text-emerald-600"></i>
+          </div>
+          <div class="text-base sm:text-lg font-black text-emerald-700 font-mono">
+            ${totalFarmerCut.toLocaleString()} <span class="text-[10px] font-bold text-emerald-600">ETB</span>
+          </div>
+          <p class="text-[10px] text-emerald-800 font-semibold">Direct produce value</p>
+        </div>
+
+        <div class="glass-card p-4 border-l-4 border-teal-600 space-y-1">
+          <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+            <span>${lang === 'am' ? 'ለትራንስፖርት (5%)' : 'Logistics (5%)'}</span>
+            <i class="fa-solid fa-truck-fast text-teal-600"></i>
+          </div>
+          <div class="text-base sm:text-lg font-black text-teal-700 font-mono">
+            ${totalDriverCut.toLocaleString()} <span class="text-[10px] font-bold text-teal-600">ETB</span>
+          </div>
+          <p class="text-[10px] text-teal-800 font-semibold">Freight disbursement</p>
+        </div>
+
+        <div class="glass-card p-4 border-l-4 border-purple-600 space-y-1">
+          <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+            <span>${lang === 'am' ? 'የፕላትፎርም ኮሚሽን (5%)' : 'Platform Fee (5%)'}</span>
+            <i class="fa-solid fa-coins text-purple-600"></i>
+          </div>
+          <div class="text-base sm:text-lg font-black text-purple-700 font-mono">
+            ${totalPlatformCut.toLocaleString()} <span class="text-[10px] font-bold text-purple-600">ETB</span>
+          </div>
+          <p class="text-[10px] text-purple-800 font-semibold">System revenue</p>
+        </div>
+
+        <div class="glass-card p-4 border-l-4 border-amber-600 space-y-1">
+          <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
+            <span>${lang === 'am' ? 'የገቢዎች ግብር (2%)' : 'MOR Tax (2%)'}</span>
+            <i class="fa-solid fa-landmark text-amber-600"></i>
+          </div>
+          <div class="text-base sm:text-lg font-black text-amber-700 font-mono">
+            ${totalWithholdingTax.toLocaleString()} <span class="text-[10px] font-bold text-amber-600">ETB</span>
+          </div>
+          <p class="text-[10px] text-amber-800 font-semibold">Withholding tax</p>
+        </div>
+
+      </div>
+
+      <!-- Financial Sub-Navigation Tabs -->
+      <div class="flex items-center gap-2 border-b border-slate-200 pb-2.5 overflow-x-auto text-xs font-bold">
+        <button onclick="window.setSuperAdminFinancialSubTab('payouts')" class="px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${financialSubTab === 'payouts' ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+          <i class="fa-solid fa-stamp"></i>
+          <span>${lang === 'am' ? 'የክፍያ ማረጋገጫ ወረፋ' : 'Multi-Sig Payout Queue'}</span>
+          <span class="px-1.5 py-0.5 rounded-full text-[10px] font-black ${financialSubTab === 'payouts' ? 'bg-white text-amber-800' : 'bg-amber-100 text-amber-800'}">${pendingPayouts.length}</span>
+        </button>
+
+        <button onclick="window.setSuperAdminFinancialSubTab('ledger')" class="px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${financialSubTab === 'ledger' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+          <i class="fa-solid fa-table-list"></i>
+          <span>${lang === 'am' ? 'የእስክሮው እና የድርሻ ሌጀር' : 'Order Escrow & Split Ledger'}</span>
+          <span class="text-[10px] opacity-75 font-mono">(${orders.length})</span>
+        </button>
+
+        <button onclick="window.setSuperAdminFinancialSubTab('tax')" class="px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${financialSubTab === 'tax' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+          <i class="fa-solid fa-landmark"></i>
+          <span>${lang === 'am' ? 'የግብር ተቀናሽ ሪፖርት' : 'MOR Withholding Tax & Compliance'}</span>
+        </button>
+
+        <button onclick="window.setSuperAdminFinancialSubTab('config')" class="px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${financialSubTab === 'config' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+          <i class="fa-solid fa-sliders"></i>
+          <span>${lang === 'am' ? 'የእስክሮው ፐርሰንት ውቅር' : 'Escrow Split Parameters'}</span>
+        </button>
+      </div>
+
+      <!-- ==================== SUB-VIEW 1: MULTI-SIG PAYOUT QUEUE ==================== -->
+      ${financialSubTab === 'payouts' ? `
+        <div class="space-y-4">
+          
+          <!-- Filters, Search & Batch Action Bar -->
+          <div class="glass-card p-4 border-slate-200 space-y-3">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              
+              <!-- Search Input -->
+              <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input 
+                  type="text" 
+                  id="payoutSearchInput" 
+                  placeholder="Search beneficiary name, phone (+251...), TxID, or crop..." 
+                  value="${searchQuery}" 
+                  oninput="window.handlePayoutSearch(this.value)" 
+                  class="input-field pl-9 py-2 text-xs font-medium" 
+                />
+                ${searchQuery ? `
+                  <button onclick="window.handlePayoutSearch('')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
                   </button>
-                  <button onclick="window.rejectHighValuePayout('${p.id}')" class="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-colors cursor-pointer border border-red-200">
-                    <i class="fa-solid fa-ban mr-1"></i> Decline
-                  </button>
-                </div>
+                ` : ''}
               </div>
-            `).join('')}
+
+              <!-- Filter Dropdowns -->
+              <div class="flex items-center gap-2 text-xs">
+                <select id="payoutRoleFilterSelect" onchange="window.setPayoutRoleFilter(this.value)" class="input-field py-2 text-xs font-bold bg-white">
+                  <option value="all" ${roleFilter === 'all' ? 'selected' : ''}>All Roles</option>
+                  <option value="farmer" ${roleFilter === 'farmer' ? 'selected' : ''}>🌾 Farmers / Unions</option>
+                  <option value="driver" ${roleFilter === 'driver' ? 'selected' : ''}>🚚 Transporters / Logistics</option>
+                </select>
+
+                <select id="payoutRiskFilterSelect" onchange="window.setPayoutRiskFilter(this.value)" class="input-field py-2 text-xs font-bold bg-white">
+                  <option value="all" ${riskFilter === 'all' ? 'selected' : ''}>All Risk Scores</option>
+                  <option value="low" ${riskFilter === 'low' ? 'selected' : ''}>🟢 Low Risk</option>
+                  <option value="medium" ${riskFilter === 'medium' ? 'selected' : ''}>🟡 Medium Risk</option>
+                  <option value="high" ${riskFilter === 'high' ? 'selected' : ''}>🔴 High Risk (Audit Hold)</option>
+                </select>
+              </div>
+
+            </div>
+
+            <!-- Status Tabs & Batch Actions -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100 text-xs">
+              <div class="flex items-center gap-1.5 overflow-x-auto font-bold">
+                <button onclick="window.setPayoutStatusFilter('all')" class="px-3 py-1 rounded-lg transition-all ${statusFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                  All (${payouts.length})
+                </button>
+                <button onclick="window.setPayoutStatusFilter('pending')" class="px-3 py-1 rounded-lg transition-all ${statusFilter === 'pending' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'}">
+                  Pending Multi-Sig (${pendingPayouts.length})
+                </button>
+                <button onclick="window.setPayoutStatusFilter('approved')" class="px-3 py-1 rounded-lg transition-all ${statusFilter === 'approved' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'}">
+                  Approved & Released (${approvedPayouts.length})
+                </button>
+                <button onclick="window.setPayoutStatusFilter('rejected')" class="px-3 py-1 rounded-lg transition-all ${statusFilter === 'rejected' ? 'bg-red-600 text-white' : 'bg-red-50 text-red-800 hover:bg-red-100'}">
+                  Declined / Held (${rejectedPayouts.length})
+                </button>
+              </div>
+
+              <div class="flex items-center gap-2">
+                ${pendingPayouts.length > 0 ? `
+                  <button onclick="window.approveAllPendingPayouts()" class="btn-primary py-1.5 px-3 text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-check-double"></i>
+                    <span>Authorize All Verified (${pendingPayouts.length})</span>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
           </div>
-        `}
-      </div>
+
+          <!-- Payout Approval Cards / Stream -->
+          ${filteredPayouts.length === 0 ? `
+            <div class="p-10 text-center glass-card border-slate-200 space-y-2">
+              <i class="fa-solid fa-circle-check text-emerald-500 text-4xl mb-1"></i>
+              <h4 class="text-sm font-bold text-slate-800">No Payout Requests Match Filter</h4>
+              <p class="text-xs text-slate-500">All high-value payouts matching your filter criteria have been processed or none exist.</p>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${filteredPayouts.map(p => {
+                const tax = p.withholdingTaxEtb || Math.round(p.amountEtb * 0.02);
+                const net = p.netDisbursedEtb || (p.amountEtb - tax);
+                const isPending = p.status === 'Pending';
+                const isApproved = p.status === 'Approved';
+                const isRejected = p.status === 'Rejected';
+
+                return `
+                  <div class="glass-card p-5 border-l-4 ${p.riskScore === 'High' ? 'border-red-600' : p.riskScore === 'Medium' ? 'border-amber-600' : 'border-emerald-600'} space-y-3.5 relative overflow-hidden">
+                    
+                    <!-- Card Top Header -->
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="space-y-0.5">
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-black text-slate-900 block">${p.recipientName}</span>
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${p.recipientRole === 'farmer' ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-800'}">
+                            ${p.recipientRole === 'farmer' ? '🌾 Farmer / Union' : '🚚 Transporter'}
+                          </span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 font-medium">
+                          <span class="font-mono text-slate-700 font-bold">${p.recipientPhone}</span>
+                          ${p.region ? `<span>· <i class="fa-solid fa-location-dot text-slate-400"></i> ${p.region}</span>` : ''}
+                        </div>
+                      </div>
+
+                      <div class="flex flex-col items-end gap-1">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black ${p.riskScore === 'High' ? 'bg-red-100 text-red-800' : p.riskScore === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
+                          ${p.riskScore.toUpperCase()} RISK
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-400 font-semibold">${p.requestedAt}</span>
+                      </div>
+                    </div>
+
+                    <!-- Payout Breakdown Box -->
+                    <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                      <div class="flex items-center justify-between pb-1.5 border-b border-slate-200/80">
+                        <span class="text-slate-500 font-medium">Requested Withdrawal:</span>
+                        <span class="text-base font-black text-slate-900 font-mono">${p.amountEtb.toLocaleString()} ETB</span>
+                      </div>
+
+                      <div class="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <span class="text-slate-400 block font-medium">2% MOR Tax Withholding:</span>
+                          <span class="font-bold text-amber-700 font-mono">-${tax.toLocaleString()} ETB</span>
+                        </div>
+                        <div>
+                          <span class="text-slate-400 block font-medium">Net Telebirr Release:</span>
+                          <span class="font-black text-emerald-700 font-mono">${net.toLocaleString()} ETB</span>
+                        </div>
+                      </div>
+
+                      <div class="pt-1.5 border-t border-slate-200/80 text-[11px] text-slate-600">
+                        <span class="font-bold text-slate-700">Trigger:</span> ${p.triggerReason}
+                      </div>
+
+                      ${p.cropName ? `
+                        <div class="text-[10px] text-slate-500 font-medium flex items-center gap-1.5">
+                          <i class="fa-solid fa-seedling text-emerald-600"></i> Produce: <span class="font-bold text-slate-700">${p.cropName}</span>
+                        </div>
+                      ` : ''}
+
+                      ${p.tinNumber || p.faydaId ? `
+                        <div class="text-[10px] text-slate-500 font-mono flex flex-wrap gap-2 pt-0.5">
+                          ${p.tinNumber ? `<span>TIN: <strong class="text-slate-700">${p.tinNumber}</strong></span>` : ''}
+                          ${p.faydaId ? `<span>FAYDA: <strong class="text-slate-700">${p.faydaId}</strong></span>` : ''}
+                        </div>
+                      ` : ''}
+                    </div>
+
+                    <!-- Status or Review Metadata -->
+                    ${isApproved ? `
+                      <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
+                        <div class="flex items-center gap-1.5 font-bold">
+                          <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                          <span>Approved & Disbursed</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-emerald-700">Tx: ${p.telebirrTxId || 'TB-ET-98201'}</span>
+                      </div>
+                    ` : isRejected ? `
+                      <div class="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs space-y-1">
+                        <div class="flex items-center gap-1.5 font-bold">
+                          <i class="fa-solid fa-ban text-red-600"></i>
+                          <span>Declined / Flagged for Compliance</span>
+                        </div>
+                        ${p.rejectionReason ? `<p class="text-[11px] text-red-700 font-medium">${p.rejectionReason}</p>` : ''}
+                      </div>
+                    ` : ''}
+
+                    <!-- Action Controls -->
+                    <div class="flex items-center gap-2 pt-1">
+                      ${isPending ? `
+                        <button onclick="window.approveHighValuePayout('${p.id}')" class="btn-primary flex-1 py-2.5 text-xs font-bold cursor-pointer shadow-md flex items-center justify-center gap-1.5">
+                          <i class="fa-solid fa-check"></i> Authorize Telebirr Payout
+                        </button>
+                        <button onclick="window.openRejectPayoutModal('${p.id}')" class="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-colors cursor-pointer border border-red-200 flex items-center gap-1">
+                          <i class="fa-solid fa-ban"></i> Decline
+                        </button>
+                      ` : `
+                        <button onclick="window.openPayoutDetailModal('${p.id}')" class="btn-secondary flex-1 py-2 text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5">
+                          <i class="fa-solid fa-file-invoice"></i> View Audit Certificate
+                        </button>
+                      `}
+                    </div>
+
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      ` : ''}
+
+      <!-- ==================== SUB-VIEW 2: ORDER ESCROW & SPLIT LEDGER ==================== -->
+      ${financialSubTab === 'ledger' ? `
+        <div class="space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-black text-slate-900">Order Escrow Reconciliation & Split Ledger</h3>
+              <p class="text-xs text-slate-500">Live 90% Farmer / 5% Transporter / 5% Platform split verification per marketplace order.</p>
+            </div>
+            <button onclick="window.exportFinancialStatement('csv')" class="btn-secondary py-1.5 px-3 text-xs font-bold cursor-pointer flex items-center gap-1.5">
+              <i class="fa-solid fa-file-arrow-down text-emerald-700"></i> Export Ledger CSV
+            </button>
+          </div>
+
+          <div class="glass-card overflow-hidden border border-slate-200">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th class="p-3.5">Order ID & Crop</th>
+                    <th class="p-3.5">Buyer</th>
+                    <th class="p-3.5">Total Value (ETB)</th>
+                    <th class="p-3.5 text-emerald-700">Farmer Cut (90%)</th>
+                    <th class="p-3.5 text-teal-700">Logistics (5%)</th>
+                    <th class="p-3.5 text-purple-700">Platform (5%)</th>
+                    <th class="p-3.5 text-amber-700">MOR Tax (2%)</th>
+                    <th class="p-3.5">Escrow Status</th>
+                    <th class="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+                  ${orders.map(o => {
+                    const gross = o.totalEtb;
+                    const farmer = o.farmerCut || Math.round(gross * 0.9);
+                    const driver = o.driverCut || Math.round(gross * 0.05);
+                    const platform = o.platformCut || Math.round(gross * 0.05);
+                    const tax = Math.round(gross * 0.02);
+
+                    return `
+                      <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="p-3.5">
+                          <span class="font-mono font-bold text-slate-900 block">#${o.id.slice(0, 8).toUpperCase()}</span>
+                          <span class="text-[11px] text-slate-500 font-semibold">${o.productName || 'Agricultural Produce'} (${o.qtyKg} kg)</span>
+                        </td>
+                        <td class="p-3.5">
+                          <span class="font-bold text-slate-900 block">${o.buyerName}</span>
+                          <span class="text-[10px] text-slate-400 font-mono">${o.buyerPhone}</span>
+                        </td>
+                        <td class="p-3.5 font-mono font-bold text-slate-900">
+                          ${gross.toLocaleString()} ETB
+                        </td>
+                        <td class="p-3.5 font-mono font-bold text-emerald-700">
+                          ${farmer.toLocaleString()} ETB
+                        </td>
+                        <td class="p-3.5 font-mono font-bold text-teal-700">
+                          ${driver.toLocaleString()} ETB
+                        </td>
+                        <td class="p-3.5 font-mono font-bold text-purple-700">
+                          ${platform.toLocaleString()} ETB
+                        </td>
+                        <td class="p-3.5 font-mono font-bold text-amber-700">
+                          ${tax.toLocaleString()} ETB
+                        </td>
+                        <td class="p-3.5">
+                          ${o.escrowHeld ? `
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-800 flex items-center gap-1 w-max">
+                              <i class="fa-solid fa-lock"></i> Escrow Held
+                            </span>
+                          ` : o.status === 'delivered' ? `
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 flex items-center gap-1 w-max">
+                              <i class="fa-solid fa-circle-check"></i> Released
+                            </span>
+                          ` : `
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700 flex items-center gap-1 w-max">
+                              ${o.status.toUpperCase()}
+                            </span>
+                          `}
+                        </td>
+                        <td class="p-3.5 text-right">
+                          ${o.escrowHeld ? `
+                            <button onclick="window.manualReleaseOrderEscrow('${o.id}')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold border border-emerald-200 cursor-pointer">
+                              Release Escrow
+                            </button>
+                          ` : `
+                            <span class="text-[11px] text-slate-400 font-mono">Settled</span>
+                          `}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- ==================== SUB-VIEW 3: MOR TAX COMPLIANCE ==================== -->
+      ${financialSubTab === 'tax' ? `
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="glass-card p-4 border-l-4 border-amber-600 space-y-1">
+              <span class="text-xs text-slate-500 font-bold block">Total Withholding Tax Accrued (2%)</span>
+              <span class="text-xl font-black text-amber-800 font-mono">${totalWithholdingTax.toLocaleString()} ETB</span>
+              <p class="text-[10px] text-slate-500 font-medium">Declared to Ethiopian Ministry of Revenues</p>
+            </div>
+            <div class="glass-card p-4 border-l-4 border-emerald-600 space-y-1">
+              <span class="text-xs text-slate-500 font-bold block">TIN Verified Smallholders & Unions</span>
+              <span class="text-xl font-black text-emerald-800 font-mono">94.8%</span>
+              <p class="text-[10px] text-slate-500 font-medium">Compliance rate with tax identification numbers</p>
+            </div>
+            <div class="glass-card p-4 border-l-4 border-purple-600 space-y-1">
+              <span class="text-xs text-slate-500 font-bold block">15% VAT on Platform Service Fees</span>
+              <span class="text-xl font-black text-purple-800 font-mono">${Math.round(totalPlatformCut * 0.15).toLocaleString()} ETB</span>
+              <p class="text-[10px] text-slate-500 font-medium">Standard Value Added Tax on tech commission</p>
+            </div>
+          </div>
+
+          <div class="glass-card p-5 border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice text-amber-600"></i> Ministry of Revenues (MOR) Settlement Compliance Summary
+              </h3>
+              <button onclick="window.exportFinancialStatement('csv')" class="btn-secondary py-1.5 px-3 text-xs font-bold cursor-pointer">
+                <i class="fa-solid fa-download mr-1"></i> Download Tax Filing CSV
+              </button>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 space-y-1.5">
+              <p class="font-bold flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-info text-amber-700"></i> Statutory Tax Withholding Directive No. 98/2026:
+              </p>
+              <p class="text-[11px] leading-relaxed">
+                Farmer Market operates as an authorized digital withholding agent under Ministry of Revenues regulations. 
+                A 2% withholding tax is computed on gross produce settlements exceeding 10,000 ETB and automatically itemized on commercial waybills and Telebirr disbursement vouchers.
+              </p>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- ==================== SUB-VIEW 4: ESCROW SPLIT CONFIGURATION ==================== -->
+      ${financialSubTab === 'config' ? `
+        <div class="glass-card p-6 border-slate-200 space-y-5">
+          <div>
+            <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-sliders text-emerald-600"></i> Escrow Split Percentages & Withholding Configuration
+            </h3>
+            <p class="text-xs text-slate-500 font-medium">
+              Calibrate marketplace revenue splits between smallholder farmers, logistics drivers, platform operational fee, and Ministry of Revenues tax withholding.
+            </p>
+          </div>
+
+          <form onsubmit="window.handleSaveSuperAdminConfig(event)" class="space-y-4 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-extrabold text-emerald-900">Farmer Share (%)</span>
+                  <span id="farmerShareDisplay" class="text-lg font-black text-emerald-700">${config.farmerSharePercent}%</span>
+                </div>
+                <input type="range" id="farmerShareInput" min="70" max="95" value="${config.farmerSharePercent}"
+                  oninput="window.updateEscrowSliders('farmer')" class="w-full accent-emerald-600 cursor-pointer" />
+                <p class="text-[10px] text-emerald-800 font-medium">Direct harvest payout credited to farmer upon buyer receipt confirmation.</p>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-extrabold text-teal-900">Transporter Share (%)</span>
+                  <span id="driverShareDisplay" class="text-lg font-black text-teal-700">${config.driverSharePercent}%</span>
+                </div>
+                <input type="range" id="driverShareInput" min="2" max="15" value="${config.driverSharePercent}"
+                  oninput="window.updateEscrowSliders('driver')" class="w-full accent-teal-600 cursor-pointer" />
+                <p class="text-[10px] text-teal-800 font-medium">Freight logistics and driver mileage compensation.</p>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-purple-50/70 border border-purple-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-extrabold text-purple-900">Platform Fee (%)</span>
+                  <span id="platformShareDisplay" class="text-lg font-black text-purple-700">${config.platformFeePercent}%</span>
+                </div>
+                <input type="range" id="platformShareInput" min="2" max="15" value="${config.platformFeePercent}"
+                  oninput="window.updateEscrowSliders('platform')" class="w-full accent-purple-600 cursor-pointer" />
+                <p class="text-[10px] text-purple-800 font-medium">Platform maintenance, dispute arbitration, and tech operations.</p>
+              </div>
+
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">MOR Withholding Tax on Produce Goods (%)</label>
+                <input type="number" id="cfgWithholdingTax" value="${config.withholdingTaxPercent}" min="0" max="10" step="0.5" class="input-field text-xs font-bold" />
+                <p class="text-[10px] text-slate-400 mt-1">Standard 2% commercial withholding declared to Ministry of Revenues.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">High-Value Payout Approval Threshold (ETB)</label>
+                <input type="number" id="cfgHighValueThreshold" value="${config.highValuePayoutThresholdEtb}" min="10000" max="500000" step="5000" class="input-field text-xs font-bold" />
+                <p class="text-[10px] text-slate-400 mt-1">Payouts exceeding this value require Super Admin multi-sig authorization.</p>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-primary py-3 px-6 text-xs font-bold shadow-md cursor-pointer flex items-center gap-2">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Save Platform Configuration & Splits</span>
+            </button>
+          </form>
+        </div>
+      ` : ''}
 
     </div>
   `;
@@ -1322,11 +1891,11 @@ export function renderModerationTab(lang: Language): string {
                   <td colspan="6" class="py-8 text-center text-slate-400">No active produce listings found.</td>
                 </tr>
               ` : listings.map(l => {
-                const isFlagged = l.moderationStatus === 'Flagged';
-                const benchmark = l.marketBenchmarkPrice || 50;
-                const variance = Math.round(((l.pricePerKg - benchmark) / benchmark) * 100);
+    const isFlagged = l.moderationStatus === 'Flagged';
+    const benchmark = l.marketBenchmarkPrice || 50;
+    const variance = Math.round(((l.pricePerKg - benchmark) / benchmark) * 100);
 
-                return `
+    return `
                   <tr class="hover:bg-slate-50/60 transition-colors ${isFlagged ? 'bg-red-50/30' : ''}">
                     <td class="py-3.5 px-4">
                       <div class="flex items-center gap-3">
@@ -1386,7 +1955,7 @@ export function renderModerationTab(lang: Language): string {
                     </td>
                   </tr>
                 `;
-              }).join('')}
+  }).join('')}
             </tbody>
           </table>
         </div>

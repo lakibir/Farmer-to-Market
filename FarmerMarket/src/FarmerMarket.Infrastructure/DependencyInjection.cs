@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddSingleton<IJwtService, JwtService>();
         services.AddSingleton<IOtpService, OtpService>();
         services.AddSingleton<ISignalRNotifier, FallbackSignalRNotifier>();
+        services.AddSingleton<ISuperAdminGovernanceStore, SuperAdminGovernanceStore>();
         services.AddScoped<IEmailService, EmailService>();
 
         // ─── Payment Gateway (config-driven provider selection) ───────────────

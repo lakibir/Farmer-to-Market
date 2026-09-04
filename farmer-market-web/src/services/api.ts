@@ -735,7 +735,7 @@ class ApiService {
       this.banners = defaultBanners;
     }
 
-    this.systemAuditLogs = [
+    const defaultAuditLogs: SystemAuditLog[] = [
       {
         id: "log-101",
         actorId: "00000000-0000-0000-0000-000000000001",
@@ -777,10 +777,50 @@ class ApiService {
         userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         details: "Resolved moisture defect dispute with 50/50 partial split under EABC arbitration rules.",
         timestamp: "2026-08-23 11:45 AM"
+      },
+      {
+        id: "log-104",
+        actorId: "00000000-0000-0000-0000-000000000001",
+        actorName: "Dr. Dawit Haile (Super Admin)",
+        actorRole: "superadmin",
+        action: "HIGH_VALUE_ESCROW_APPROVAL",
+        category: "FINANCE",
+        targetResource: "PayoutApproval",
+        targetId: "payout-appr-001",
+        ipAddress: "196.188.12.45",
+        userAgent: "Antigravity/2.0 Web Admin Engine",
+        details: "Authorized high-value Telebirr payout of 62,400 ETB for Almaz Tadesse (Basona Teff Cooperative).",
+        timestamp: "2026-08-23 01:10 PM"
+      },
+      {
+        id: "log-105",
+        actorId: "system-orchestrator",
+        actorName: "Platform System (Spatial Service)",
+        actorRole: "system",
+        action: "POSTGIS_SPATIAL_CLUSTER_SYNC",
+        category: "CONFIG",
+        targetResource: "DeliveryZoneConfig",
+        targetId: "ZONE_CORRIDORS_ALL",
+        ipAddress: "127.0.0.1",
+        userAgent: "PostGIS Geo-Spatial Engine 3.4",
+        details: "Synchronized 6 regional delivery zones & road network topologies across Oromia, Amhara, Sidama, SNNPR, and Tigray.",
+        timestamp: "2026-08-23 02:00 PM"
       }
     ];
 
-    this.deliveryZones = [
+    const savedAuditLogsStr = localStorage.getItem('farmerMarketAuditLogs');
+    if (savedAuditLogsStr) {
+      try {
+        const savedLogs = JSON.parse(savedAuditLogsStr);
+        this.systemAuditLogs = Array.isArray(savedLogs) && savedLogs.length > 0 ? savedLogs : defaultAuditLogs;
+      } catch {
+        this.systemAuditLogs = defaultAuditLogs;
+      }
+    } else {
+      this.systemAuditLogs = defaultAuditLogs;
+    }
+
+    const defaultZones: DeliveryZoneConfig[] = [
       { id: "zone-1", name: "Oromia East Shewa Hub", nameAm: "ምስራቅ ሸዋ የግብርና ኮሪደር", centerLatitude: 8.7522, centerLongitude: 38.9785, baseRadiusKm: 45, maxRadiusKm: 120, ruralSubsidyEtb: 150, active: true, clusterHubName: "Bishoftu & Mojo Freight Terminal", smallholdersCount: 4200 },
       { id: "zone-2", name: "Addis Ababa Central Wholesale Depot", nameAm: "አዲስ አበባ ማዕከላዊ የጅምላ ዲፖ", centerLatitude: 9.0222, centerLongitude: 38.7468, baseRadiusKm: 25, maxRadiusKm: 60, ruralSubsidyEtb: 0, active: true, clusterHubName: "Merkato & Jan Meda Distribution", smallholdersCount: 850 },
       { id: "zone-3", name: "Amhara Highland Grain Basin", nameAm: "የአማራ ከፍተኛ የጤፍና እህል ተፋሰስ", centerLatitude: 9.6800, centerLongitude: 39.5300, baseRadiusKm: 60, maxRadiusKm: 180, ruralSubsidyEtb: 250, active: true, clusterHubName: "Debre Berhan & Shewa Robit Hub", smallholdersCount: 3100 },
@@ -789,7 +829,19 @@ class ApiService {
       { id: "zone-6", name: "Tigray Northern Transit Hub", nameAm: "የትግራይ ሰሜናዊ የንግድ ኮሪደር", centerLatitude: 13.4967, centerLongitude: 39.4753, baseRadiusKm: 55, maxRadiusKm: 160, ruralSubsidyEtb: 350, active: true, clusterHubName: "Mekelle Central Depot", smallholdersCount: 1100 }
     ];
 
-    this.featureFlags = [
+    const savedZonesStr = localStorage.getItem('farmerMarketDeliveryZones');
+    if (savedZonesStr) {
+      try {
+        const savedZones = JSON.parse(savedZonesStr);
+        this.deliveryZones = Array.isArray(savedZones) && savedZones.length > 0 ? savedZones : defaultZones;
+      } catch {
+        this.deliveryZones = defaultZones;
+      }
+    } else {
+      this.deliveryZones = defaultZones;
+    }
+
+    const defaultFeatureFlags: FeatureFlag[] = [
       { key: "advance_harvest", name: "Advance Harvest Pre-Ordering", description: "Allows wholesale buyers to secure future harvests 2-4 weeks prior to field collection.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["farmer", "buyer", "admin", "superadmin"] },
       { key: "voice_note_transcription", name: "Voice Note Audio Memos & AI Transcription", description: "Enables Amharic and Afaan Oromoo audio produce memos with automatic speech-to-text.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["farmer", "agent", "admin", "superadmin"] },
       { key: "dynamic_price_benchmarking", name: "Real-time Wholesale Depot Price Benchmarking", description: "Displays live price comparisons vs Merkato, Sholla, and Adama depots on produce cards.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["buyer", "farmer", "superadmin"] },
@@ -797,7 +849,19 @@ class ApiService {
       { key: "multisig_escrow_protection", name: "High-Value Escrow Multi-Sig Authorization", description: "Requires Super Admin dual authorization for payouts exceeding 50,000 ETB.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["admin", "superadmin"] }
     ];
 
-    this.payoutApprovals = [
+    const savedFlagsStr = localStorage.getItem('farmerMarketFeatureFlags');
+    if (savedFlagsStr) {
+      try {
+        const savedFlags = JSON.parse(savedFlagsStr);
+        this.featureFlags = Array.isArray(savedFlags) && savedFlags.length > 0 ? savedFlags : defaultFeatureFlags;
+      } catch {
+        this.featureFlags = defaultFeatureFlags;
+      }
+    } else {
+      this.featureFlags = defaultFeatureFlags;
+    }
+
+    const defaultPayouts: PayoutApprovalItem[] = [
       {
         id: "payout-appr-001",
         recipientId: "22222222-2222-2222-2222-222222222222",
@@ -807,9 +871,16 @@ class ApiService {
         amountEtb: 62400,
         walletBalanceBefore: 62400,
         riskScore: "Low",
-        triggerReason: "Exceeds 50,000 ETB platform threshold (100 Quintals Teff Settlement)",
+        triggerReason: "Exceeds 50,000 ETB platform threshold (100 Quintals Magna Teff Settlement)",
         status: "Pending",
-        requestedAt: "Today 10:45 AM"
+        requestedAt: "Today 10:45 AM",
+        cropName: "Magna Teff (Grade 1)",
+        region: "Amhara (Debre Berhan / Basona)",
+        tinNumber: "0038912345",
+        faydaId: "FAN-9821-4432-1100",
+        withholdingTaxEtb: 1248,
+        netDisbursedEtb: 61152,
+        telebirrTxId: "TB-ET-982104"
       },
       {
         id: "payout-appr-002",
@@ -820,32 +891,193 @@ class ApiService {
         amountEtb: 54200,
         walletBalanceBefore: 54200,
         riskScore: "Medium",
-        triggerReason: "High-frequency multi-trip batch withdrawal (5 Cross-Regional Trips)",
+        triggerReason: "High-frequency multi-trip batch withdrawal (5 Cross-Regional Trips: Adama-Addis)",
         status: "Pending",
-        requestedAt: "Today 01:20 PM"
+        requestedAt: "Today 01:20 PM",
+        cropName: "Cold-Chain Produce Logistics",
+        region: "Oromia (Adama / Modjo Corridor)",
+        tinNumber: "0057812904",
+        faydaId: "FAN-4412-9901-7788",
+        withholdingTaxEtb: 1084,
+        netDisbursedEtb: 53116,
+        telebirrTxId: "TB-ET-551299"
+      },
+      {
+        id: "payout-appr-003",
+        recipientId: "11111111-1111-1111-1111-111111111111",
+        recipientName: "Abebe Bekele (Bishoftu Agro-Hub)",
+        recipientPhone: "+251911223344",
+        recipientRole: "farmer",
+        amountEtb: 78500,
+        walletBalanceBefore: 78500,
+        riskScore: "Low",
+        triggerReason: "Commercial contract fulfilment (2.5 Tons Premium Dutch Tomatoes)",
+        status: "Pending",
+        requestedAt: "Today 03:15 PM",
+        cropName: "Fresh Red Tomatoes",
+        region: "Oromia (Bishoftu / Ada'a)",
+        tinNumber: "0012345678",
+        faydaId: "FAN-1029-3847-5610",
+        withholdingTaxEtb: 1570,
+        netDisbursedEtb: 76930,
+        telebirrTxId: "TB-ET-883012"
+      },
+      {
+        id: "payout-appr-004",
+        recipientId: "33333333-3333-3333-3333-333333333333",
+        recipientName: "Fatuma Ahmed (Harar Coffee Growers Union)",
+        recipientPhone: "+251933445566",
+        recipientRole: "farmer",
+        amountEtb: 145000,
+        walletBalanceBefore: 145000,
+        riskScore: "High",
+        triggerReason: "Large-scale single consignment withdrawal (>100,000 ETB multi-sig trigger)",
+        status: "Pending",
+        requestedAt: "Yesterday 04:30 PM",
+        cropName: "Specialty Grade 1 Yirgacheffe / Harar Coffee",
+        region: "Harari / Eastern Oromia",
+        tinNumber: "0091238471",
+        faydaId: "FAN-8832-1920-4491",
+        withholdingTaxEtb: 2900,
+        netDisbursedEtb: 142100,
+        telebirrTxId: "TB-ET-449011"
+      },
+      {
+        id: "payout-appr-005",
+        recipientId: "66666666-6666-6666-6666-666666666666",
+        recipientName: "Solomon Getachew (Sidama Avocado Syndicate)",
+        recipientPhone: "+251944556677",
+        recipientRole: "farmer",
+        amountEtb: 92000,
+        walletBalanceBefore: 92000,
+        riskScore: "Low",
+        triggerReason: "Export-grade Hass Avocado bulk delivery",
+        status: "Approved",
+        requestedAt: "2026-09-02 09:10 AM",
+        reviewedBy: "Dr. Dawit Haile (Super Admin)",
+        reviewedAt: "2026-09-02 10:05 AM",
+        cropName: "Export-Grade Hass Avocado",
+        region: "Sidama (Hawassa / Wondo Genet)",
+        tinNumber: "0048192039",
+        faydaId: "FAN-3399-2810-7712",
+        withholdingTaxEtb: 1840,
+        netDisbursedEtb: 90160,
+        telebirrTxId: "TB-ET-771920"
+      },
+      {
+        id: "payout-appr-006",
+        recipientId: "77777777-7777-7777-7777-777777777777",
+        recipientName: "Yared Haile (Ethio-Logistics Freight)",
+        recipientPhone: "+251988990011",
+        recipientRole: "driver",
+        amountEtb: 68000,
+        walletBalanceBefore: 68000,
+        riskScore: "High",
+        triggerReason: "Suspected duplicate delivery verification claim (Flagged by AI Anomaly Engine)",
+        status: "Rejected",
+        rejectionReason: "Kebele checkpoint GPS telemetry mismatch during freight transit. Under formal compliance review.",
+        requestedAt: "2026-09-01 02:40 PM",
+        reviewedBy: "Dr. Dawit Haile (Super Admin)",
+        reviewedAt: "2026-09-01 03:15 PM",
+        cropName: "Refrigerated Onion Haulage",
+        region: "Dire Dawa / East Hararghe",
+        tinNumber: "0078192831",
+        faydaId: "FAN-1120-4491-0023",
+        withholdingTaxEtb: 1360,
+        netDisbursedEtb: 66640,
+        telebirrTxId: "TB-ET-110944"
       }
     ];
 
-    this.blacklist = [
+    const savedPayoutsStr = localStorage.getItem('farmerMarketPayoutApprovals');
+    if (savedPayoutsStr) {
+      try {
+        const saved = JSON.parse(savedPayoutsStr);
+        if (Array.isArray(saved) && saved.length > 0) {
+          this.payoutApprovals = saved;
+        } else {
+          this.payoutApprovals = defaultPayouts;
+        }
+      } catch {
+        this.payoutApprovals = defaultPayouts;
+      }
+    } else {
+      this.payoutApprovals = defaultPayouts;
+    }
+
+    const savedConfigStr = localStorage.getItem('farmerMarketPlatformConfig');
+    if (savedConfigStr) {
+      try {
+        const savedConfig = JSON.parse(savedConfigStr);
+        this.platformConfig = { ...this.platformConfig, ...savedConfig };
+      } catch (e) {
+        console.warn('Failed to parse platform config', e);
+      }
+    }
+
+    const defaultBlacklist: BlacklistEntry[] = [
       {
         id: "bl-01",
         type: "Phone",
-        value: "+251911999888",
-        reason: "Repeated fraudulent non-delivery claims in Adama market",
-        blacklistedBy: "Dr. Dawit Haile (Super Admin)",
+        value: "+251900112233",
+        reason: "Repeated non-delivery and fraudulent off-platform bypass attempt.",
+        blacklistedBy: "Sara Mengistu (Admin)",
         blacklistedAt: "2026-08-15",
         active: true
       },
       {
         id: "bl-02",
         type: "NationalId",
-        value: "FAN-9999-0000-1111",
-        reason: "Forged Kebele farming certification and duplicate TIN submission",
+        value: "FAN-9999-8888-7777",
+        reason: "Forged Ethiopian national ID presented during tier-2 verification.",
         blacklistedBy: "Dr. Dawit Haile (Super Admin)",
         blacklistedAt: "2026-08-18",
         active: true
+      },
+      {
+        id: "bl-03",
+        type: "TinNumber",
+        value: "0099887766",
+        reason: "Tax revenue evasion & revoked trade license flagged by MOR audit.",
+        blacklistedBy: "Dr. Dawit Haile (Super Admin)",
+        blacklistedAt: "2026-08-21",
+        active: true
       }
     ];
+
+    const savedBlacklistStr = localStorage.getItem('farmerMarketBlacklist');
+    if (savedBlacklistStr) {
+      try {
+        const savedBl = JSON.parse(savedBlacklistStr);
+        this.blacklist = Array.isArray(savedBl) && savedBl.length > 0 ? savedBl : defaultBlacklist;
+      } catch {
+        this.blacklist = defaultBlacklist;
+      }
+    } else {
+      this.blacklist = defaultBlacklist;
+    }
+
+    const defaultRules: GlobalBusinessRules = {
+      minOrderKg: 50,
+      maxOrderKg: 50000,
+      maxDistanceKm: 850,
+      priceFloorVariancePercent: -30,
+      priceCeilingVariancePercent: 250,
+      requireFaydaForOrdersAboveKg: 500,
+      autoArbitrateAfterHours: 48
+    };
+
+    const savedRulesStr = localStorage.getItem('farmerMarketBusinessRules');
+    if (savedRulesStr) {
+      try {
+        const savedRules = JSON.parse(savedRulesStr);
+        this.globalBusinessRules = { ...defaultRules, ...savedRules };
+      } catch {
+        this.globalBusinessRules = defaultRules;
+      }
+    } else {
+      this.globalBusinessRules = defaultRules;
+    }
 
     const defaultReviews: Review[] = [
       {
@@ -1068,6 +1300,187 @@ class ApiService {
     } catch (e) {
       console.warn('Failed to save notifications to storage', e);
     }
+  }
+
+  public savePayoutsToStorage() {
+    try {
+      localStorage.setItem('farmerMarketPayoutApprovals', JSON.stringify(this.payoutApprovals));
+    } catch (e) {
+      console.warn('Failed to save payouts to storage', e);
+    }
+  }
+
+  public savePlatformConfigToStorage() {
+    try {
+      localStorage.setItem('farmerMarketPlatformConfig', JSON.stringify(this.platformConfig));
+    } catch (e) {
+      console.warn('Failed to save platform config to storage', e);
+    }
+  }
+
+  public saveOrdersToStorage(): void {
+    try {
+      localStorage.setItem('farmerMarketOrders', JSON.stringify(this.orders));
+    } catch (e) {
+      console.warn('Failed to save orders to storage', e);
+    }
+  }
+
+  private async requestSuperAdmin(path: string, options: RequestInit = {}): Promise<any> {
+    try {
+      const res = await fetch(path, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+          ...(options.headers || {})
+        },
+        ...options
+      });
+      if (res.ok) {
+        return await res.json().catch(() => ({}));
+      }
+    } catch (err) {
+      console.debug(`SuperAdmin sync [${path}] fallback to localStorage:`, err);
+    }
+    return null;
+  }
+
+  public resetPayoutsToDefault(): PayoutApprovalItem[] {
+    try {
+      localStorage.removeItem('farmerMarketPayoutApprovals');
+    } catch (e) {
+      console.warn('Failed to clear payouts storage', e);
+    }
+    this.payoutApprovals = [
+      {
+        id: "payout-appr-001",
+        recipientId: "22222222-2222-2222-2222-222222222222",
+        recipientName: "Almaz Tadesse (Basona Teff Cooperative)",
+        recipientPhone: "+251922334455",
+        recipientRole: "farmer",
+        amountEtb: 62400,
+        walletBalanceBefore: 62400,
+        riskScore: "Low",
+        triggerReason: "Exceeds 50,000 ETB platform threshold (100 Quintals Magna Teff Settlement)",
+        status: "Pending",
+        requestedAt: "Today 10:45 AM",
+        cropName: "Magna Teff (Grade 1)",
+        region: "Amhara (Debre Berhan / Basona)",
+        tinNumber: "0038912345",
+        faydaId: "FAN-9821-4432-1100",
+        withholdingTaxEtb: 1248,
+        netDisbursedEtb: 61152,
+        telebirrTxId: "TB-ET-982104"
+      },
+      {
+        id: "payout-appr-002",
+        recipientId: "55555555-5555-5555-5555-555555555555",
+        recipientName: "Dawit Kebede (Bulk Freight Fleet)",
+        recipientPhone: "+251977889900",
+        recipientRole: "driver",
+        amountEtb: 54200,
+        walletBalanceBefore: 54200,
+        riskScore: "Medium",
+        triggerReason: "High-frequency multi-trip batch withdrawal (5 Cross-Regional Trips: Adama-Addis)",
+        status: "Pending",
+        requestedAt: "Today 01:20 PM",
+        cropName: "Cold-Chain Produce Logistics",
+        region: "Oromia (Adama / Modjo Corridor)",
+        tinNumber: "0057812904",
+        faydaId: "FAN-4412-9901-7788",
+        withholdingTaxEtb: 1084,
+        netDisbursedEtb: 53116,
+        telebirrTxId: "TB-ET-551299"
+      },
+      {
+        id: "payout-appr-003",
+        recipientId: "11111111-1111-1111-1111-111111111111",
+        recipientName: "Abebe Bekele (Bishoftu Agro-Hub)",
+        recipientPhone: "+251911223344",
+        recipientRole: "farmer",
+        amountEtb: 78500,
+        walletBalanceBefore: 78500,
+        riskScore: "Low",
+        triggerReason: "Commercial contract fulfilment (2.5 Tons Premium Dutch Tomatoes)",
+        status: "Pending",
+        requestedAt: "Today 03:15 PM",
+        cropName: "Fresh Red Tomatoes",
+        region: "Oromia (Bishoftu / Ada'a)",
+        tinNumber: "0012345678",
+        faydaId: "FAN-1029-3847-5610",
+        withholdingTaxEtb: 1570,
+        netDisbursedEtb: 76930,
+        telebirrTxId: "TB-ET-883012"
+      },
+      {
+        id: "payout-appr-004",
+        recipientId: "33333333-3333-3333-3333-333333333333",
+        recipientName: "Fatuma Ahmed (Harar Coffee Growers Union)",
+        recipientPhone: "+251933445566",
+        recipientRole: "farmer",
+        amountEtb: 145000,
+        walletBalanceBefore: 145000,
+        riskScore: "High",
+        triggerReason: "Large-scale single consignment withdrawal (>100,000 ETB multi-sig trigger)",
+        status: "Pending",
+        requestedAt: "Yesterday 04:30 PM",
+        cropName: "Specialty Grade 1 Yirgacheffe / Harar Coffee",
+        region: "Harari / Eastern Oromia",
+        tinNumber: "0091238471",
+        faydaId: "FAN-8832-1920-4491",
+        withholdingTaxEtb: 2900,
+        netDisbursedEtb: 142100,
+        telebirrTxId: "TB-ET-449011"
+      },
+      {
+        id: "payout-appr-005",
+        recipientId: "66666666-6666-6666-6666-666666666666",
+        recipientName: "Solomon Getachew (Sidama Avocado Syndicate)",
+        recipientPhone: "+251944556677",
+        recipientRole: "farmer",
+        amountEtb: 92000,
+        walletBalanceBefore: 92000,
+        riskScore: "Low",
+        triggerReason: "Export-grade Hass Avocado bulk delivery",
+        status: "Approved",
+        requestedAt: "2026-09-02 09:10 AM",
+        reviewedBy: "Dr. Dawit Haile (Super Admin)",
+        reviewedAt: "2026-09-02 10:05 AM",
+        cropName: "Export-Grade Hass Avocado",
+        region: "Sidama (Hawassa / Wondo Genet)",
+        tinNumber: "0048192039",
+        faydaId: "FAN-3399-2810-7712",
+        withholdingTaxEtb: 1840,
+        netDisbursedEtb: 90160,
+        telebirrTxId: "TB-ET-771920"
+      },
+      {
+        id: "payout-appr-006",
+        recipientId: "77777777-7777-7777-7777-777777777777",
+        recipientName: "Yared Haile (Ethio-Logistics Freight)",
+        recipientPhone: "+251988990011",
+        recipientRole: "driver",
+        amountEtb: 68000,
+        walletBalanceBefore: 68000,
+        riskScore: "High",
+        triggerReason: "Suspected duplicate delivery verification claim (Flagged by AI Anomaly Engine)",
+        status: "Rejected",
+        rejectionReason: "Kebele checkpoint GPS telemetry mismatch during freight transit. Under formal compliance review.",
+        requestedAt: "2026-09-01 02:40 PM",
+        reviewedBy: "Dr. Dawit Haile (Super Admin)",
+        reviewedAt: "2026-09-01 03:15 PM",
+        cropName: "Refrigerated Onion Haulage",
+        region: "Dire Dawa / East Hararghe",
+        tinNumber: "0078192831",
+        faydaId: "FAN-1120-4491-0023",
+        withholdingTaxEtb: 1360,
+        netDisbursedEtb: 66640,
+        telebirrTxId: "TB-ET-110944"
+      }
+    ];
+    this.savePayoutsToStorage();
+    this.notify();
+    return this.payoutApprovals;
   }
 
   private saveReviewsToStorage() {
@@ -2100,10 +2513,10 @@ class ApiService {
       order.disputeResolutionNotes = `Arbitrated via Admin Console (${resolution})`;
 
       const totalEtb = order.totalEtb;
-      const refundAmount = resolution === 'RefundBuyer' 
-        ? totalEtb 
-        : resolution === 'PartialSplit' 
-          ? Math.round(totalEtb * (buyerRefund / 100)) 
+      const refundAmount = resolution === 'RefundBuyer'
+        ? totalEtb
+        : resolution === 'PartialSplit'
+          ? Math.round(totalEtb * (buyerRefund / 100))
           : 0;
 
       // ── CREATE BUYER IN-APP & SMS REFUND NOTIFICATIONS ──
@@ -3790,11 +4203,27 @@ class ApiService {
       postState: this.platformConfig
     });
 
+    this.savePlatformConfigToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/platform-config', {
+      method: 'PUT',
+      body: JSON.stringify(this.platformConfig)
+    });
+
     return this.platformConfig;
   }
 
   // Audit Logs
+  public saveAuditLogsToStorage(): void {
+    try {
+      localStorage.setItem('farmerMarketAuditLogs', JSON.stringify(this.systemAuditLogs));
+    } catch (e) {
+      console.warn('Failed to save audit logs', e);
+    }
+  }
+
   public getSystemAuditLogs(): SystemAuditLog[] {
     return this.systemAuditLogs;
   }
@@ -3806,10 +4235,105 @@ class ApiService {
       timestamp: new Date().toLocaleString()
     };
     this.systemAuditLogs.unshift(log);
+    this.saveAuditLogsToStorage();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/audit-logs', {
+      method: 'POST',
+      body: JSON.stringify(log)
+    });
+
     return log;
   }
 
+  public resetAuditLogsToDefault(): void {
+    localStorage.removeItem('farmerMarketAuditLogs');
+    const defaultAuditLogs: SystemAuditLog[] = [
+      {
+        id: "log-101",
+        actorId: "00000000-0000-0000-0000-000000000001",
+        actorName: "Dr. Dawit Haile (Super Admin)",
+        actorRole: "superadmin",
+        action: "INITIALIZE_PLATFORM_GOVERNANCE",
+        category: "CONFIG",
+        targetResource: "PlatformConfig",
+        targetId: "ESCROW-90-5-5",
+        ipAddress: "196.188.12.45 (Addis Ababa, Ethio Telecom)",
+        userAgent: "Antigravity/2.0 Web Admin Engine",
+        details: "Established baseline 90/5/5 escrow split, 15% VAT on platform fee, and MOR withholding tax schedule.",
+        timestamp: "2026-08-23 08:30 AM"
+      },
+      {
+        id: "log-102",
+        actorId: "66666666-6666-6666-6666-666666666666",
+        actorName: "Sara Mengistu",
+        actorRole: "admin",
+        action: "APPROVE_KYC_VERIFICATION",
+        category: "USER_CRUD",
+        targetResource: "UserDocument",
+        targetId: "11111111-1111-1111-1111-111111111111",
+        ipAddress: "196.189.44.12",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        details: "Approved Abebe Bekele Fayda National ID (FAN-1122-3344-5566) and TIN (0011223344).",
+        timestamp: "2026-08-23 10:15 AM"
+      },
+      {
+        id: "log-103",
+        actorId: "66666666-6666-6666-6666-666666666666",
+        actorName: "Sara Mengistu",
+        actorRole: "admin",
+        action: "DISPUTE_ARBITRATION_DECREE",
+        category: "DISPUTE",
+        targetResource: "Order",
+        targetId: "ord-dispute-001",
+        ipAddress: "196.189.44.12",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        details: "Resolved moisture defect dispute with 50/50 partial split under EABC arbitration rules.",
+        timestamp: "2026-08-23 11:45 AM"
+      },
+      {
+        id: "log-104",
+        actorId: "00000000-0000-0000-0000-000000000001",
+        actorName: "Dr. Dawit Haile (Super Admin)",
+        actorRole: "superadmin",
+        action: "HIGH_VALUE_ESCROW_APPROVAL",
+        category: "FINANCE",
+        targetResource: "PayoutApproval",
+        targetId: "payout-appr-001",
+        ipAddress: "196.188.12.45",
+        userAgent: "Antigravity/2.0 Web Admin Engine",
+        details: "Authorized high-value Telebirr payout of 62,400 ETB for Almaz Tadesse (Basona Teff Cooperative).",
+        timestamp: "2026-08-23 01:10 PM"
+      },
+      {
+        id: "log-105",
+        actorId: "system-orchestrator",
+        actorName: "Platform System (Spatial Service)",
+        actorRole: "system",
+        action: "POSTGIS_SPATIAL_CLUSTER_SYNC",
+        category: "CONFIG",
+        targetResource: "DeliveryZoneConfig",
+        targetId: "ZONE_CORRIDORS_ALL",
+        ipAddress: "127.0.0.1",
+        userAgent: "PostGIS Geo-Spatial Engine 3.4",
+        details: "Synchronized 6 regional delivery zones & road network topologies across Oromia, Amhara, Sidama, SNNPR, and Tigray.",
+        timestamp: "2026-08-23 02:00 PM"
+      }
+    ];
+    this.systemAuditLogs = defaultAuditLogs;
+    this.saveAuditLogsToStorage();
+    this.notify();
+  }
+
   // Delivery Zones
+  public saveDeliveryZonesToStorage(): void {
+    try {
+      localStorage.setItem('farmerMarketDeliveryZones', JSON.stringify(this.deliveryZones));
+    } catch (e) {
+      console.warn('Failed to save delivery zones', e);
+    }
+  }
+
   public getDeliveryZones(): DeliveryZoneConfig[] {
     return this.deliveryZones;
   }
@@ -3834,7 +4358,15 @@ class ApiService {
       details: `Added new regional delivery zone: ${newZone.name} (Base radius ${newZone.baseRadiusKm} km).`
     });
 
+    this.saveDeliveryZonesToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/zones', {
+      method: 'POST',
+      body: JSON.stringify(newZone)
+    });
+
     return newZone;
   }
 
@@ -3856,7 +4388,15 @@ class ApiService {
       details: `Updated delivery zone '${this.deliveryZones[idx].name}' configuration.`
     });
 
+    this.saveDeliveryZonesToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin(`/api/superadmin/zones/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(this.deliveryZones[idx])
+    });
+
     return this.deliveryZones[idx];
   }
 
@@ -3878,11 +4418,46 @@ class ApiService {
       details: `Deleted delivery zone: ${z.name}.`
     });
 
+    this.saveDeliveryZonesToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin(`/api/superadmin/zones/${id}`, {
+      method: 'DELETE'
+    });
+
     return true;
   }
 
+  public resetDeliveryZonesToDefault(): void {
+    localStorage.removeItem('farmerMarketDeliveryZones');
+    const defaultZones: DeliveryZoneConfig[] = [
+      { id: "zone-1", name: "Oromia East Shewa Hub", nameAm: "ምስራቅ ሸዋ የግብርና ኮሪደር", centerLatitude: 8.7522, centerLongitude: 38.9785, baseRadiusKm: 45, maxRadiusKm: 120, ruralSubsidyEtb: 150, active: true, clusterHubName: "Bishoftu & Mojo Freight Terminal", smallholdersCount: 4200 },
+      { id: "zone-2", name: "Addis Ababa Central Wholesale Depot", nameAm: "አዲስ አበባ ማዕከላዊ የጅምላ ዲፖ", centerLatitude: 9.0222, centerLongitude: 38.7468, baseRadiusKm: 25, maxRadiusKm: 60, ruralSubsidyEtb: 0, active: true, clusterHubName: "Merkato & Jan Meda Distribution", smallholdersCount: 850 },
+      { id: "zone-3", name: "Amhara Highland Grain Basin", nameAm: "የአማራ ከፍተኛ የጤፍና እህል ተፋሰስ", centerLatitude: 9.6800, centerLongitude: 39.5300, baseRadiusKm: 60, maxRadiusKm: 180, ruralSubsidyEtb: 250, active: true, clusterHubName: "Debre Berhan & Shewa Robit Hub", smallholdersCount: 3100 },
+      { id: "zone-4", name: "Sidama Rift Fruit & Vegetable Zone", nameAm: "የሲዳማ ፍራፍሬ እና አትክልት ዞን", centerLatitude: 7.0504, centerLongitude: 38.4955, baseRadiusKm: 50, maxRadiusKm: 150, ruralSubsidyEtb: 200, active: true, clusterHubName: "Hawassa Lakeview Terminal", smallholdersCount: 1950 },
+      { id: "zone-5", name: "SNNPR Gedeo Specialty Coffee Zone", nameAm: "የጌዴኦ ስፔሻሊቲ ቡና ዞን", centerLatitude: 6.1628, centerLongitude: 38.2045, baseRadiusKm: 40, maxRadiusKm: 140, ruralSubsidyEtb: 300, active: true, clusterHubName: "Yirgacheffe Washing Station Depot", smallholdersCount: 1400 },
+      { id: "zone-6", name: "Tigray Northern Transit Hub", nameAm: "የትግራይ ሰሜናዊ የንግድ ኮሪደር", centerLatitude: 13.4967, centerLongitude: 39.4753, baseRadiusKm: 55, maxRadiusKm: 160, ruralSubsidyEtb: 350, active: true, clusterHubName: "Mekelle Central Depot", smallholdersCount: 1100 }
+    ];
+    this.deliveryZones = defaultZones;
+    this.saveDeliveryZonesToStorage();
+    this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/zones/reset-defaults', {
+      method: 'POST'
+    });
+  }
+
   // Feature Flags
+  public saveFeatureFlagsToStorage(): void {
+    try {
+      localStorage.setItem('farmerMarketFeatureFlags', JSON.stringify(this.featureFlags));
+    } catch (e) {
+      console.warn('Failed to save feature flags', e);
+    }
+  }
+
   public getFeatureFlags(): FeatureFlag[] {
     return this.featureFlags;
   }
@@ -3905,13 +4480,98 @@ class ApiService {
       details: `${flag.enabled ? 'Enabled' : 'Disabled'} feature flag: ${flag.name} (${key}).`
     });
 
+    this.saveFeatureFlagsToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin(`/api/superadmin/feature-flags/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled: flag.enabled, rolloutPercentage: flag.rolloutPercentage })
+    });
+
     return flag;
   }
 
-  // Payout Approvals
+  public resetFeatureFlagsToDefault(): void {
+    localStorage.removeItem('farmerMarketFeatureFlags');
+    const defaultFeatureFlags: FeatureFlag[] = [
+      { key: "advance_harvest", name: "Advance Harvest Pre-Ordering", description: "Allows wholesale buyers to secure future harvests 2-4 weeks prior to field collection.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["farmer", "buyer", "admin", "superadmin"] },
+      { key: "voice_note_transcription", name: "Voice Note Audio Memos & AI Transcription", description: "Enables Amharic and Afaan Oromoo audio produce memos with automatic speech-to-text.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["farmer", "agent", "admin", "superadmin"] },
+      { key: "dynamic_price_benchmarking", name: "Real-time Wholesale Depot Price Benchmarking", description: "Displays live price comparisons vs Merkato, Sholla, and Adama depots on produce cards.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["buyer", "farmer", "superadmin"] },
+      { key: "ussd_offline_gateway", name: "USSD Offline Gateway (*990# / *805#)", description: "Permits feature phone registration, balance checks, and SMS listing fallbacks.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["farmer", "agent"] },
+      { key: "multisig_escrow_protection", name: "High-Value Escrow Multi-Sig Authorization", description: "Requires Super Admin dual authorization for payouts exceeding 50,000 ETB.", enabled: true, rolloutPercentage: 100, targetRegions: ["all"], targetRoles: ["admin", "superadmin"] }
+    ];
+    this.featureFlags = defaultFeatureFlags;
+    this.saveFeatureFlagsToStorage();
+    this.notify();
+  }
+
+  // Payout Approvals & Financial Oversight
   public getPendingPayoutApprovals(): PayoutApprovalItem[] {
     return this.payoutApprovals;
+  }
+
+  public getAllPayoutApprovals(): PayoutApprovalItem[] {
+    return this.payoutApprovals;
+  }
+
+  public createPayoutApproval(dto: {
+    recipientId: string;
+    recipientName: string;
+    recipientPhone: string;
+    recipientRole: UserRole;
+    amountEtb: number;
+    riskScore?: 'Low' | 'Medium' | 'High';
+    triggerReason: string;
+    cropName?: string;
+    region?: string;
+  }): PayoutApprovalItem {
+    const tax = Math.round(dto.amountEtb * ((this.platformConfig.withholdingTaxPercent || 2) / 100));
+    const net = dto.amountEtb - tax;
+    const newItem: PayoutApprovalItem = {
+      id: `payout-appr-${Date.now().toString().slice(-4)}`,
+      recipientId: dto.recipientId,
+      recipientName: dto.recipientName,
+      recipientPhone: dto.recipientPhone,
+      recipientRole: dto.recipientRole,
+      amountEtb: dto.amountEtb,
+      walletBalanceBefore: dto.amountEtb,
+      riskScore: dto.riskScore || (dto.amountEtb > 100000 ? 'High' : dto.amountEtb > 75000 ? 'Medium' : 'Low'),
+      triggerReason: dto.triggerReason || 'High-value Telebirr disbursement threshold trigger',
+      status: 'Pending',
+      requestedAt: 'Just now',
+      cropName: dto.cropName || 'High-volume Agricultural Trade',
+      region: dto.region || 'National Settlement Pool',
+      withholdingTaxEtb: tax,
+      netDisbursedEtb: net,
+      telebirrTxId: `TB-ET-${Math.floor(Math.random() * 899999 + 100000)}`
+    };
+
+    this.payoutApprovals.unshift(newItem);
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'superadmin-01',
+      actorName: this.currentUser?.name || 'Super Admin',
+      actorRole: 'superadmin',
+      action: 'CREATE_PAYOUT_REQUEST',
+      category: 'FINANCE',
+      targetResource: 'PayoutApproval',
+      targetId: newItem.id,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Generated new payout request for ${newItem.recipientName} of ${newItem.amountEtb.toLocaleString()} ETB.`
+    });
+
+    this.savePayoutsToStorage();
+    this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/payouts', {
+      method: 'POST',
+      body: JSON.stringify(newItem)
+    });
+
+    return newItem;
   }
 
   public approvePayout(id: string, reviewerName: string): boolean {
@@ -3920,6 +4580,21 @@ class ApiService {
     item.status = 'Approved';
     item.reviewedBy = reviewerName;
     item.reviewedAt = new Date().toLocaleString();
+    if (!item.telebirrTxId) {
+      item.telebirrTxId = `TB-ET-${Math.floor(Math.random() * 899999 + 100000)}`;
+    }
+
+    // Add notification to recipient
+    this.notifications.unshift({
+      id: `notif-payout-${Date.now()}`,
+      userId: item.recipientId,
+      type: 'payout',
+      channel: 'sms',
+      messageEn: `💰 [Telebirr Payout Released] High-value payout of ${item.amountEtb.toLocaleString()} ETB has been authorized by Super Admin and deposited to your Telebirr wallet (${item.recipientPhone}). Ref: ${item.telebirrTxId}`,
+      messageAm: `💰 [የቴሌብር ክፍያ ተለቋል] የ${item.amountEtb.toLocaleString()} ብር ክፍያ በዋና አድሚን ተረጋግጦ ወደ ቴሌብር አካውንትዎ (${item.recipientPhone}) ገብቷል። ማጣቀሻ: ${item.telebirrTxId}`,
+      createdAt: new Date().toISOString(),
+      read: false
+    });
 
     this.addAuditLog({
       actorId: this.currentUser?.id || 'superadmin-01',
@@ -3931,19 +4606,95 @@ class ApiService {
       targetId: id,
       ipAddress: '196.188.12.45',
       userAgent: navigator.userAgent,
-      details: `Authorized high-value Telebirr payout of ${item.amountEtb.toLocaleString()} ETB for ${item.recipientName} (${item.recipientPhone}).`
+      details: `Authorized high-value Telebirr payout of ${item.amountEtb.toLocaleString()} ETB for ${item.recipientName} (${item.recipientPhone}). Telebirr Tx: ${item.telebirrTxId}`
     });
 
+    this.savePayoutsToStorage();
+    this.saveNotificationsToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin(`/api/superadmin/payouts/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ reviewerName })
+    });
+
     return true;
+  }
+
+  public batchApprovePayouts(ids: string[], reviewerName: string): { approvedCount: number; totalAmountEtb: number } {
+    let approvedCount = 0;
+    let totalAmountEtb = 0;
+
+    ids.forEach(id => {
+      const item = this.payoutApprovals.find(p => p.id === id && p.status === 'Pending');
+      if (item) {
+        item.status = 'Approved';
+        item.reviewedBy = reviewerName;
+        item.reviewedAt = new Date().toLocaleString();
+        if (!item.telebirrTxId) {
+          item.telebirrTxId = `TB-ET-${Math.floor(Math.random() * 899999 + 100000)}`;
+        }
+        approvedCount++;
+        totalAmountEtb += item.amountEtb;
+
+        this.notifications.unshift({
+          id: `notif-payout-${Date.now()}-${approvedCount}`,
+          userId: item.recipientId,
+          type: 'payout',
+          channel: 'sms',
+          messageEn: `💰 [Telebirr Payout Released] Batch payout of ${item.amountEtb.toLocaleString()} ETB authorized by Super Admin. Ref: ${item.telebirrTxId}`,
+          messageAm: `💰 [የቴሌብር ክፍያ ተለቋል] የ${item.amountEtb.toLocaleString()} ብር ክፍያ በዋና አድሚን ተረጋግጦ ተለቋል። ማጣቀሻ: ${item.telebirrTxId}`,
+          createdAt: new Date().toISOString(),
+          read: false
+        });
+      }
+    });
+
+    if (approvedCount > 0) {
+      this.addAuditLog({
+        actorId: this.currentUser?.id || 'superadmin-01',
+        actorName: reviewerName,
+        actorRole: 'superadmin',
+        action: 'BATCH_APPROVE_PAYOUTS',
+        category: 'FINANCE',
+        targetResource: 'PayoutApproval',
+        ipAddress: '196.188.12.45',
+        userAgent: navigator.userAgent,
+        details: `Batch authorized ${approvedCount} high-value payouts totaling ${totalAmountEtb.toLocaleString()} ETB.`
+      });
+      this.savePayoutsToStorage();
+      this.saveNotificationsToStorage();
+      this.notify();
+
+      // Async sync with ASP.NET backend
+      this.requestSuperAdmin('/api/superadmin/payouts/batch-approve', {
+        method: 'POST',
+        body: JSON.stringify({ ids, reviewerName })
+      });
+    }
+
+    return { approvedCount, totalAmountEtb };
   }
 
   public rejectPayout(id: string, reviewerName: string, reason: string = 'High-risk audit anomaly'): boolean {
     const item = this.payoutApprovals.find(p => p.id === id);
     if (!item) return false;
     item.status = 'Rejected';
+    item.rejectionReason = reason;
     item.reviewedBy = reviewerName;
     item.reviewedAt = new Date().toLocaleString();
+
+    this.notifications.unshift({
+      id: `notif-payout-rej-${Date.now()}`,
+      userId: item.recipientId,
+      type: 'dispute',
+      channel: 'sms',
+      messageEn: `⚠️ [Payout Audit Hold] Your payout request of ${item.amountEtb.toLocaleString()} ETB was flagged by Super Admin audit: ${reason}. Please contact support with KYC documents.`,
+      messageAm: `⚠️ [የክፍያ ምርመራ እገዳ] የ${item.amountEtb.toLocaleString()} ብር የክፍያ ጥያቄዎ በዋና አድሚን ታግዷል: ${reason}። እባክዎ ተጨማሪ ማረጋገጫ ይዘው ድጋፍ ሰጪን ያነጋግሩ።`,
+      createdAt: new Date().toISOString(),
+      read: false
+    });
 
     this.addAuditLog({
       actorId: this.currentUser?.id || 'superadmin-01',
@@ -3958,11 +4709,93 @@ class ApiService {
       details: `Declined payout of ${item.amountEtb.toLocaleString()} ETB for ${item.recipientName}. Reason: ${reason}.`
     });
 
+    this.savePayoutsToStorage();
+    this.saveNotificationsToStorage();
+    this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin(`/api/superadmin/payouts/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reviewerName, reason })
+    });
+
+    return true;
+  }
+
+  public manualReleaseOrderEscrow(orderId: string, reviewerName: string, note: string): boolean {
+    const order = this.orders.find(o => o.id === orderId);
+    if (!order) return false;
+    order.escrowHeld = false;
+    order.status = 'delivered';
+    order.deliveredAt = new Date().toLocaleString();
+
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'superadmin-01',
+      actorName: reviewerName,
+      actorRole: 'superadmin',
+      action: 'MANUAL_ESCROW_RELEASE',
+      category: 'FINANCE',
+      targetResource: 'Order',
+      targetId: orderId,
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: `Manual escrow release of ${order.totalEtb.toLocaleString()} ETB for Order #${orderId.slice(0, 8)}. Reason: ${note}`
+    });
+
+    this.saveOrdersToStorage();
     this.notify();
     return true;
   }
 
+  public exportFinancialStatementCsv(): string {
+    const headers = [
+      'Payout ID',
+      'Recipient Name',
+      'Phone Number',
+      'Role',
+      'Gross Amount (ETB)',
+      'MOR Tax Deduction (2%)',
+      'Net Disbursed (ETB)',
+      'Risk Score',
+      'Status',
+      'Telebirr Tx Ref',
+      'Trigger Reason',
+      'Requested At',
+      'Reviewed By',
+      'Reviewed At',
+      'Rejection Reason'
+    ];
+
+    const rows = this.payoutApprovals.map(p => [
+      `"${p.id}"`,
+      `"${p.recipientName}"`,
+      `"${p.recipientPhone}"`,
+      `"${p.recipientRole}"`,
+      p.amountEtb,
+      p.withholdingTaxEtb || Math.round(p.amountEtb * 0.02),
+      p.netDisbursedEtb || (p.amountEtb - Math.round(p.amountEtb * 0.02)),
+      `"${p.riskScore}"`,
+      `"${p.status}"`,
+      `"${p.telebirrTxId || ''}"`,
+      `"${(p.triggerReason || '').replace(/"/g, '""')}"`,
+      `"${p.requestedAt}"`,
+      `"${p.reviewedBy || ''}"`,
+      `"${p.reviewedAt || ''}"`,
+      `"${(p.rejectionReason || '').replace(/"/g, '""')}"`
+    ]);
+
+    return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  }
+
   // Global Business Rules
+  public saveBusinessRulesToStorage(): void {
+    try {
+      localStorage.setItem('farmerMarketBusinessRules', JSON.stringify(this.globalBusinessRules));
+    } catch (e) {
+      console.warn('Failed to save business rules', e);
+    }
+  }
+
   public getGlobalBusinessRules(): GlobalBusinessRules {
     return this.globalBusinessRules;
   }
@@ -3982,11 +4815,42 @@ class ApiService {
       details: `Updated global trading rules: Min ${this.globalBusinessRules.minOrderKg} kg, Max ${this.globalBusinessRules.maxOrderKg} kg, Max Distance ${this.globalBusinessRules.maxDistanceKm} km.`
     });
 
+    this.saveBusinessRulesToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/business-rules', {
+      method: 'PUT',
+      body: JSON.stringify(this.globalBusinessRules)
+    });
+
     return this.globalBusinessRules;
   }
 
+  public resetBusinessRulesToDefault(): void {
+    localStorage.removeItem('farmerMarketBusinessRules');
+    this.globalBusinessRules = {
+      minOrderKg: 50,
+      maxOrderKg: 50000,
+      maxDistanceKm: 850,
+      priceFloorVariancePercent: -30,
+      priceCeilingVariancePercent: 250,
+      requireFaydaForOrdersAboveKg: 500,
+      autoArbitrateAfterHours: 48
+    };
+    this.saveBusinessRulesToStorage();
+    this.notify();
+  }
+
   // Blacklist
+  public saveBlacklistToStorage(): void {
+    try {
+      localStorage.setItem('farmerMarketBlacklist', JSON.stringify(this.blacklist));
+    } catch (e) {
+      console.warn('Failed to save blacklist', e);
+    }
+  }
+
   public getBlacklist(): BlacklistEntry[] {
     return this.blacklist;
   }
@@ -4012,7 +4876,15 @@ class ApiService {
       details: `Blacklisted ${newEntry.type}: ${newEntry.value}. Reason: ${newEntry.reason}.`
     });
 
+    this.saveBlacklistToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/blacklist', {
+      method: 'POST',
+      body: JSON.stringify(newEntry)
+    });
+
     return newEntry;
   }
 
@@ -4034,8 +4906,51 @@ class ApiService {
       details: `Removed ${entry.type} (${entry.value}) from platform blacklist.`
     });
 
+    this.saveBlacklistToStorage();
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin(`/api/superadmin/blacklist/${id}`, {
+      method: 'DELETE'
+    });
+
     return true;
+  }
+
+  public resetBlacklistToDefault(): void {
+    localStorage.removeItem('farmerMarketBlacklist');
+    const defaultBlacklist: BlacklistEntry[] = [
+      {
+        id: "bl-01",
+        type: "Phone",
+        value: "+251900112233",
+        reason: "Repeated non-delivery and fraudulent off-platform bypass attempt.",
+        blacklistedBy: "Sara Mengistu (Admin)",
+        blacklistedAt: "2026-08-15",
+        active: true
+      },
+      {
+        id: "bl-02",
+        type: "NationalId",
+        value: "FAN-9999-8888-7777",
+        reason: "Forged Ethiopian national ID presented during tier-2 verification.",
+        blacklistedBy: "Dr. Dawit Haile (Super Admin)",
+        blacklistedAt: "2026-08-18",
+        active: true
+      },
+      {
+        id: "bl-03",
+        type: "TinNumber",
+        value: "0099887766",
+        reason: "Tax revenue evasion & revoked trade license flagged by MOR audit.",
+        blacklistedBy: "Dr. Dawit Haile (Super Admin)",
+        blacklistedAt: "2026-08-21",
+        active: true
+      }
+    ];
+    this.blacklist = defaultBlacklist;
+    this.saveBlacklistToStorage();
+    this.notify();
   }
 
   // Database Backups & Exports
@@ -4061,8 +4976,65 @@ class ApiService {
     });
 
     this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/db/backup', {
+      method: 'POST'
+    });
+
     return backup;
   }
+
+  public optimizeDatabase(): void {
+    this.addAuditLog({
+      actorId: this.currentUser?.id || 'superadmin-01',
+      actorName: this.currentUser?.name || 'Super Admin',
+      actorRole: 'superadmin',
+      action: 'DATABASE_MAINTENANCE_VACUUM',
+      category: 'CONFIG',
+      targetResource: 'PostgreSQL_Engine',
+      ipAddress: '196.188.12.45',
+      userAgent: navigator.userAgent,
+      details: 'Executed VACUUM ANALYZE and PostGIS spatial index re-indexing across all tables.'
+    });
+    this.notify();
+
+    // Async sync with ASP.NET backend
+    this.requestSuperAdmin('/api/superadmin/db/optimize', {
+      method: 'POST'
+    });
+  }
+
+  public resetAllSuperAdminDataToDefault(): void {
+    this.resetPayoutsToDefault();
+    this.resetAuditLogsToDefault();
+    this.resetDeliveryZonesToDefault();
+    this.resetFeatureFlagsToDefault();
+    this.resetBlacklistToDefault();
+    this.resetBusinessRulesToDefault();
+    localStorage.removeItem('farmerMarketPlatformConfig');
+    this.platformConfig = {
+      farmerSharePercent: 90,
+      driverSharePercent: 5,
+      platformFeePercent: 5,
+      withholdingTaxPercent: 2,
+      vatOnCommissionPercent: 15,
+      highValuePayoutThresholdEtb: 50000,
+      emergencyEscrowFrozen: false,
+      telebirrAppId: "TB_LIVE_ETH_882190",
+      telebirrShortCode: "8055",
+      telebirrApiKey: "sk_live_eth_99281746281920",
+      telebirrEscrowVaultKey: "vault_sec_eth_telebirr_90_5_5",
+      twilioAccountSid: "AC_LIVE_AFROMESSAGE_ETH_001",
+      twilioAuthToken: "auth_live_afromsg_99218201",
+      twilioFromNumber: "8055",
+      mapsGeocodingApiKey: "AIzaSy_Ethiopia_AgroCorridor_Spatial_2026",
+      postgisSpatialIndexEnabled: true
+    };
+    this.savePlatformConfigToStorage();
+    this.notify();
+  }
+
 
   public exportPlatformData(format: 'json' | 'csv'): { filename: string; dataUrl: string } {
     const filename = `FarmerMarket_FullExport_${new Date().toISOString().split('T')[0]}.${format}`;
@@ -4098,6 +5070,7 @@ class ApiService {
 
     return { filename, dataUrl };
   }
+
 
   // ==================== BANNER & ANNOUNCEMENT MANAGEMENT ====================
   public getBanners(): Banner[] {

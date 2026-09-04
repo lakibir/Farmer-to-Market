@@ -77,6 +77,7 @@ public class OrdersController(IMediator mediator) : ControllerBase
         return Ok(new { message = "Delivery confirmed! Escrow funds released to farmer and driver." });
     }
 
+    [HttpPost("{id:guid}/dispute")]
     [HttpPut("{id:guid}/dispute")]
     public async Task<IActionResult> DisputeOrder(Guid id, [FromBody] DisputeOrderDto dto, CancellationToken ct)
     {
@@ -85,5 +86,16 @@ public class OrdersController(IMediator mediator) : ControllerBase
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 
         return Ok(new { message = "Dispute registered. Platform admin will review the claim." });
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<IActionResult> CancelOrder(Guid id, [FromBody] CancelOrderDto? dto, CancellationToken ct)
+    {
+        var userId = User.GetUserId();
+        var reason = dto?.Reason ?? "Buyer requested order cancellation and full escrow refund";
+        var result = await mediator.Send(new CancelOrderCommand(id, userId, reason), ct);
+        if (!result.IsSuccess) return BadRequest(new { error = result.Error });
+
+        return Ok(new { message = "Order cancelled and 100% escrow refunded to buyer via Telebirr." });
     }
 }
