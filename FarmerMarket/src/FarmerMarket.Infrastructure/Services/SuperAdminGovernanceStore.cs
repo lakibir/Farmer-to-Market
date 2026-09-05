@@ -6,6 +6,12 @@ namespace FarmerMarket.Infrastructure.Services;
 
 public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
 {
+    private const string SystemActorId = "system-superadmin";
+    private const string SystemActorName = "SuperAdmin Console";
+    private const string SystemActorRole = "superadmin";
+    private const string DefaultIpAddress = "127.0.0.1";
+    private const string DefaultUserAgent = "FarmerMarket Core Governance Engine";
+
     private readonly object _lock = new();
 
     private SuperAdminPlatformConfigDto _config;
@@ -38,7 +44,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
         lock (_lock)
         {
             _config = config;
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "UPDATE_PLATFORM_CONFIG", "CONFIG", "PlatformConfig", null, "Updated platform configuration and escrow parameters.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "UPDATE_PLATFORM_CONFIG", "CONFIG", "PlatformConfig", null, "Updated platform configuration and escrow parameters.");
             return _config;
         }
     }
@@ -48,7 +54,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
         lock (_lock)
         {
             _config = _config with { EmergencyEscrowFrozen = true };
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "EMERGENCY_ESCROW_FREEZE", "EMERGENCY", "PlatformConfig", null, "EMERGENCY: Immediate platform-wide escrow payout killswitch activated.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "EMERGENCY_ESCROW_FREEZE", "EMERGENCY", "PlatformConfig", null, "EMERGENCY: Immediate platform-wide escrow payout killswitch activated.");
             return true;
         }
     }
@@ -58,7 +64,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
         lock (_lock)
         {
             _config = _config with { EmergencyEscrowFrozen = false };
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "EMERGENCY_ESCROW_UNFREEZE", "EMERGENCY", "PlatformConfig", null, "Emergency killswitch deactivated. Standard escrow processing resumed.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "EMERGENCY_ESCROW_UNFREEZE", "EMERGENCY", "PlatformConfig", null, "Emergency killswitch deactivated. Standard escrow processing resumed.");
             return true;
         }
     }
@@ -97,7 +103,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             );
 
             _payouts.Insert(0, item);
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "CREATE_PAYOUT_REQUEST", "FINANCE", "PayoutApproval", item.Id, $"Generated payout request for {item.RecipientName} of {item.AmountEtb:N0} ETB.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "CREATE_PAYOUT_REQUEST", "FINANCE", "PayoutApproval", item.Id, $"Generated payout request for {item.RecipientName} of {item.AmountEtb:N0} ETB.");
             return item;
         }
     }
@@ -120,7 +126,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             };
 
             _payouts[idx] = updated;
-            AddAuditLogInternal("superadmin-01", reviewerName, "superadmin", "APPROVE_HIGH_VALUE_PAYOUT", "FINANCE", "PayoutApproval", id, $"Authorized high-value Telebirr payout of {updated.AmountEtb:N0} ETB for {updated.RecipientName}. Telebirr Tx: {txId}");
+            AddAuditLogInternal(SystemActorId, reviewerName, SystemActorRole, "APPROVE_HIGH_VALUE_PAYOUT", "FINANCE", "PayoutApproval", id, $"Authorized high-value Telebirr payout of {updated.AmountEtb:N0} ETB for {updated.RecipientName}. Telebirr Tx: {txId}");
             return updated;
         }
     }
@@ -154,7 +160,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
 
             if (approvedList.Count > 0)
             {
-                AddAuditLogInternal("superadmin-01", reviewerName, "superadmin", "BATCH_APPROVE_PAYOUTS", "FINANCE", "PayoutApproval", null, $"Batch authorized {approvedList.Count} high-value payouts totaling {totalEtb:N0} ETB via Telebirr.");
+                AddAuditLogInternal(SystemActorId, reviewerName, SystemActorRole, "BATCH_APPROVE_PAYOUTS", "FINANCE", "PayoutApproval", null, $"Batch authorized {approvedList.Count} high-value payouts totaling {totalEtb:N0} ETB via Telebirr.");
             }
 
             return approvedList;
@@ -178,7 +184,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             };
 
             _payouts[idx] = updated;
-            AddAuditLogInternal("superadmin-01", reviewerName, "superadmin", "REJECT_HIGH_VALUE_PAYOUT", "FINANCE", "PayoutApproval", id, $"Declined payout of {updated.AmountEtb:N0} ETB for {updated.RecipientName}. Reason: {reason}");
+            AddAuditLogInternal(SystemActorId, reviewerName, SystemActorRole, "REJECT_HIGH_VALUE_PAYOUT", "FINANCE", "PayoutApproval", id, $"Declined payout of {updated.AmountEtb:N0} ETB for {updated.RecipientName}. Reason: {reason}");
             return updated;
         }
     }
@@ -188,7 +194,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
         lock (_lock)
         {
             _payouts = GetDefaultPayouts();
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "RESET_PAYOUTS_TO_DEFAULT", "FINANCE", "PayoutApproval", null, "Reset high-value multi-sig payout queue to baseline demo seed.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "RESET_PAYOUTS_TO_DEFAULT", "FINANCE", "PayoutApproval", null, "Reset high-value multi-sig payout queue to baseline state.");
         }
     }
 
@@ -217,8 +223,8 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
                 Category: dto.Category,
                 TargetResource: dto.TargetResource,
                 TargetId: dto.TargetId,
-                IpAddress: dto.IpAddress ?? "196.188.12.45",
-                UserAgent: dto.UserAgent ?? "FarmerMarket API Core",
+                IpAddress: dto.IpAddress ?? DefaultIpAddress,
+                UserAgent: dto.UserAgent ?? DefaultUserAgent,
                 Details: dto.Details,
                 Timestamp: DateTime.UtcNow.ToString("yyyy-MM-dd hh:mm tt")
             );
@@ -238,8 +244,8 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             Category: category,
             TargetResource: targetResource,
             TargetId: targetId,
-            IpAddress: "196.188.12.45",
-            UserAgent: "Antigravity/2.0 Web Admin Engine",
+            IpAddress: DefaultIpAddress,
+            UserAgent: DefaultUserAgent,
             Details: details,
             Timestamp: DateTime.UtcNow.ToString("yyyy-MM-dd hh:mm tt")
         );
@@ -258,7 +264,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
         {
             var item = zone with { Id = $"zone-{_zones.Count + 1}" };
             _zones.Add(item);
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "ADD_DELIVERY_ZONE", "CONFIG", "DeliveryZoneConfig", item.Id, $"Added new regional delivery zone: {item.Name} (Base radius {item.BaseRadiusKm} km).");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "ADD_DELIVERY_ZONE", "CONFIG", "DeliveryZoneConfig", item.Id, $"Added new regional delivery zone: {item.Name} (Base radius {item.BaseRadiusKm} km).");
             return item;
         }
     }
@@ -271,7 +277,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             if (idx == -1) return null;
 
             _zones[idx] = zone with { Id = id };
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "UPDATE_DELIVERY_ZONE", "CONFIG", "DeliveryZoneConfig", id, $"Updated delivery zone '{zone.Name}' configuration.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "UPDATE_DELIVERY_ZONE", "CONFIG", "DeliveryZoneConfig", id, $"Updated delivery zone '{zone.Name}' configuration.");
             return _zones[idx];
         }
     }
@@ -284,7 +290,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             if (item == null) return false;
 
             _zones.Remove(item);
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "DELETE_DELIVERY_ZONE", "CONFIG", "DeliveryZoneConfig", id, $"Deleted delivery zone: {item.Name}.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "DELETE_DELIVERY_ZONE", "CONFIG", "DeliveryZoneConfig", id, $"Deleted delivery zone: {item.Name}.");
             return true;
         }
     }
@@ -294,7 +300,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
         lock (_lock)
         {
             _zones = GetDefaultDeliveryZones();
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "RESET_DELIVERY_ZONES", "CONFIG", "DeliveryZoneConfig", null, "Reset delivery zones to 6 national trade corridors.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "RESET_DELIVERY_ZONES", "CONFIG", "DeliveryZoneConfig", null, "Reset delivery zones to 6 national trade corridors.");
         }
     }
 
@@ -319,7 +325,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             };
 
             _featureFlags[idx] = updated;
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "TOGGLE_FEATURE_FLAG", "CONFIG", "FeatureFlag", key, $"{(updated.Enabled ? "Enabled" : "Disabled")} feature flag: {updated.Name} ({key}). Rollout: {updated.RolloutPercentage}%.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "TOGGLE_FEATURE_FLAG", "CONFIG", "FeatureFlag", key, $"{(updated.Enabled ? "Enabled" : "Disabled")} feature flag: {updated.Name} ({key}). Rollout: {updated.RolloutPercentage}%.");
             return updated;
         }
     }
@@ -342,7 +348,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
     {
         lock (_lock)
         {
-            var blacklistedBy = string.IsNullOrWhiteSpace(dto.BlacklistedBy) ? "Dr. Dawit Haile (Super Admin)" : dto.BlacklistedBy;
+            var blacklistedBy = string.IsNullOrWhiteSpace(dto.BlacklistedBy) ? SystemActorName : dto.BlacklistedBy;
             var item = new BlacklistEntryDto(
                 Id: $"bl-{(_blacklist.Count + 1):D2}",
                 Type: dto.Type,
@@ -354,7 +360,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             );
 
             _blacklist.Insert(0, item);
-            AddAuditLogInternal("superadmin-01", blacklistedBy, "superadmin", "ADD_TO_BLACKLIST", "EMERGENCY", "BlacklistEntry", item.Id, $"Blacklisted {item.Type}: {item.Value}. Reason: {item.Reason}");
+            AddAuditLogInternal(SystemActorId, blacklistedBy, SystemActorRole, "ADD_TO_BLACKLIST", "EMERGENCY", "BlacklistEntry", item.Id, $"Blacklisted {item.Type}: {item.Value}. Reason: {item.Reason}");
             return item;
         }
     }
@@ -367,7 +373,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
             if (item == null) return false;
 
             _blacklist.Remove(item);
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "REMOVE_FROM_BLACKLIST", "EMERGENCY", "BlacklistEntry", id, $"Removed {item.Type} ({item.Value}) from platform blacklist.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "REMOVE_FROM_BLACKLIST", "EMERGENCY", "BlacklistEntry", id, $"Removed {item.Type} ({item.Value}) from platform blacklist.");
             return true;
         }
     }
@@ -383,7 +389,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
         lock (_lock)
         {
             _rules = rules;
-            AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "UPDATE_BUSINESS_RULES", "CONFIG", "GlobalBusinessRules", null, $"Updated global trading rules: Min {rules.MinOrderKg} kg, Max {rules.MaxOrderKg} kg, Max Distance {rules.MaxDistanceKm} km.");
+            AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "UPDATE_BUSINESS_RULES", "CONFIG", "GlobalBusinessRules", null, $"Updated global trading rules: Min {rules.MinOrderKg} kg, Max {rules.MaxOrderKg} kg, Max Distance {rules.MaxDistanceKm} km.");
             return _rules;
         }
     }
@@ -409,7 +415,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
     public DatabaseBackupResultDto TriggerDatabaseBackup()
     {
         var backupId = $"BK-PG16-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
-        AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "TRIGGER_DATABASE_BACKUP", "CONFIG", "PostgreSQL_Snapshot", backupId, $"Generated encrypted PostgreSQL schema and transaction data snapshot ({backupId}, 248.5 MB).");
+        AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "TRIGGER_DATABASE_BACKUP", "CONFIG", "PostgreSQL_Snapshot", backupId, $"Generated encrypted PostgreSQL schema and transaction data snapshot ({backupId}, 248.5 MB).");
         return new DatabaseBackupResultDto(
             BackupId: backupId,
             SizeMb: 248.5,
@@ -420,7 +426,7 @@ public class SuperAdminGovernanceStore : ISuperAdminGovernanceStore
 
     public bool OptimizeDatabase()
     {
-        AddAuditLogInternal("superadmin-01", "Dr. Dawit Haile", "superadmin", "DATABASE_MAINTENANCE_VACUUM", "CONFIG", "PostgreSQL_Engine", null, "Executed VACUUM ANALYZE and PostGIS spatial index re-indexing across all tables.");
+        AddAuditLogInternal(SystemActorId, SystemActorName, SystemActorRole, "DATABASE_MAINTENANCE_VACUUM", "CONFIG", "PostgreSQL_Engine", null, "Executed VACUUM ANALYZE and PostGIS spatial index re-indexing across all tables.");
         return true;
     }
 

@@ -21,6 +21,7 @@ import { renderFarmerAccountView, FarmerAccountTab } from './components/FarmerAc
 import { ussdSimulator } from './components/UssdSimulatorModal';
 import { marketIntelligenceModal } from './components/MarketIntelligenceModal';
 import { renderRateReviewModal, RateModalState } from './components/RateReviewModal';
+import { renderAboutDashboardView } from './components/AboutDashboardView';
 
 // Toast Notification Manager
 function showToast(message: string, icon: string = 'fa-circle-check', color: string = 'border-emerald-500') {
@@ -47,7 +48,7 @@ function showToast(message: string, icon: string = 'fa-circle-check', color: str
 // Application State
 class App {
   private lang: Language = (localStorage.getItem('lang') as Language) || 'en';
-  private activeTab: string = 'marketplace';
+  private activeTab: string = api.isAuthenticated() ? 'marketplace' : 'about';
   private activeCategory: string = 'All';
   private selectedRegion: string = 'All';
   private searchQuery: string = '';
@@ -271,7 +272,7 @@ class App {
     // Initial fetch from PostgreSQL backend
     await api.refreshAllData();
 
-    // Auto-navigate to role's home view if logged in
+    // Auto-navigate to role's home view if logged in, or about platform if guest
     const u = api.getCurrentUser();
     if (u) {
       if (u.role === 'superadmin') this.activeTab = 'superadmin';
@@ -279,6 +280,8 @@ class App {
       else if (u.role === 'driver') this.activeTab = 'driver';
       else if (u.role === 'admin') this.activeTab = 'admin';
       else this.activeTab = 'marketplace';
+    } else {
+      this.activeTab = 'about';
     }
 
     this.render();
@@ -368,6 +371,8 @@ class App {
       viewHtml = this.agentView.render();
     } else if (this.activeTab === 'account' && isAuthenticated && (currentUser?.role === 'buyer' || currentUser?.role === 'superadmin')) {
       viewHtml = renderBuyerAccountView(this.lang, currentUser, api.getOrders('buyer'), this.activeBuyerAccountTab, api.getAccountData());
+    } else if (this.activeTab === 'about') {
+      viewHtml = renderAboutDashboardView(this.lang);
     } else {
       // Default Wholesale Produce Marketplace (for Buyers or Logged Out Guests)
       const buyerOrders = api.getOrders('buyer');
@@ -662,6 +667,21 @@ class App {
 
     w.navigateTab = (tab: string) => {
       this.activeTab = tab;
+      this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    w.setSearchQuery = (query: string) => {
+      this.searchQuery = query;
+      if (this.activeTab === 'about' && query && query.trim().length > 0) {
+        this.activeTab = 'marketplace';
+      }
+      this.render();
+    };
+
+    w.executeAboutSearch = (query: string) => {
+      this.searchQuery = query || '';
+      this.activeTab = 'marketplace';
       this.render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -1335,26 +1355,47 @@ class App {
 
       const btn = document.getElementById('registerSubmitBtn') as HTMLButtonElement;
       if (btn) {
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Registering in PostgreSQL...`;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Sending SMS OTP...`;
         btn.disabled = true;
       }
 
       try {
-        const user = await api.registerUser(name, nameAm, phone, role, region, email);
-        this.isAuthModalOpen = false;
+        const res = await api.registerUser(name, nameAm, phone, role, region, email);
+        this.pendingPhone = phone.replace('+251', '').trim();
+        this.lastSentCode = res.demoCode || '888888';
+        this.matchedUserName = res.user.name;
+        this.matchedUserRole = res.user.role.toUpperCase();
+        this.matchedUserEmail = res.user.email || '';
+        this.authMode = 'login';
+        this.otpStep = true;
         this.authErrorMessage = '';
 
-        if (user.role === 'farmer') this.activeTab = 'farmer';
-        else if (user.role === 'driver') this.activeTab = 'driver';
-        else if (user.role === 'admin') this.activeTab = 'admin';
-        else this.activeTab = 'marketplace';
-
-        this.cart = this.loadCartFromStorage();
-
-        confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-        showToast(`Welcome to Farmer-to-Market, ${user.name}!`, 'fa-circle-check', 'border-emerald-500');
+        if (res.user.email) {
+          showToast(`Verification code sent via SMS to +251 ${this.pendingPhone} and ${res.user.email}`, 'fa-shield-halved', 'border-emerald-500');
+        } else {
+          showToast(`SMS verification code dispatched to +251 ${this.pendingPhone}`, 'fa-comment-sms', 'border-emerald-500');
+        }
       } catch (err: any) {
-        this.authErrorMessage = err.message || 'Registration failed. Please try a different phone number.';
+        const errMsg = err.message || 'Registration failed. Please try a different phone number.';
+        this.authErrorMessage = errMsg;
+
+        // If phone already registered, seamlessly switch to OTP sign-in
+        if (errMsg.toLowerCase().includes('already exists') || errMsg.toLowerCase().includes('sign in with this number')) {
+          this.pendingPhone = phone.replace('+251', '').trim();
+          try {
+            const otpRes = await api.requestOtp(phone);
+            this.lastSentCode = otpRes.demoCode || '';
+            this.matchedUserName = otpRes.userName || '';
+            this.matchedUserRole = otpRes.role || '';
+            this.matchedUserEmail = otpRes.email || '';
+            this.authMode = 'login';
+            this.otpStep = true;
+            this.authErrorMessage = `Account already exists for +251 ${this.pendingPhone}. Verification code ready below:`;
+            showToast(`Switched to sign in for +251 ${this.pendingPhone}`, 'fa-shield-halved', 'border-blue-500');
+          } catch (otpErr) {
+            console.warn('Auto OTP fallback after registration duplicate:', otpErr);
+          }
+        }
       }
 
       this.render();
@@ -1365,10 +1406,11 @@ class App {
 
     w.handleLogout = () => {
       api.logout();
-      this.activeTab = 'marketplace';
+      this.activeTab = 'about';
       // Cart is preserved in localStorage across sessions
       showToast('Logged out successfully', 'fa-arrow-right-from-bracket');
       this.render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     // Switch Demo User
@@ -2153,7 +2195,7 @@ class App {
       }
     };
 
-    w.handleCreateUserSubmit = (e: Event) => {
+    w.handleCreateUserSubmit = async (e: Event) => {
       e.preventDefault();
       const role = (document.getElementById('newRoleSelect') as HTMLSelectElement)?.value as UserRole;
       const name = (document.getElementById('newNameInput') as HTMLInputElement)?.value;
@@ -2171,28 +2213,38 @@ class App {
       const refrigerationType = (document.getElementById('newRefrigInput') as HTMLInputElement)?.value || undefined;
       const businessLicenseNumber = (document.getElementById('newLicenseInput') as HTMLInputElement)?.value || undefined;
 
-      const created = api.createUser({
-        role,
-        name,
-        nameAm,
-        phone,
-        region,
-        verified,
-        status: 'active',
-        primaryCrop,
-        kebele,
-        faydaId,
-        tinNumber,
-        vehicleType,
-        vehicleCapacityKg,
-        refrigerationType,
-        businessLicenseNumber
-      });
+      try {
+        const created = await api.createUser({
+          role,
+          name,
+          nameAm,
+          phone,
+          region,
+          verified,
+          status: 'active',
+          primaryCrop,
+          kebele,
+          faydaId,
+          tinNumber,
+          vehicleType,
+          vehicleCapacityKg,
+          refrigerationType,
+          businessLicenseNumber
+        });
 
-      this.isSuperAdminCreateUserModalOpen = false;
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      showToast(this.lang === 'am' ? `አዲስ ${role.toUpperCase()} መለያ ተፈጥሯል: ${name}` : `Created ${role.toUpperCase()} account: ${name}!`, 'fa-user-check', 'border-rose-500');
-      this.render();
+        this.isSuperAdminCreateUserModalOpen = false;
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        showToast(
+          this.lang === 'am'
+            ? `አዲስ ${role.toUpperCase()} መለያ ተፈጥሯል: ${name} (${created.phone}) - አሁን መግባት ይችላሉ!`
+            : `Created ${role.toUpperCase()} account: ${name} (${created.phone})! Ready to sign in.`,
+          'fa-user-check',
+          'border-emerald-500'
+        );
+        this.render();
+      } catch (err: any) {
+        showToast(err.message || 'Failed to create user account.', 'fa-circle-xmark', 'border-rose-500');
+      }
     };
 
     w.handleEditUserSubmit = (e: Event, userId: string) => {

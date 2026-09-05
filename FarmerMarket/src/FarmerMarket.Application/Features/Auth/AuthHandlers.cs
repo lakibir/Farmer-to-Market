@@ -23,24 +23,6 @@ public class RequestOtpHandler(IAppDbContext db, ISmsService sms, IOtpService ot
 
         // STRICT DATABASE CHECK: Only allow existing registered users to log in
         var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == phone, ct);
-        if (user == null && phone == "+251900000001")
-        {
-            user = new User
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Phone = "+251900000001",
-                Name = "Dr. Dawit Haile (Super Admin)",
-                NameAm = "ዶ/ር ዳዊት ኃይሌ",
-                Role = UserRole.SuperAdmin,
-                Region = "Addis Ababa (Headquarters)",
-                Verified = true,
-                VerificationStatus = VerificationStatus.Approved,
-                Email = "admin@farmertomarket.et",
-                CreatedAt = DateTimeOffset.UtcNow.AddYears(-1)
-            };
-            db.Users.Add(user);
-            await db.SaveChangesAsync(ct);
-        }
 
         if (user == null)
         {
@@ -146,7 +128,7 @@ public class VerifyOtpHandler(IAppDbContext db, IJwtService jwt, IOtpService otp
 // 3. Register New User Command
 public record RegisterUserCommand(RegisterUserDto Dto) : IRequest<Result<AuthResponseDto>>;
 
-public class RegisterUserHandler(IAppDbContext db, IJwtService jwt, IEmailService email) : IRequestHandler<RegisterUserCommand, Result<AuthResponseDto>>
+public class RegisterUserHandler(IAppDbContext db, IJwtService jwt, IEmailService email, ISmsService sms, IOtpService otpService) : IRequestHandler<RegisterUserCommand, Result<AuthResponseDto>>
 {
     public async Task<Result<AuthResponseDto>> Handle(RegisterUserCommand req, CancellationToken ct)
     {
@@ -202,10 +184,18 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt, IEmailServic
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);
 
-        // Send Welcome email if email is provided
+        // Generate 6-digit OTP code for instant verification
+        var code = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        otpService.StoreOtp(phone, code, TimeSpan.FromMinutes(5));
+
+        // Dispatch SMS via SMS service
+        await sms.SendOtpAsync(phone, code, "am", ct);
+
+        // Send Welcome & OTP email if email is provided
         if (!string.IsNullOrWhiteSpace(cleanEmail))
         {
             _ = email.SendWelcomeEmailAsync(cleanEmail, user.Name, user.Role.ToString(), ct);
+            _ = email.SendOtpEmailAsync(cleanEmail, code, user.Name, "am", ct);
         }
 
         var token = jwt.GenerateToken(user);
@@ -226,7 +216,12 @@ public class RegisterUserHandler(IAppDbContext db, IJwtService jwt, IEmailServic
             user.Email
         );
 
-        return Result<AuthResponseDto>.Success(new AuthResponseDto(token, userDto));
+        return Result<AuthResponseDto>.Success(new AuthResponseDto(
+            Token: token,
+            User: userDto,
+            DemoCode: code,
+            Message: "Account created successfully. Verification code sent via SMS."
+        ));
     }
 }
 

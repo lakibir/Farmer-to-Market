@@ -223,7 +223,7 @@ export function renderAuthModal(
                 <label class="block mb-2 font-bold text-slate-800 text-xs">
                   ${lang === 'am' ? 'የንግድ / የሥራ ዘርፍ ይምረጡ' : 'Select Your Business Role on the Exchange'}
                 </label>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   
                   <label class="role-radio-card active" onclick="document.querySelectorAll('.role-radio-card').forEach(el=>el.classList.remove('active')); this.classList.add('active');">
                     <input type="radio" name="regRole" value="farmer" checked class="mt-1" />
@@ -244,16 +244,8 @@ export function renderAuthModal(
                   <label class="role-radio-card" onclick="document.querySelectorAll('.role-radio-card').forEach(el=>el.classList.remove('active')); this.classList.add('active');">
                     <input type="radio" name="regRole" value="driver" class="mt-1" />
                     <div>
-                      <span class="font-extrabold text-slate-900 block text-xs">Freight & Logistics Carrier 🚚</span>
-                      <span class="text-[11px] text-slate-500 font-normal block leading-tight mt-0.5">Transport produce batches with 5% guaranteed trip cut.</span>
-                    </div>
-                  </label>
-
-                  <label class="role-radio-card" onclick="document.querySelectorAll('.role-radio-card').forEach(el=>el.classList.remove('active')); this.classList.add('active');">
-                    <input type="radio" name="regRole" value="admin" class="mt-1" />
-                    <div>
-                      <span class="font-extrabold text-slate-900 block text-xs">Market Officer / Co-op Lead 🛡️</span>
-                      <span class="text-[11px] text-slate-500 font-normal block leading-tight mt-0.5">Verify farm IDs and arbitrate escrow claims.</span>
+                      <span class="font-extrabold text-slate-900 block text-xs">Freight Carrier 🚚</span>
+                      <span class="text-[11px] text-slate-500 font-normal block leading-tight mt-0.5">Transport produce with 5% guaranteed escrow cut.</span>
                     </div>
                   </label>
 
@@ -319,7 +311,7 @@ export function renderAuthModal(
               </div>
 
               <button type="submit" id="registerSubmitBtn" class="btn-primary w-full py-3.5 text-sm font-bold shadow-md cursor-pointer mt-1">
-                <i class="fa-solid fa-user-check mr-1.5"></i> ${lang === 'am' ? 'ይመዝገቡና ወደ መለያዎ ይግቡ' : 'Complete Registration & Sign In'}
+                <i class="fa-solid fa-paper-plane mr-1.5"></i> ${lang === 'am' ? 'ይመዝገቡና የማረጋገጫ ኮድ (OTP) በSMS ይቀበሉ' : 'Register & Receive SMS OTP Code'}
               </button>
             </form>
           `}

@@ -22,6 +22,17 @@ public class SuperAdminController(IMediator mediator, ISuperAdminGovernanceStore
 {
     // ─── 1. Admin Account Management (SuperAdmin Only) ───────────────────────────
 
+    /// <summary>Creates a new user account of any role (Farmer, Buyer, Driver, Agent, Admin). Only SuperAdmin can create accounts directly.</summary>
+    [HttpPost("users")]
+    public async Task<IActionResult> CreateUser([FromBody] CreateSuperAdminUserDto dto, CancellationToken ct)
+    {
+        var result = await mediator.Send(new RegisterUserCommand(new RegisterUserDto(
+            dto.Phone, dto.Name, dto.NameAm, dto.Role, dto.Region, dto.Password, dto.Email)), ct);
+
+        if (!result.IsSuccess || result.Value == null) return BadRequest(new { error = result.Error ?? "User creation failed." });
+        return Ok(new { message = $"User account created for {dto.Name} ({dto.Role})", user = result.Value.User });
+    }
+
     /// <summary>Creates a new Admin account. Only SuperAdmin can create other admins.</summary>
     [HttpPost("admins")]
     public async Task<IActionResult> CreateAdmin([FromBody] CreateAdminDto dto, CancellationToken ct)

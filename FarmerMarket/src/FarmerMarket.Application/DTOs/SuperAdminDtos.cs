@@ -178,3 +178,22 @@ public record DatabaseBackupResultDto(
     string Timestamp,
     string DownloadUrl
 );
+
+public record CreateSuperAdminUserDto(
+    string Phone,
+    string Name,
+    string? NameAm,
+    Domain.Enums.UserRole Role,
+    string Region,
+    string? Password = null,
+    string? Email = null,
+    bool? Verified = true,
+    string? PrimaryCrop = null,
+    string? Kebele = null,
+    string? FaydaId = null,
+    string? TinNumber = null,
+    string? BusinessLicenseNumber = null,
+    string? VehicleType = null,
+    decimal? VehicleCapacityKg = null,
+    string? RefrigerationType = null
+);

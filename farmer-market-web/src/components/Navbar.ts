@@ -93,20 +93,22 @@ export function renderNavbar(
             </div>
           </div>
 
-          <!-- AliExpress Style Global Search Box -->
+          <!-- Global Search Box -->
           <div class="hidden md:flex flex-1 max-w-2xl relative">
             <div class="relative w-full flex items-center shadow-xs rounded-xl overflow-hidden border-2 border-emerald-700 bg-white">
               <div class="pl-3.5 pr-2 text-slate-400">
                 <i class="fa-solid fa-magnifying-glass text-sm"></i>
               </div>
               <input type="text" 
+                id="global-navbar-search"
                 value="${searchQuery}" 
                 oninput="window.setSearchQuery(this.value)"
+                onkeydown="if(event.key === 'Enter'){ window.executeAboutSearch(this.value); }"
                 placeholder="${t.searchPlaceholder}"
                 class="w-full py-2.5 pr-3 text-sm focus:outline-none bg-transparent placeholder:text-slate-400 font-medium ${lang === 'am' ? 'lang-am' : ''}" />
               
-              <button onclick="window.navigateTab('marketplace')" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-3 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0">
-                <span>Search</span>
+              <button onclick="const el = document.getElementById('global-navbar-search'); window.executeAboutSearch(el ? el.value : '');" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-5 py-3 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0">
+                <span>${lang === 'am' ? 'ፈልግ' : 'Search'}</span>
                 <i class="fa-solid fa-arrow-right text-[10px]"></i>
               </button>
             </div>
@@ -299,6 +301,11 @@ export function renderNavbar(
             <button onclick="window.navigateTab('marketplace')" 
               class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'marketplace' ? 'bg-emerald-900 text-white font-bold shadow-xs' : 'hover:bg-slate-200/70 text-slate-700'} ${lang === 'am' ? 'lang-am' : ''}">
               <i class="fa-solid fa-store"></i> ${t.navMarketplace}
+            </button>
+
+            <button onclick="window.navigateTab('about')" 
+              class="px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${activeTab === 'about' ? 'bg-emerald-900 text-white font-bold shadow-xs' : 'hover:bg-slate-200/70 text-slate-700'} ${lang === 'am' ? 'lang-am' : ''}">
+              <i class="fa-solid fa-circle-info text-emerald-500"></i> ${lang === 'am' ? 'ስለ ገበያው' : 'About Platform'}
             </button>
 
             ${isAuthenticated && currentUser?.role === 'farmer' ? `

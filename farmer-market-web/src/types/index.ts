@@ -734,6 +734,7 @@ export interface CreateUserDto {
   primaryCrop?: string;
   kebele?: string;
   faydaId?: string;
+  email?: string;
   permissions?: string[];
 }
 

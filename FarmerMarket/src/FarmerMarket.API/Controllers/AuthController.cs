@@ -32,6 +32,11 @@ public class AuthController(IMediator mediator) : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterUserDto dto, CancellationToken ct)
     {
+        if (dto.Role == Domain.Enums.UserRole.Admin || dto.Role == Domain.Enums.UserRole.SuperAdmin)
+        {
+            return BadRequest(new { error = "Admin and Market Officer accounts can only be provisioned through the SuperAdmin Governance Portal." });
+        }
+
         var result = await mediator.Send(new RegisterUserCommand(dto), ct);
         if (!result.IsSuccess) return BadRequest(new { error = result.Error });
 

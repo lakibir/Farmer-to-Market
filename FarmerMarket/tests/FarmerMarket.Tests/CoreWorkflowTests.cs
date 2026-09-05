@@ -131,8 +131,10 @@ public class CoreWorkflowTests
         var mockJwt = new Mock<IJwtService>();
         mockJwt.Setup(x => x.GenerateToken(It.IsAny<User>())).Returns("fake-jwt-token");
         var mockEmail = new Mock<IEmailService>();
+        var mockSms = new Mock<ISmsService>();
+        var mockOtp = new Mock<IOtpService>();
 
-        var handler = new RegisterUserHandler(db, mockJwt.Object, mockEmail.Object);
+        var handler = new RegisterUserHandler(db, mockJwt.Object, mockEmail.Object, mockSms.Object, mockOtp.Object);
 
         // Act
         var result = await handler.Handle(new RegisterUserCommand(new RegisterUserDto(
@@ -163,10 +165,12 @@ public class CoreWorkflowTests
         var mockJwt = new Mock<IJwtService>();
         mockJwt.Setup(x => x.GenerateToken(It.IsAny<User>())).Returns("fake-jwt-token");
         var mockEmail = new Mock<IEmailService>();
+        var mockSms = new Mock<ISmsService>();
+        var mockOtp = new Mock<IOtpService>();
         mockEmail.Setup(x => x.SendWelcomeEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), default))
             .ReturnsAsync(true);
 
-        var handler = new RegisterUserHandler(db, mockJwt.Object, mockEmail.Object);
+        var handler = new RegisterUserHandler(db, mockJwt.Object, mockEmail.Object, mockSms.Object, mockOtp.Object);
 
         // Act
         var result = await handler.Handle(new RegisterUserCommand(new RegisterUserDto(

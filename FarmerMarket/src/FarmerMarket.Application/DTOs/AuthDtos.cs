@@ -27,7 +27,9 @@ public record RegisterUserDto(
 
 public record AuthResponseDto(
     string Token,
-    UserDto User
+    UserDto User,
+    string? DemoCode = null,
+    string? Message = null
 );
 
 public record UserDto(

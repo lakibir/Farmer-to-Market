@@ -23,7 +23,7 @@ services:
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@farmermarket.et}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-AdminSecret2026!}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Set PGADMIN_PASSWORD in .env}
       PGADMIN_CONFIG_SERVER_MODE: "False"
     volumes:
       - ./pgadmin-servers.json:/pgadmin4/servers.json
@@ -54,8 +54,7 @@ services:
     environment:
       ConnectionStrings__Default: "Host=db;Port=5432;Database=farmermarket;Username=postgres;Password=${DB_PASSWORD:-postgres}"
       Redis__ConnectionString: "redis:6379"
-      Jwt__Key: ${JWT_SECRET:-FarmerMarket_Secret_Key_For_Ethiopia_Telebirr_Escrow_2026_Secure_JWT_Token_Key!}
-      Twilio__AccountSid: ${TWILIO_SID:-AC_MOCK_TWILIO_SID}
+      Jwt__Key: ${Jwt__Key:-REPLACE_WITH_SECURE_KEY_IN_ENV}
       ASPNETCORE_ENVIRONMENT: "Production"
       ASPNETCORE_URLS: "http://+:8080"
     ports:

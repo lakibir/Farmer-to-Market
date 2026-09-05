@@ -766,9 +766,66 @@ function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
       </div>
 
       ${orders.length === 0 ? `
-        <div class="glass-card p-12 text-center text-slate-500 text-xs">
-          <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-300"></i>
-          <p>No past purchases yet. Browse the wholesale marketplace to order farm-fresh produce.</p>
+        <div class="glass-card p-8 sm:p-10 rounded-2xl border border-slate-200/80 shadow-xl relative overflow-hidden bg-gradient-to-br from-white via-slate-50 to-emerald-50/20">
+          <div class="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="max-w-3xl mx-auto text-center space-y-6">
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 border border-emerald-300 flex items-center justify-center shadow-inner">
+              <i class="fa-solid fa-shield-halved text-2xl text-emerald-700"></i>
+            </div>
+
+            <div>
+              <h3 class="text-xl sm:text-2xl font-black text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+                ${lang === 'am' ? 'የሕጋዊ የኤስክሮው ትዕዛዞችና የክፍያ ማዕከል' : 'Verified Escrow & Digital Order Vault'}
+              </h3>
+              <p class="text-xs sm:text-sm text-slate-600 mt-2 max-w-xl mx-auto">
+                ${lang === 'am'
+                  ? 'በዚህ ገጽ ላይ የቴሌብር ኤስክሮው ክፍያዎች፣ የቀጥታ ጂፒኤስ የመጓጓዣ መከታተያ፣ የዲጂታል ደረሰኞች እና የህጋዊ ስምምነቶች ዝርዝር ይታያል።'
+                  : 'Track live farm-to-table shipments, inspect tamper-proof Telebirr escrow deposits, and download Ministry of Revenues e-VAT tax receipts.'}
+              </p>
+            </div>
+
+            <!-- 4-Step Order Lifecycle Preview -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left pt-2">
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
+                <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black flex items-center justify-center">1</span>
+                <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'ቀጥታ ግዢ' : 'Direct Order'}</h4>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? 'ከፋይዳ የተረጋገጡ አርሶ አደሮች' : 'Fayda-verified smallholder farms'}</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
+                <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-[11px] font-black flex items-center justify-center">2</span>
+                <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'የኤስክሮው ጥበቃ' : 'Escrow Locked'}</h4>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? 'ቴሌብር / ቻፓ አስተማማኝ ማስያዣ' : 'Funds protected until delivery inspection'}</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
+                <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-800 text-[11px] font-black flex items-center justify-center">3</span>
+                <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'የቀጥታ ጉዞ' : 'Live Transit'}</h4>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? 'የተሽከርካሪ ጂፒኤስ መከታተያ' : 'Real-time telemetry & temperature tracking'}</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
+                <span class="w-6 h-6 rounded-full bg-purple-100 text-purple-800 text-[11px] font-black flex items-center justify-center">4</span>
+                <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'ደረሰኝና ክፍያ' : 'e-VAT & Release'}</h4>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? '90/5/5% አውቶማቲክ የክፍያ ክፍፍል' : '90% Farmer / 5% Transporter payout'}</p>
+              </div>
+            </div>
+
+            <!-- Action CTAs -->
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button onclick="window.setBuyerSubTab('browse')" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-basket-shopping"></i> ${lang === 'am' ? 'ምርቶችን ይመልከቱ' : 'Explore Wholesale Marketplace'}
+              </button>
+              <button onclick="window.openAuthModal('login')" class="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-bold shadow-sm transition-all flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-arrow-right-to-bracket text-emerald-600"></i> ${lang === 'am' ? 'ይግቡ / ይመዝገቡ' : 'Sign In to Your Account'}
+              </button>
+              <button onclick="window.navigateTab('about')" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-circle-info text-blue-600"></i> ${lang === 'am' ? 'ስለ ፕላትፎርሙ ይወቁ' : 'About Platform'}
+              </button>
+            </div>
+          </div>
         </div>
       ` : `
         <div class="space-y-4">
@@ -886,33 +943,83 @@ function renderStandingOrdersSection(lang: Language, standingOrders: StandingOrd
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        ${standingOrders.map(so => `
-          <div class="glass-card p-5 space-y-4 border-l-4 ${so.active ? 'border-emerald-600' : 'border-slate-300'}">
-            <div class="flex items-start justify-between">
-              <div>
-                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${so.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
-                  ${so.frequency} Scheduled
-                </span>
-                <h3 class="text-base font-extrabold text-slate-900 mt-1">${lang === 'am' && so.productNameAm ? so.productNameAm : so.productName}</h3>
-                <p class="text-xs text-slate-500">Source: <strong class="text-slate-800">${so.farmerName}</strong></p>
+      ${standingOrders.length === 0 ? `
+        <div class="glass-card p-8 sm:p-10 rounded-2xl border border-slate-200/80 shadow-xl relative overflow-hidden bg-gradient-to-br from-white via-slate-50 to-emerald-50/20">
+          <div class="max-w-3xl mx-auto text-center space-y-6">
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 border border-emerald-300 flex items-center justify-center shadow-inner">
+              <i class="fa-solid fa-repeat text-2xl text-emerald-700"></i>
+            </div>
+
+            <div>
+              <h3 class="text-xl sm:text-2xl font-black text-slate-900 ${lang === 'am' ? 'lang-am' : ''}">
+                ${lang === 'am' ? 'የተደጋገሙና የቋሚ አቅርቦት ትዕዛዞች' : 'Institutional Recurring Standing Orders'}
+              </h3>
+              <p class="text-xs sm:text-sm text-slate-600 mt-2 max-w-xl mx-auto">
+                ${lang === 'am'
+                  ? 'ለሆቴሎች፣ ሬስቶራንቶች እና የጅምላ ተቋማት ሳምንታዊ ወይም ወርሃዊ ቀጥታ የአትክልትና ፍራፍሬ አቅርቦት ስምምነት ያዘጋጁ።'
+                  : 'Automate weekly, bi-weekly, or monthly wholesale produce deliveries for commercial kitchens, hotels, and retail chains with guaranteed harvest reservation.'}
+              </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+              <div class="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
+                <i class="fa-solid fa-tags text-emerald-600 text-lg mb-1"></i>
+                <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'የተቆለፈ ዋጋ' : 'Fixed Contract Pricing'}</h4>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? 'የገበያ ዋጋ መዋዠቅ ሳይኖር ቀጥታ ከአርሶ አደሩ' : 'Hedge against seasonal price volatility with contracted forward rates'}</p>
               </div>
 
-              <div class="text-right">
-                <span class="text-base font-black text-emerald-800">${(so.qtyKg * so.pricePerKg).toLocaleString()} ETB</span>
-                <span class="text-[11px] text-slate-400 block">${so.qtyKg} kg @ ${so.pricePerKg} ETB/kg</span>
+              <div class="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
+                <i class="fa-solid fa-calendar-check text-blue-600 text-lg mb-1"></i>
+                <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'ቀጣይነት ያለው አቅርቦት' : 'Guaranteed Harvest'}</h4>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? 'ከመሰብሰቡ በፊት የተረጋገጠ አቅርቦት' : 'Smallholders reserve farm capacity exclusively for your schedule'}</p>
+              </div>
+
+              <div class="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
+                <i class="fa-solid fa-wallet text-amber-600 text-lg mb-1"></i>
+                <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'አውቶማቲክ ክፍያ' : 'Automated Escrow'}</h4>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? 'ቴሌብር ኤስክሮው በጥራት ፍተሻ ወቅት ብቻ የሚለቀቅ' : 'Telebirr/Chapa auto-debits only upon delivery gate sign-off'}</p>
               </div>
             </div>
 
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-700">
-              <span><i class="fa-solid fa-calendar-check text-emerald-600 mr-1.5"></i> Next Run: <strong class="text-slate-900">${so.nextDeliveryDate}</strong></span>
-              <button onclick="window.toggleStandingOrderStatus('${so.id}')" class="text-xs font-bold ${so.active ? 'text-amber-700 hover:text-amber-800' : 'text-emerald-700 hover:text-emerald-800'} cursor-pointer">
-                ${so.active ? 'Pause Order' : 'Resume Order'}
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button onclick="window.setBuyerSubTab('browse')" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-cart-plus"></i> ${lang === 'am' ? 'ምርቶችን መርጠው ያዝዙ' : 'Select Produce from Marketplace'}
+              </button>
+              <button onclick="window.navigateTab('about')" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-circle-info text-blue-600"></i> ${lang === 'am' ? 'ስለ ገበያው ስርዓት ይወቁ' : 'How the Exchange Works'}
               </button>
             </div>
           </div>
-        `).join('')}
-      </div>
+        </div>
+      ` : `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          ${standingOrders.map(so => `
+            <div class="glass-card p-5 space-y-4 border-l-4 ${so.active ? 'border-emerald-600' : 'border-slate-300'}">
+              <div class="flex items-start justify-between">
+                <div>
+                  <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${so.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
+                    ${so.frequency} Scheduled
+                  </span>
+                  <h3 class="text-base font-extrabold text-slate-900 mt-1">${lang === 'am' && so.productNameAm ? so.productNameAm : so.productName}</h3>
+                  <p class="text-xs text-slate-500">Source: <strong class="text-slate-800">${so.farmerName}</strong></p>
+                </div>
+
+                <div class="text-right">
+                  <span class="text-base font-black text-emerald-800">${(so.qtyKg * so.pricePerKg).toLocaleString()} ETB</span>
+                  <span class="text-[11px] text-slate-400 block">${so.qtyKg} kg @ ${so.pricePerKg} ETB/kg</span>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-700">
+                <span><i class="fa-solid fa-calendar-check text-emerald-600 mr-1.5"></i> Next Run: <strong class="text-slate-900">${so.nextDeliveryDate}</strong></span>
+                <button onclick="window.toggleStandingOrderStatus('${so.id}')" class="text-xs font-bold ${so.active ? 'text-amber-700 hover:text-amber-800' : 'text-emerald-700 hover:text-emerald-800'} cursor-pointer">
+                  ${so.active ? 'Pause Order' : 'Resume Order'}
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `}
     </div>
   `;
 }
