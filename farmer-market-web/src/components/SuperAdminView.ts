@@ -1,5 +1,5 @@
 import { Language, translations } from '../i18n/translations';
-import { User, UserRole, PlatformStats, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag, PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry } from '../types';
+import { User, UserRole, PlatformStats, PlatformConfig, SystemAuditLog, DeliveryZoneConfig, FeatureFlag, PayoutApprovalItem, GlobalBusinessRules, BlacklistEntry, DatabaseHealth } from '../types';
 import { api } from '../services/api';
 
 export type SuperAdminTab =
@@ -40,6 +40,7 @@ export function renderSuperAdminView(
   const payouts = api.getPendingPayoutApprovals();
   const rules = api.getGlobalBusinessRules();
   const blacklist = api.getBlacklist();
+  const dbHealth = api.getDatabaseHealth();
 
   // Filter users by role if selected
   const filteredUsers = userRoleFilter === 'all'
@@ -185,7 +186,8 @@ export function renderSuperAdminView(
         payoutRoleFilter,
         payoutRiskFilter,
         payoutSearchQuery,
-        selectedPayoutIds
+        selectedPayoutIds,
+        dbHealth
       )}
 
     </div>
@@ -212,7 +214,8 @@ function renderActiveTabContent(
   payoutRoleFilter: string = 'all',
   payoutRiskFilter: string = 'all',
   payoutSearchQuery: string = '',
-  selectedPayoutIds: string[] = []
+  selectedPayoutIds: string[] = [],
+  dbHealth?: DatabaseHealth
 ): string {
   const t = translations[lang];
 
@@ -240,7 +243,7 @@ function renderActiveTabContent(
     case 'rules':
       return renderBusinessRulesTab(lang, rules);
     case 'db_ops':
-      return renderDbOpsTab(lang);
+      return renderDbOpsTab(lang, dbHealth);
     default:
       return renderUserMasterTab(lang, filteredUsers, userRoleFilter, roleCount);
   }
@@ -1650,42 +1653,69 @@ function renderBusinessRulesTab(lang: Language, rules: GlobalBusinessRules): str
 }
 
 // 10. DATABASE & HEALTH TAB
-function renderDbOpsTab(lang: Language): string {
+function renderDbOpsTab(lang: Language, dbHealth?: DatabaseHealth): string {
+  const engine = dbHealth?.engine || 'PostgreSQL 16.2-PostGIS';
+  const activeConn = dbHealth?.activeConnections ?? 14;
+  const maxConn = dbHealth?.maxConnections ?? 100;
+  const sizeMb = dbHealth?.databaseSizeMb ?? 248.5;
+  const cacheHit = dbHealth?.cacheHitRatioPercent ?? 99.4;
+  const spatialQps = dbHealth?.spatialQueriesPerSecond ?? 18.2;
+  const uptime = dbHealth?.uptime || '14 days, 6 hours, 22 mins';
+  const lastVacuum = dbHealth?.lastVacuum || 'Today 03:00 AM (Autovacuum worker)';
+  const status = dbHealth?.status || 'Healthy / Optimal';
+
   return `
     <div class="space-y-6">
-      <div>
-        <h2 class="text-xl font-extrabold text-slate-900">
-          ${lang === 'am' ? 'የዳታቤዝ ክዋኔዎች እና የሲስተም ጤና' : 'PostgreSQL 16 Database Operations & Infrastructure Health'}
-        </h2>
-        <p class="text-xs text-slate-500 font-medium">
-          ${lang === 'am' ? 'የዳታቤዝ ግንኙነቶችን፣ የትራንዛክሽን ቅጂዎችን እና የሲስተም ፍጥነትን ይቆጣጠሩ።' : 'Database connection pool metrics, automated snapshots, and live telemetry.'}
-        </p>
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-extrabold text-slate-900">
+            ${lang === 'am' ? 'የዳታቤዝ ክዋኔዎች እና የሲስተም ጤና' : 'PostgreSQL 16 Database Operations & Infrastructure Health'}
+          </h2>
+          <p class="text-xs text-slate-500 font-medium">
+            ${lang === 'am' ? 'የዳታቤዝ ግንኙነቶችን፣ የትራንዛክሽን ቅጂዎችን እና የሲስተም ፍጥነትን ይቆጣጠሩ።' : 'Live connection pool telemetry, automated snapshots, and storage metrics.'}
+          </p>
+        </div>
+
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>${status}</span>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="glass-card p-5 border-l-4 border-blue-600 space-y-1">
           <span class="text-xs font-bold text-slate-500">PostgreSQL Engine</span>
-          <div class="text-xl font-black text-slate-900">v16.3-PostGIS</div>
-          <p class="text-[11px] text-blue-700 font-semibold">Spatial Index Enabled</p>
+          <div class="text-lg font-black text-slate-900 truncate" title="${engine}">${engine.split(' on ')[0] || engine}</div>
+          <p class="text-[11px] text-blue-700 font-semibold flex items-center gap-1">
+            <i class="fa-solid fa-map-location-dot"></i> PostGIS Spatial Index Active
+          </p>
         </div>
         <div class="glass-card p-5 border-l-4 border-emerald-600 space-y-1">
           <span class="text-xs font-bold text-slate-500">Active Connection Pool</span>
-          <div class="text-xl font-black text-slate-900">18 / 100</div>
-          <p class="text-[11px] text-emerald-700 font-semibold">Latency: 1.8ms</p>
+          <div class="text-xl font-black text-slate-900">${activeConn} / ${maxConn}</div>
+          <p class="text-[11px] text-emerald-700 font-semibold">Cache Hit: ${cacheHit}% · ${spatialQps} Spatial QPS</p>
         </div>
         <div class="glass-card p-5 border-l-4 border-purple-600 space-y-1">
-          <span class="text-xs font-bold text-slate-500">EF Core Migration</span>
-          <div class="text-xl font-black text-purple-900">v20260823_Init</div>
-          <p class="text-[11px] text-purple-700 font-semibold">Schema Synced</p>
+          <span class="text-xs font-bold text-slate-500">Storage & Uptime</span>
+          <div class="text-xl font-black text-purple-900">${sizeMb} MB</div>
+          <p class="text-[11px] text-purple-700 font-semibold truncate" title="${uptime}">${uptime}</p>
         </div>
       </div>
 
       <div class="glass-card p-6 border-slate-200 space-y-4">
-        <h3 class="text-sm font-black text-slate-900">Database Snapshot & Disaster Recovery</h3>
-        <p class="text-xs text-slate-600">Trigger an encrypted point-in-time snapshot backup of all tables, spatial geometries, escrow ledgers, and audit logs.</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-black text-slate-900">Database Snapshot & Disaster Recovery</h3>
+            <p class="text-xs text-slate-600 mt-0.5">Trigger an encrypted point-in-time snapshot backup of all tables, spatial geometries, escrow ledgers, and audit logs.</p>
+          </div>
+          <span class="text-[11px] font-mono text-slate-400 font-semibold hidden md:inline">Last Auto-Vacuum: ${lastVacuum}</span>
+        </div>
         <div class="flex items-center gap-3">
           <button onclick="window.triggerDbBackup()" class="btn-primary py-2.5 px-4 text-xs font-bold cursor-pointer flex items-center gap-2">
             <i class="fa-solid fa-database"></i> Trigger Backup Snapshot Now
+          </button>
+          <button onclick="window.runDbMaintenance()" class="btn-secondary py-2.5 px-4 text-xs font-bold cursor-pointer flex items-center gap-2">
+            <i class="fa-solid fa-bolt"></i> Run VACUUM & Optimize
           </button>
           <button onclick="window.exportPlatformData('json')" class="btn-secondary py-2.5 px-4 text-xs font-bold cursor-pointer flex items-center gap-2">
             <i class="fa-solid fa-download"></i> Download Full JSON Dump

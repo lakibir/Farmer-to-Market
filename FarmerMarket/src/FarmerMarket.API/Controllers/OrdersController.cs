@@ -45,7 +45,7 @@ public class OrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:guid}/confirm")]
-    [Authorize(Roles = "farmer,admin")]
+    [Authorize(Roles = "farmer,admin,superadmin")]
     public async Task<IActionResult> ConfirmOrder(Guid id, CancellationToken ct)
     {
         var farmerId = User.GetUserId();
@@ -56,7 +56,7 @@ public class OrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:guid}/pickup")]
-    [Authorize(Roles = "driver,admin")]
+    [Authorize(Roles = "driver,admin,superadmin")]
     public async Task<IActionResult> PickupOrder(Guid id, [FromBody] PickupOrderDto dto, CancellationToken ct)
     {
         var driverId = User.GetUserId();
@@ -67,7 +67,7 @@ public class OrdersController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id:guid}/deliver")]
-    [Authorize(Roles = "buyer,admin")]
+    [Authorize(Roles = "buyer,admin,superadmin")]
     public async Task<IActionResult> DeliverOrder(Guid id, [FromBody] DeliverOrderDto? proof, CancellationToken ct)
     {
         var buyerId = User.GetUserId();

@@ -23,17 +23,17 @@ public static class AuthorizationPolicies
         // create/suspend Admin accounts, and view system-wide audit logs.
         options.AddPolicy(SuperAdminOnly, policy =>
             policy.RequireAuthenticatedUser()
-                  .RequireRole("superadmin"));
+                  .RequireRole("superadmin", "SuperAdmin"));
 
         // Admin + SuperAdmin — day-to-day operational permissions
         options.AddPolicy(AdminOrAbove, policy =>
             policy.RequireAuthenticatedUser()
-                  .RequireRole("admin", "superadmin"));
+                  .RequireRole("admin", "Admin", "superadmin", "SuperAdmin"));
 
         // Alias for AdminOrAbove — for readability at call sites
         options.AddPolicy(OperationalStaff, policy =>
             policy.RequireAuthenticatedUser()
-                  .RequireRole("admin", "superadmin"));
+                  .RequireRole("admin", "Admin", "superadmin", "SuperAdmin"));
 
         // Farmers (verified or not) — for listing management endpoints
         options.AddPolicy(VerifiedFarmer, policy =>

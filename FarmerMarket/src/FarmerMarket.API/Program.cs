@@ -133,7 +133,7 @@ using (var scope = app.Services.CreateScope())
     {
         var db = services.GetRequiredService<AppDbContext>();
         var logger = services.GetRequiredService<ILogger<Program>>();
-        await DbInitializer.SeedAsync(db, logger);
+        await DbInitializer.SeedAsync(db, logger, app.Environment.IsDevelopment());
     }
     catch (Exception ex)
     {
@@ -145,7 +145,7 @@ using (var scope = app.Services.CreateScope())
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment() || true)
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>

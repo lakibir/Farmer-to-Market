@@ -667,6 +667,9 @@ class App {
 
     w.navigateTab = (tab: string) => {
       this.activeTab = tab;
+      if (tab === 'superadmin') {
+        api.fetchSuperAdminData().then(() => this.render()).catch(err => console.warn('Failed to refresh superadmin data:', err));
+      }
       this.render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -1861,6 +1864,11 @@ class App {
     // ==================== SUPER ADMIN WINDOW HANDLERS ====================
     w.setSuperAdminTab = (tab: SuperAdminTab) => {
       this.activeSuperAdminTab = tab;
+      if (tab === 'db_ops') {
+        api.fetchDatabaseHealth().then(() => this.render()).catch(err => console.warn('Failed to refresh db health:', err));
+      } else {
+        api.fetchSuperAdminData().then(() => this.render()).catch(err => console.warn('Failed to refresh superadmin data:', err));
+      }
       this.render();
     };
 

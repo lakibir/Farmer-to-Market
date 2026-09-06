@@ -21,5 +21,15 @@ public interface IAppDbContext
     DbSet<UserSession> UserSessions { get; }
     DbSet<TwoFactorSetting> TwoFactorSettings { get; }
 
+    // Governance & Market Intelligence
+    DbSet<DeliveryZone> DeliveryZones { get; }
+    DbSet<FeatureFlag> FeatureFlags { get; }
+    DbSet<BlacklistEntry> BlacklistEntries { get; }
+    DbSet<PayoutRecord> PayoutRecords { get; }
+    DbSet<SystemSetting> SystemSettings { get; }
+    DbSet<CommodityPriceIndexEntity> CommodityPriceIndices { get; }
+    DbSet<RegionalPricePointEntity> RegionalPricePoints { get; }
+    DbSet<PriceHistoryPointEntity> PriceHistoryPoints { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

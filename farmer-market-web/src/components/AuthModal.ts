@@ -105,11 +105,12 @@ export function renderAuthModal(
                   <i class="fa-solid fa-paper-plane mr-1.5"></i> ${lang === 'am' ? 'የኤስኤምኤስ እና የኢሜይል ማረጋገጫ ኮድ ላክ' : 'Verify & Send SMS/Email Code'}
                 </button>
 
-                <!-- Quick Test Accounts from Seed Database -->
+                ${import.meta.env.DEV ? `
+                <!-- Quick Test Accounts for Local Development Only (Stripped from Production) -->
                 <div class="pt-3 border-t border-slate-100 space-y-2">
                   <div class="flex items-center justify-between">
                     <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      <i class="fa-solid fa-flask-vial text-emerald-600 mr-1"></i> Quick Test Accounts (Seeded in Database)
+                      <i class="fa-solid fa-flask-vial text-emerald-600 mr-1"></i> Quick Test Accounts (Development Only)
                     </span>
                   </div>
                   <div class="grid grid-cols-2 gap-2 text-left">
@@ -152,13 +153,14 @@ export function renderAuthModal(
                     <button type="button" onclick="window.quickFillPhone('900 000 001')" 
                       class="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200 transition-all text-left cursor-pointer group col-span-1 sm:col-span-2">
                       <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold text-rose-950">👑 Dr. Dawit Haile (Chief Platform Officer)</span>
+                        <span class="text-[11px] font-extrabold text-rose-950">👑 Dr. Dawit Haile (Super Admin)</span>
                         <span class="text-[9px] font-black bg-rose-200 text-rose-900 px-1.5 py-0.5 rounded">SUPER ADMIN</span>
                       </div>
-                      <span class="text-[10px] text-rose-800 font-mono block mt-0.5">+251 900 000 001 · Full Root & Impersonation Access</span>
+                      <span class="text-[10px] text-rose-800 font-mono block mt-0.5">+251 900 000 001 · Root Impersonation</span>
                     </button>
                   </div>
                 </div>
+                ` : ''}
               </form>
             ` : `
               <!-- OTP Verification Step -->

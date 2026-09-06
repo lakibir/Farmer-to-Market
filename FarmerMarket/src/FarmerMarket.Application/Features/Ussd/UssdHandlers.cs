@@ -95,10 +95,23 @@ public class UssdHandlers(IAppDbContext db) : IRequestHandler<ProcessUssdCommand
         if (state.Step == "MAIN" && lastInput == "2")
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == r.PhoneNumber, ct);
-            var balance = user?.WalletBalanceEtb ?? 28450.00m;
+            if (user == null)
+            {
+                var notFoundResp = isAm
+                    ? "❌ መለያዎ አልተገኘም። እባክዎ አስቀድመው ይመዝገቡ።"
+                    : "❌ Account not found for this mobile number. Please register first.";
+                Sessions.TryRemove(r.SessionId, out _);
+                return new UssdResponse(r.SessionId, notFoundResp, "END");
+            }
+
+            var balance = user.WalletBalanceEtb;
+            var heldEscrow = await db.Orders
+                .Where(o => o.Listing.FarmerId == user.Id && o.EscrowHeld)
+                .SumAsync(o => (decimal?)o.TotalEtb, ct) ?? 0m;
+
             var resp = isAm
-                ? $"💰 የቴሌብር (Telebirr) የሒሳብዎ ቀሪ፡ {balance:N2} ብር\nበኤስክሮው (Escrow) የተያዘ፡ 12,500.00 ብር\nያለቀ ክፍያ ወዲያውኑ ወደ ስልክዎ ይገባል።"
-                : $"💰 Telebirr Escrow Balance: ETB {balance:N2}\nHeld in Active Escrow: ETB 12,500.00\nPayouts auto-release on delivery confirmation.";
+                ? $"💰 የቴሌብር (Telebirr) የሒሳብዎ ቀሪ፡ {balance:N2} ብር\nበኤስክሮው (Escrow) የተያዘ፡ {heldEscrow:N2} ብር\nያለቀ ክፍያ ወዲያውኑ ወደ ስልክዎ ይገባል።"
+                : $"💰 Telebirr Escrow Balance: ETB {balance:N2}\nHeld in Active Escrow: ETB {heldEscrow:N2}\nPayouts auto-release on delivery confirmation.";
             Sessions.TryRemove(r.SessionId, out _);
             return new UssdResponse(r.SessionId, resp, "END");
         }
@@ -106,10 +119,23 @@ public class UssdHandlers(IAppDbContext db) : IRequestHandler<ProcessUssdCommand
         // Option 3: Orders Status
         if (state.Step == "MAIN" && lastInput == "3")
         {
-            var activeOrdersCount = await db.Orders.CountAsync(o => o.Status == OrderStatus.Confirmed || o.Status == OrderStatus.Pending, ct);
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == r.PhoneNumber, ct);
+            if (user == null)
+            {
+                var notFoundResp = isAm
+                    ? "❌ መለያዎ አልተገኘም። እባክዎ አስቀድመው ይመዝገቡ።"
+                    : "❌ Account not found for this mobile number. Please register first.";
+                Sessions.TryRemove(r.SessionId, out _);
+                return new UssdResponse(r.SessionId, notFoundResp, "END");
+            }
+
+            var activeOrdersCount = await db.Orders.CountAsync(o =>
+                (o.Listing.FarmerId == user.Id || o.BuyerId == user.Id || o.DriverId == user.Id) &&
+                (o.Status == OrderStatus.Confirmed || o.Status == OrderStatus.Pending || o.Status == OrderStatus.PickedUp), ct);
+
             var resp = isAm
-                ? $"📦 የትዕዛዝዎ ሁኔታ፡\n• በመጓጓዝ ላይ ያሉ ትዕዛዞች: {Math.Max(activeOrdersCount, 2)}\n• ሹፌር የተመደበለት: 1 Isuzu 5-Ton\n• ለመውሰድ የታቀደበት ቀን፡ ዛሬ 9:00 ሰዓት"
-                : $"📦 Active Order Status:\n• In-transit shipments: {Math.Max(activeOrdersCount, 2)}\n• Assigned Driver: 1 Isuzu 5-Ton\n• Scheduled Pickup: Today 3:00 PM";
+                ? $"📦 የትዕዛዝዎ ሁኔታ፡\n• በሂደት ላይ ያሉ ትዕዛዞች: {activeOrdersCount}\n• የትዕዛዝ ዝርዝር በስልክዎ መተግበሪያ ማየት ይችላሉ።"
+                : $"📦 Active Order Status:\n• Active orders in progress: {activeOrdersCount}\n• Check FarmerMarket portal for live tracking.";
             Sessions.TryRemove(r.SessionId, out _);
             return new UssdResponse(r.SessionId, resp, "END");
         }
@@ -159,9 +185,7 @@ public class UssdHandlers(IAppDbContext db) : IRequestHandler<ProcessUssdCommand
         {
             if (decimal.TryParse(lastInput, out var price) && price > 0)
             {
-                // Create listing in db
-                var farmer = await db.Users.FirstOrDefaultAsync(u => u.Phone == r.PhoneNumber, ct)
-                             ?? await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Farmer, ct);
+                var farmer = await db.Users.FirstOrDefaultAsync(u => u.Phone == r.PhoneNumber && u.Role == UserRole.Farmer, ct);
 
                 if (farmer != null)
                 {

@@ -12,7 +12,7 @@ namespace FarmerMarket.API.Controllers;
 public class PaymentsController(IMediator mediator) : ControllerBase
 {
     [HttpGet("farmer-summary")]
-    [Authorize(Roles = "farmer,admin")]
+    [Authorize(Roles = "farmer,admin,superadmin")]
     public async Task<IActionResult> GetFarmerSummary(CancellationToken ct)
     {
         var farmerId = User.GetUserId();
@@ -23,7 +23,7 @@ public class PaymentsController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("driver-summary")]
-    [Authorize(Roles = "driver,admin")]
+    [Authorize(Roles = "driver,admin,superadmin")]
     public async Task<IActionResult> GetDriverSummary(CancellationToken ct)
     {
         var driverId = User.GetUserId();

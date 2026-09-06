@@ -71,24 +71,6 @@ public class VerifyOtpHandler(IAppDbContext db, IJwtService jwt, IOtpService otp
     {
         var phone = PhoneHelper.Normalize(req.Phone);
         var user = await db.Users.FirstOrDefaultAsync(u => u.Phone == phone, ct);
-        if (user == null && phone == "+251900000001")
-        {
-            user = new User
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Phone = "+251900000001",
-                Name = "Dr. Dawit Haile (Super Admin)",
-                NameAm = "ዶ/ር ዳዊት ኃይሌ",
-                Role = UserRole.SuperAdmin,
-                Region = "Addis Ababa (Headquarters)",
-                Verified = true,
-                VerificationStatus = VerificationStatus.Approved,
-                Email = "admin@farmertomarket.et",
-                CreatedAt = DateTimeOffset.UtcNow.AddYears(-1)
-            };
-            db.Users.Add(user);
-            await db.SaveChangesAsync(ct);
-        }
 
         if (user == null)
             return Result<AuthResponseDto>.Failure("User account not found for this phone number. Please register first.");

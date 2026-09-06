@@ -718,6 +718,20 @@ export interface BlacklistEntry {
   active: boolean;
 }
 
+export interface DatabaseHealth {
+  engine: string;
+  status: string;
+  postgisEnabled: boolean;
+  postgisVersion: string;
+  activeConnections: number;
+  maxConnections: number;
+  databaseSizeMb: number;
+  cacheHitRatioPercent: number;
+  spatialQueriesPerSecond: number;
+  uptime: string;
+  lastVacuum: string;
+}
+
 export interface CreateUserDto {
   name: string;
   nameAm?: string;

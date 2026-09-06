@@ -33,20 +33,22 @@ public class ChapaService(
         if (cleanPhone.StartsWith("+251")) cleanPhone = "0" + cleanPhone[4..];
         else if (cleanPhone.StartsWith("251")) cleanPhone = "0" + cleanPhone[3..];
 
-        var email = !string.IsNullOrWhiteSpace(buyerEmail) ? buyerEmail.Trim() : $"{cleanPhone}@farmertomarket.et";
-        
+        // Validated buyer email or audited system notification routing
+        var email = (!string.IsNullOrWhiteSpace(buyerEmail) && buyerEmail.Contains('@') && !buyerEmail.EndsWith(".et", StringComparison.OrdinalIgnoreCase))
+            ? buyerEmail.Trim()
+            : "noreply@farmertomarket.et";
+
         var nameParts = (buyerName ?? "Marketplace Buyer").Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         var firstName = nameParts.Length > 0 ? nameParts[0] : "Marketplace";
         var lastName = nameParts.Length > 1 ? nameParts[1] : "Buyer";
 
-        // If no real Chapa secret key is configured, return local return URL with simulated success
-        if (string.IsNullOrWhiteSpace(_opts.SecretKey) || _opts.SecretKey.Contains("REPLACE"))
+        var returnUrl = string.IsNullOrWhiteSpace(_opts.ReturnUrl) ? "http://localhost:4200/orders" : _opts.ReturnUrl;
+
+        if (string.IsNullOrWhiteSpace(_opts.SecretKey) || _opts.SecretKey.StartsWith("${"))
         {
-            logger.LogInformation("[CHAPA SIMULATOR] SecretKey is simulated. Returning local verified redirect for TxRef: {TxRef}, Amount: {Amount:N2} ETB", txRef, amount);
-            var returnUrl = string.IsNullOrWhiteSpace(_opts.ReturnUrl) ? "http://localhost:4200/" : _opts.ReturnUrl;
+            logger.LogWarning("[CHAPA CONFIG] SecretKey is unconfigured. Returning local fallback redirect for Order: {OrderId}, TxRef: {TxRef}", orderId, txRef);
             var sep = returnUrl.Contains('?') ? "&" : "?";
-            var simulatedUrl = $"{returnUrl}{sep}tx_ref={txRef}&status=success";
-            return new PaymentInitResult(orderId.ToString(), simulatedUrl, txRef, amount, ProviderName);
+            return new PaymentInitResult(orderId.ToString(), $"{returnUrl}{sep}tx_ref={txRef}&status=pending_config", txRef, amount, ProviderName);
         }
 
         try
@@ -61,7 +63,7 @@ public class ChapaService(
                 phone_number = cleanPhone,
                 tx_ref = txRef,
                 callback_url = _opts.WebhookUrl,
-                return_url = _opts.ReturnUrl,
+                return_url = returnUrl,
                 customization = new
                 {
                     title = "FarmerMarket",
@@ -96,16 +98,16 @@ public class ChapaService(
             logger.LogError(ex, "[CHAPA EXCEPTION] Payment initiation error for Order {OrderId}", orderId);
         }
 
-        // Graceful fallback URL
-        return new PaymentInitResult(orderId.ToString(), $"https://checkout.chapa.co/checkout/payment/{txRef}", txRef, amount, ProviderName);
+        var fallbackSep = returnUrl.Contains('?') ? "&" : "?";
+        return new PaymentInitResult(orderId.ToString(), $"{returnUrl}{fallbackSep}tx_ref={txRef}&status=failed", txRef, amount, ProviderName);
     }
 
     public async Task<bool> VerifyPaymentAsync(string txRef, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(_opts.SecretKey) || _opts.SecretKey.Contains("REPLACE"))
+        if (string.IsNullOrWhiteSpace(_opts.SecretKey) || _opts.SecretKey.StartsWith("${"))
         {
-            logger.LogInformation("[CHAPA SIMULATOR] Verify bypassed (simulated SecretKey). TxRef: {TxRef}", txRef);
-            return true;
+            logger.LogWarning("[CHAPA CONFIG] SecretKey is not set. Cannot verify TxRef: {TxRef}", txRef);
+            return false;
         }
 
         try
@@ -158,18 +160,33 @@ public class ChapaService(
 
     public bool VerifyWebhookSignature(string payload, string signature)
     {
-        if (string.IsNullOrWhiteSpace(_opts.SecretKey) || string.IsNullOrWhiteSpace(signature))
-            return true; // Sandbox / dev allow-through
+        var secret = !string.IsNullOrWhiteSpace(_opts.WebhookSecret) ? _opts.WebhookSecret : _opts.SecretKey;
+        if (string.IsNullOrWhiteSpace(secret) || secret.StartsWith("${") || string.IsNullOrWhiteSpace(signature))
+        {
+            logger.LogWarning("[CHAPA WEBHOOK SECURITY] Signature verification rejected due to missing secret or signature header.");
+            return false;
+        }
 
         try
         {
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_opts.SecretKey.Trim()));
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret.Trim()));
             var hash = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload))).ToLowerInvariant();
-            return hash == signature.Trim().ToLowerInvariant();
+            var expectedSignature = signature.Trim().ToLowerInvariant();
+
+            var isValid = CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(hash),
+                Encoding.UTF8.GetBytes(expectedSignature));
+
+            if (!isValid)
+            {
+                logger.LogWarning("[CHAPA WEBHOOK SECURITY] Webhook signature mismatch.");
+            }
+
+            return isValid;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Chapa webhook signature verification exception");
+            logger.LogError(ex, "[CHAPA WEBHOOK SECURITY] Exception during HMAC signature verification");
             return false;
         }
     }

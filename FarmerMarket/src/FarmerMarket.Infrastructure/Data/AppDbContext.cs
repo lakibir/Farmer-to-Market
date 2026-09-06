@@ -23,6 +23,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<TwoFactorSetting> TwoFactorSettings => Set<TwoFactorSetting>();
 
+    // Governance & Market Intelligence
+    public DbSet<DeliveryZone> DeliveryZones => Set<DeliveryZone>();
+    public DbSet<FeatureFlag> FeatureFlags => Set<FeatureFlag>();
+    public DbSet<BlacklistEntry> BlacklistEntries => Set<BlacklistEntry>();
+    public DbSet<PayoutRecord> PayoutRecords => Set<PayoutRecord>();
+    public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+    public DbSet<CommodityPriceIndexEntity> CommodityPriceIndices => Set<CommodityPriceIndexEntity>();
+    public DbSet<RegionalPricePointEntity> RegionalPricePoints => Set<RegionalPricePointEntity>();
+    public DbSet<PriceHistoryPointEntity> PriceHistoryPoints => Set<PriceHistoryPointEntity>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -50,5 +60,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         builder.Entity<PaymentMethod>().Property(x => x.ProviderToken).IsRequired().HasMaxLength(500);
         builder.Entity<Coupon>().HasIndex(x => x.Code).IsUnique();
         builder.Entity<NotificationPreference>().HasIndex(x => new { x.UserId, x.EventType }).IsUnique();
+
+        builder.Entity<FeatureFlag>().HasKey(x => x.Key);
+        builder.Entity<SystemSetting>().HasKey(x => x.Key);
+        builder.Entity<CommodityPriceIndexEntity>().HasKey(x => x.CommodityId);
+
+        builder.Entity<CommodityPriceIndexEntity>()
+            .HasMany(c => c.RegionalPrices)
+            .WithOne()
+            .HasForeignKey(r => r.CommodityId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CommodityPriceIndexEntity>()
+            .HasMany(c => c.HistoricalPrices)
+            .WithOne()
+            .HasForeignKey(h => h.CommodityId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

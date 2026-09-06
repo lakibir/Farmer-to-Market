@@ -7,7 +7,7 @@ namespace FarmerMarket.Infrastructure.Data;
 
 public static class DbInitializer
 {
-    public static async Task SeedAsync(AppDbContext context, ILogger logger)
+    public static async Task SeedAsync(AppDbContext context, ILogger logger, bool isDevelopment = true)
     {
         try
         {
@@ -20,10 +20,16 @@ public static class DbInitializer
                 await context.Database.EnsureCreatedAsync();
             }
 
+            if (!isDevelopment)
+            {
+                logger.LogInformation("Production environment detected. Skipping demo and mock test data seeding.");
+                return;
+            }
+
             var hasUsers = await context.Users.AnyAsync();
             if (!hasUsers)
             {
-                logger.LogInformation("Seeding Ethiopian FarmerMarket initial data with advanced features...");
+                logger.LogInformation("Development environment: Seeding Ethiopian FarmerMarket initial data with advanced features...");
                 await SeedInitialDataAsync(context, logger);
             }
             else

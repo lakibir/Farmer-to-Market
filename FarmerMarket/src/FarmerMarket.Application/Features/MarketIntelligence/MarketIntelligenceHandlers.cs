@@ -1,5 +1,7 @@
+using FarmerMarket.Application.Common.Interfaces;
 using FarmerMarket.Application.Common.Models;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace FarmerMarket.Application.Features.MarketIntelligence;
 
@@ -60,11 +62,11 @@ public record FairPriceRecommendationResult(
 public record GetCommodityPriceIndicesQuery(string? Category = null, string? Region = null) : IRequest<List<CommodityPriceIndex>>;
 public record GetFairPriceRecommendationQuery(FairPriceRecommendationRequest Request) : IRequest<FairPriceRecommendationResult>;
 
-public class MarketIntelligenceHandlers :
+public class MarketIntelligenceHandlers(IAppDbContext? db = null) :
     IRequestHandler<GetCommodityPriceIndicesQuery, List<CommodityPriceIndex>>,
     IRequestHandler<GetFairPriceRecommendationQuery, FairPriceRecommendationResult>
 {
-    private static readonly List<CommodityPriceIndex> SampleIndices = new()
+    private static readonly List<CommodityPriceIndex> BaselineIndices = new()
     {
         new CommodityPriceIndex(
             "teff-white",
@@ -230,26 +232,56 @@ public class MarketIntelligenceHandlers :
         )
     };
 
-    public Task<List<CommodityPriceIndex>> Handle(GetCommodityPriceIndicesQuery req, CancellationToken ct)
+    public async Task<List<CommodityPriceIndex>> Handle(GetCommodityPriceIndicesQuery req, CancellationToken ct)
     {
-        var result = SampleIndices.AsEnumerable();
+        List<CommodityPriceIndex> source = BaselineIndices;
+
+        if (db != null)
+        {
+            var dbEntities = await db.CommodityPriceIndices
+                .AsNoTracking()
+                .Include(c => c.RegionalPrices)
+                .Include(c => c.HistoricalPrices)
+                .ToListAsync(ct);
+
+            if (dbEntities.Count > 0)
+            {
+                source = dbEntities.Select(e => new CommodityPriceIndex(
+                    e.CommodityId,
+                    e.Name,
+                    e.NameAm,
+                    e.Category,
+                    e.Unit,
+                    e.NationalAvgPriceEtb,
+                    e.EcxBenchmarkEtb,
+                    e.WeeklyChangePercent,
+                    e.TrendDirection,
+                    e.VolatilityRating,
+                    e.RegionalPrices.Select(r => new RegionalPricePoint(r.RegionName, r.MarketName, r.MinPriceEtb, r.AvgPriceEtb, r.MaxPriceEtb)).ToList(),
+                    e.HistoricalPrices.OrderBy(h => h.RecordedAt).Select(h => new PriceHistoryPoint(h.DateLabel, h.PriceEtb)).ToList()
+                )).ToList();
+            }
+        }
+
+        var result = source.AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(req.Category) && req.Category != "All")
         {
             result = result.Where(x => x.Category.Equals(req.Category, StringComparison.OrdinalIgnoreCase));
         }
 
-        return Task.FromResult(result.ToList());
+        return result.ToList();
     }
 
-    public Task<FairPriceRecommendationResult> Handle(GetFairPriceRecommendationQuery req, CancellationToken ct)
+    public async Task<FairPriceRecommendationResult> Handle(GetFairPriceRecommendationQuery req, CancellationToken ct)
     {
+        var indices = await Handle(new GetCommodityPriceIndicesQuery(), ct);
         var r = req.Request;
-        var matched = SampleIndices.FirstOrDefault(x =>
+        var matched = indices.FirstOrDefault(x =>
             x.Name.Contains(r.CommodityName, StringComparison.OrdinalIgnoreCase) ||
             r.CommodityName.Contains(x.Name, StringComparison.OrdinalIgnoreCase) ||
             x.Category.Equals(r.Category, StringComparison.OrdinalIgnoreCase))
-            ?? SampleIndices.First();
+            ?? indices.First();
 
         var basePrice = matched.NationalAvgPriceEtb;
 
@@ -279,7 +311,7 @@ public class MarketIntelligenceHandlers :
         var msgAm = $"በ{r.Region} ወቅታዊ የኢትዮጵያ ምርት ገበያ (ECX) መረጃ መሠረት፣ ለ{matched.NameAm} ({r.Grade}) ተስማሚ የፍትሃዊ መሸጫ ዋጋ ETB {fairPrice:F2}/ኪ.ግ ነው። " +
                     (r.RequiresColdChain ? "የ+12% ማቀዝቀዣ ትራንስፖርት ጭማሪ ተካቷል። " : "");
 
-        return Task.FromResult(new FairPriceRecommendationResult(
+        return new FairPriceRecommendationResult(
             r.CommodityName,
             r.Region,
             r.Grade,
@@ -293,6 +325,6 @@ public class MarketIntelligenceHandlers :
             msgAm,
             coldChainPremium * 100,
             volumeDiscount * 100
-        ));
+        );
     }
 }

@@ -1,0 +1,17 @@
+## Build and output directories
+bin/
+obj/
+dist/
+node_modules/
+.vs/
+.vscode/
+.idea/
+.gemini/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## OS generated files
+.DS_Store
+Thumbs.db

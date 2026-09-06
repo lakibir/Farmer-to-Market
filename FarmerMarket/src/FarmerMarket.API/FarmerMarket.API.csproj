@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>farmermarket-api-secrets-2026-prod-ready</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

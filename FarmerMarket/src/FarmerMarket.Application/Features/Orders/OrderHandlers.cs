@@ -5,6 +5,7 @@ using FarmerMarket.Domain.Entities;
 using FarmerMarket.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace FarmerMarket.Application.Features.Orders;
 
@@ -15,8 +16,11 @@ public class PlaceOrderHandler(
     IAppDbContext db,
     IPaymentGateway payment,
     ISmsService sms,
-    ISignalRNotifier signalR) : IRequestHandler<PlaceOrderCommand, Result<PlaceOrderResultDto>>
+    ISignalRNotifier signalR,
+    IOptions<EscrowOptions>? escrowOptions = null) : IRequestHandler<PlaceOrderCommand, Result<PlaceOrderResultDto>>
 {
+    private readonly EscrowOptions _escrow = escrowOptions?.Value ?? new EscrowOptions();
+
     public async Task<Result<PlaceOrderResultDto>> Handle(PlaceOrderCommand req, CancellationToken ct)
     {
         var buyer = await db.Users.FirstOrDefaultAsync(u => u.Id == req.BuyerId, ct);
@@ -39,10 +43,10 @@ public class PlaceOrderHandler(
         if (req.Dto.QtyKg > listing.QtyKg)
             return Result<PlaceOrderResultDto>.Failure($"Only {listing.QtyKg} kg available in stock.");
 
-        // Calculate amount and 90 / 5 / 5 split
+        // Calculate amount and dynamic escrow split from configuration
         var totalEtb = Math.Round(req.Dto.QtyKg * listing.PricePerKg, 2);
-        var farmerCut = Math.Round(totalEtb * 0.90m, 2);
-        var driverCut = Math.Round(totalEtb * 0.05m, 2);
+        var farmerCut = Math.Round(totalEtb * (_escrow.FarmerPercent / 100m), 2);
+        var driverCut = Math.Round(totalEtb * (_escrow.DriverPercent / 100m), 2);
         var platformCut = totalEtb - farmerCut - driverCut;
 
         // Reduce inventory
@@ -72,7 +76,7 @@ public class PlaceOrderHandler(
             DeliveryNotes = req.Dto.DeliveryNotes,
             IsRecurring = req.Dto.IsRecurring,
             RecurringFrequency = req.Dto.RecurringFrequency,
-            DriverSubsidyEtb = 150m,
+            DriverSubsidyEtb = _escrow.DriverSubsidyEtb,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -125,8 +129,10 @@ public class PlaceOrderHandler(
 // 2. Get Orders Query
 public record GetOrdersQuery(Guid UserId, UserRole Role, OrderStatus? Status = null) : IRequest<List<OrderDto>>;
 
-public class GetOrdersHandler(IAppDbContext db) : IRequestHandler<GetOrdersQuery, List<OrderDto>>
+public class GetOrdersHandler(IAppDbContext db, IOptions<EscrowOptions>? escrowOptions = null) : IRequestHandler<GetOrdersQuery, List<OrderDto>>
 {
+    private readonly EscrowOptions _escrow = escrowOptions?.Value ?? new EscrowOptions();
+
     public async Task<List<OrderDto>> Handle(GetOrdersQuery req, CancellationToken ct)
     {
         var q = db.Orders.AsNoTracking()
@@ -180,10 +186,10 @@ public class GetOrdersHandler(IAppDbContext db) : IRequestHandler<GetOrdersQuery
             o.QtyKg,
             o.Listing.PricePerKg,
             o.TotalEtb,
-            o.Payment?.FarmerCut ?? (o.TotalEtb * 0.90m),
-            o.Payment?.DriverCut ?? (o.TotalEtb * 0.05m),
-            o.Payment?.PlatformCut ?? (o.TotalEtb * 0.05m),
-            o.DriverSubsidyEtb ?? 150m,
+            o.Payment?.FarmerCut ?? Math.Round(o.TotalEtb * (_escrow.FarmerPercent / 100m), 2),
+            o.Payment?.DriverCut ?? Math.Round(o.TotalEtb * (_escrow.DriverPercent / 100m), 2),
+            o.Payment?.PlatformCut ?? Math.Round(o.TotalEtb * (_escrow.PlatformPercent / 100m), 2),
+            o.DriverSubsidyEtb ?? _escrow.DriverSubsidyEtb,
             o.Status,
             o.EscrowHeld,
             o.PaymentRef,
@@ -210,8 +216,10 @@ public class GetOrdersHandler(IAppDbContext db) : IRequestHandler<GetOrdersQuery
 // 3. Get Order By Id Query
 public record GetOrderByIdQuery(Guid OrderId, Guid UserId, UserRole Role) : IRequest<Result<OrderDto>>;
 
-public class GetOrderByIdHandler(IAppDbContext db) : IRequestHandler<GetOrderByIdQuery, Result<OrderDto>>
+public class GetOrderByIdHandler(IAppDbContext db, IOptions<EscrowOptions>? escrowOptions = null) : IRequestHandler<GetOrderByIdQuery, Result<OrderDto>>
 {
+    private readonly EscrowOptions _escrow = escrowOptions?.Value ?? new EscrowOptions();
+
     public async Task<Result<OrderDto>> Handle(GetOrderByIdQuery req, CancellationToken ct)
     {
         var o = await db.Orders.AsNoTracking()
@@ -245,10 +253,10 @@ public class GetOrderByIdHandler(IAppDbContext db) : IRequestHandler<GetOrderByI
             o.QtyKg,
             o.Listing.PricePerKg,
             o.TotalEtb,
-            o.Payment?.FarmerCut ?? (o.TotalEtb * 0.90m),
-            o.Payment?.DriverCut ?? (o.TotalEtb * 0.05m),
-            o.Payment?.PlatformCut ?? (o.TotalEtb * 0.05m),
-            o.DriverSubsidyEtb ?? 150m,
+            o.Payment?.FarmerCut ?? Math.Round(o.TotalEtb * (_escrow.FarmerPercent / 100m), 2),
+            o.Payment?.DriverCut ?? Math.Round(o.TotalEtb * (_escrow.DriverPercent / 100m), 2),
+            o.Payment?.PlatformCut ?? Math.Round(o.TotalEtb * (_escrow.PlatformPercent / 100m), 2),
+            o.DriverSubsidyEtb ?? _escrow.DriverSubsidyEtb,
             o.Status,
             o.EscrowHeld,
             o.PaymentRef,
@@ -349,8 +357,11 @@ public class DeliverOrderHandler(
     IAppDbContext db,
     IPaymentGateway payment,
     ISignalRNotifier signalR,
-    ISmsService sms) : IRequestHandler<DeliverOrderCommand, Result>
+    ISmsService sms,
+    IOptions<EscrowOptions>? escrowOptions = null) : IRequestHandler<DeliverOrderCommand, Result>
 {
+    private readonly EscrowOptions _escrow = escrowOptions?.Value ?? new EscrowOptions();
+
     public async Task<Result> Handle(DeliverOrderCommand req, CancellationToken ct)
     {
         var order = await db.Orders
@@ -385,14 +396,13 @@ public class DeliverOrderHandler(
 
         await db.SaveChangesAsync(ct);
 
-        var farmerCut = order.Payment?.FarmerCut ?? (order.TotalEtb * 0.90m);
-        var driverCut = order.Payment?.DriverCut ?? (order.TotalEtb * 0.05m);
+        var farmerCut = order.Payment?.FarmerCut ?? Math.Round(order.TotalEtb * (_escrow.FarmerPercent / 100m), 2);
+        var driverCut = order.Payment?.DriverCut ?? Math.Round(order.TotalEtb * (_escrow.DriverPercent / 100m), 2);
 
         _ = signalR.NotifyDeliveryConfirmedAsync(order.Id, farmerCut, driverCut, ct);
         _ = signalR.NotifyOrderStatusChangedAsync(order.Id, OrderStatus.Delivered, "Delivery completed and payment released!", ct);
 
         // SMS notification to Farmer confirming payout
-        var payoutMsg = $"{farmerCut:N2} ETB released to your wallet for order #{order.Id.ToString()[..6].ToUpper()}.";
         _ = sms.NotifyBuyerOrderStatusAsync(order.Listing.Farmer.Phone, order.Listing.ProductName, "Delivered", "am", ct);
 
         return Result.Success();

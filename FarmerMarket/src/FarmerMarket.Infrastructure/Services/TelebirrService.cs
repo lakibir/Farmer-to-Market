@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using FarmerMarket.Application.Common.Interfaces;
 using FarmerMarket.Infrastructure.Options;
 using Microsoft.Extensions.Logging;
@@ -59,15 +61,39 @@ public class TelebirrService(
 
     public Task<bool> VerifyPaymentAsync(string txRef, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(_opts.AppKey) || _opts.AppKey.StartsWith("${"))
+        {
+            logger.LogWarning("[TELEBIRR CONFIG] AppKey is unconfigured. Verification cannot proceed for OutTradeNo: {TxRef}", txRef);
+            return Task.FromResult(false);
+        }
+
         logger.LogInformation("Telebirr verification queried for OutTradeNo: {TxRef}", txRef);
         return Task.FromResult(true);
     }
 
     public bool VerifyWebhookSignature(string payload, string signature)
     {
-        if (string.IsNullOrWhiteSpace(signature)) return true;
-        // TODO: Implement HMAC verification with AppKey once live credentials are configured
-        return true;
+        if (string.IsNullOrWhiteSpace(_opts.AppKey) || _opts.AppKey.StartsWith("${") || string.IsNullOrWhiteSpace(signature))
+        {
+            logger.LogWarning("[TELEBIRR WEBHOOK SECURITY] Missing AppKey or signature in webhook request.");
+            return false;
+        }
+
+        try
+        {
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_opts.AppKey.Trim()));
+            var hash = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload))).ToLowerInvariant();
+            var expected = signature.Trim().ToLowerInvariant();
+
+            return CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(hash),
+                Encoding.UTF8.GetBytes(expected));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[TELEBIRR WEBHOOK SECURITY] Signature verification exception");
+            return false;
+        }
     }
 
     // ─── ITelebirrService (legacy callers) ───────────────────────────────
