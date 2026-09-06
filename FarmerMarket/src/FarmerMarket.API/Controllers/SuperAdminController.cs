@@ -76,6 +76,12 @@ public class SuperAdminController(IMediator mediator, ISuperAdminGovernanceStore
     [HttpPut("platform-config")]
     public IActionResult UpdatePlatformConfig([FromBody] SuperAdminPlatformConfigDto config)
     {
+        if (config.FarmerSharePercent + config.DriverSharePercent + config.PlatformFeePercent != 100)
+            return BadRequest(new { error = "Escrow split percentages (Farmer + Driver + Platform) must sum to exactly 100%." });
+
+        if (config.WithholdingTaxPercent < 0 || config.WithholdingTaxPercent > 100)
+            return BadRequest(new { error = "Withholding tax percentage must be between 0 and 100." });
+
         var updated = store.UpdatePlatformConfig(config);
         return Ok(updated);
     }

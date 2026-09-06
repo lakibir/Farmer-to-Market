@@ -272,19 +272,129 @@ class App {
     // Initial fetch from PostgreSQL backend
     await api.refreshAllData();
 
-    // Auto-navigate to role's home view if logged in, or about platform if guest
-    const u = api.getCurrentUser();
-    if (u) {
-      if (u.role === 'superadmin') this.activeTab = 'superadmin';
-      else if (u.role === 'farmer') this.activeTab = 'farmer';
-      else if (u.role === 'driver') this.activeTab = 'driver';
-      else if (u.role === 'admin') this.activeTab = 'admin';
-      else this.activeTab = 'marketplace';
-    } else {
-      this.activeTab = 'about';
-    }
+    // Listen to hash changes for browser forward/back buttons and direct bookmark navigation
+    window.addEventListener('hashchange', () => {
+      this.restoreStateFromUrlOrStorage();
+      this.render();
+    });
+
+    // Restore user active tab and subtab directly from URL Hash or localStorage
+    this.restoreStateFromUrlOrStorage();
 
     this.render();
+  }
+
+  private syncUrlAndStorage() {
+    try {
+      localStorage.setItem('farmer_market_active_tab', this.activeTab);
+      let sub = '';
+      if (this.activeTab === 'superadmin') sub = this.activeSuperAdminTab;
+      else if (this.activeTab === 'marketplace') sub = this.activeBuyerSubTab;
+      else if (this.activeTab === 'farmer') sub = this.activeFarmerTab;
+      else if (this.activeTab === 'admin') sub = this.activeAdminTab;
+      else if (this.activeTab === 'account') sub = this.activeBuyerAccountTab;
+      else if (this.activeTab === 'farmer-account') sub = this.activeFarmerAccountTab;
+      else if (this.activeTab === 'agent') sub = this.agentView.getActiveTab();
+
+      if (sub && sub !== 'marketplace' && sub !== 'users' && sub !== 'listings' && sub !== 'disputes' && sub !== 'register' && sub !== 'overview') {
+        localStorage.setItem('farmer_market_active_subtab', sub);
+        const hash = `#${this.activeTab}/${sub}`;
+        if (window.location.hash !== hash) {
+          history.replaceState(null, '', hash);
+        }
+      } else {
+        localStorage.removeItem('farmer_market_active_subtab');
+        const hash = `#${this.activeTab}`;
+        if (window.location.hash !== hash) {
+          history.replaceState(null, '', hash);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to sync URL and storage:', e);
+    }
+  }
+
+  private restoreStateFromUrlOrStorage() {
+    const rawHash = window.location.hash.replace(/^#\/?/, '').trim();
+    let targetTab = '';
+    let targetSubTab = '';
+
+    if (rawHash) {
+      const parts = rawHash.split('/');
+      targetTab = parts[0];
+      targetSubTab = parts[1] || '';
+    } else {
+      targetTab = localStorage.getItem('farmer_market_active_tab') || '';
+      targetSubTab = localStorage.getItem('farmer_market_active_subtab') || '';
+    }
+
+    const u = api.getCurrentUser();
+    const isAuth = api.isAuthenticated();
+
+    // Map and validate target tab based on permissions
+    const validTabs = ['marketplace', 'about', 'farmer', 'driver', 'admin', 'superadmin', 'agent', 'account', 'farmer-account'];
+    if (targetTab && validTabs.includes(targetTab)) {
+      if (targetTab === 'superadmin' && (!isAuth || u?.role !== 'superadmin')) {
+        this.activeTab = isAuth ? (u?.role === 'farmer' ? 'farmer' : u?.role === 'driver' ? 'driver' : 'marketplace') : 'about';
+      } else if (targetTab === 'farmer' && (!isAuth || (u?.role !== 'farmer' && u?.role !== 'superadmin'))) {
+        this.activeTab = isAuth ? 'marketplace' : 'about';
+      } else if (targetTab === 'driver' && (!isAuth || (u?.role !== 'driver' && u?.role !== 'superadmin'))) {
+        this.activeTab = isAuth ? 'marketplace' : 'about';
+      } else if (targetTab === 'admin' && (!isAuth || (u?.role !== 'admin' && u?.role !== 'superadmin'))) {
+        this.activeTab = isAuth ? 'marketplace' : 'about';
+      } else if (targetTab === 'agent' && (!isAuth || (u?.role !== 'agent' && u?.role !== 'superadmin'))) {
+        this.activeTab = isAuth ? 'marketplace' : 'about';
+      } else {
+        this.activeTab = targetTab;
+      }
+    } else {
+      if (u) {
+        if (u.role === 'superadmin') this.activeTab = 'superadmin';
+        else if (u.role === 'farmer') this.activeTab = 'farmer';
+        else if (u.role === 'driver') this.activeTab = 'driver';
+        else if (u.role === 'admin') this.activeTab = 'admin';
+        else if (u.role === 'agent') this.activeTab = 'agent';
+        else this.activeTab = 'marketplace';
+      } else {
+        this.activeTab = 'about';
+      }
+    }
+
+    // Restore subtabs if valid
+    if (targetSubTab) {
+      if (this.activeTab === 'superadmin') {
+        const validSub: SuperAdminTab[] = ['users', 'banners', 'moderation', 'permissions', 'config', 'financials', 'audit', 'zones', 'feature_flags', 'emergency', 'rules', 'db_ops'];
+        if (validSub.includes(targetSubTab as SuperAdminTab)) {
+          this.activeSuperAdminTab = targetSubTab as SuperAdminTab;
+        }
+      } else if (this.activeTab === 'marketplace') {
+        if (['marketplace', 'orders', 'standing_orders'].includes(targetSubTab)) {
+          this.activeBuyerSubTab = targetSubTab as any;
+        }
+      } else if (this.activeTab === 'farmer') {
+        if (['listings', 'wallet', 'sms'].includes(targetSubTab)) {
+          this.activeFarmerTab = targetSubTab as any;
+        }
+      } else if (this.activeTab === 'admin') {
+        if (['disputes', 'anomalies', 'kyc', 'tax_compliance', 'analytics', 'sms'].includes(targetSubTab)) {
+          this.activeAdminTab = targetSubTab as any;
+        }
+      } else if (this.activeTab === 'account') {
+        this.activeBuyerAccountTab = targetSubTab as BuyerAccountTab;
+      } else if (this.activeTab === 'farmer-account') {
+        this.activeFarmerAccountTab = targetSubTab as FarmerAccountTab;
+      } else if (this.activeTab === 'agent') {
+        if (['register', 'roster', 'ussd_sim'].includes(targetSubTab)) {
+          this.agentView.switchTab(targetSubTab as any);
+        }
+      }
+    }
+
+    if (this.activeTab === 'superadmin') {
+      api.fetchSuperAdminData().catch(err => console.warn('Failed to refresh superadmin data on restore:', err));
+    }
+
+    this.syncUrlAndStorage();
   }
 
   public render() {
@@ -455,10 +565,10 @@ class App {
           <div class="space-y-2 text-xs">
             <h4 class="font-bold text-white text-sm">Legal & Fiscal Compliance</h4>
             <ul class="space-y-1.5 text-slate-400">
-              <li><span class="text-slate-300">90% Direct Farmer Payout (Tax-Exempt Produce)</span></li>
-              <li><span class="text-slate-300">5% Transport Logistics with Official FTA Waybills</span></li>
-              <li><span class="text-slate-300">15% VAT on Platform Service Remitted to MOR</span></li>
-              <li><span class="text-slate-300">2% Withholding Declaration Compliance (Proclamation 979)</span></li>
+              <li><span class="text-slate-300">${api.getPlatformConfig().farmerSharePercent}% Direct Farmer Payout (Tax-Exempt Produce)</span></li>
+              <li><span class="text-slate-300">${api.getPlatformConfig().driverSharePercent}% Transport Logistics with Official FTA Waybills</span></li>
+              <li><span class="text-slate-300">${api.getPlatformConfig().vatOnCommissionPercent}% VAT on Platform Service Remitted to MOR</span></li>
+              <li><span class="text-slate-300">${api.getPlatformConfig().withholdingTaxPercent}% Withholding Declaration Compliance (Proclamation 979)</span></li>
               <li><span class="text-slate-300">EABC Binding Escrow Dispute Arbitration</span></li>
             </ul>
           </div>
@@ -670,6 +780,7 @@ class App {
       if (tab === 'superadmin') {
         api.fetchSuperAdminData().then(() => this.render()).catch(err => console.warn('Failed to refresh superadmin data:', err));
       }
+      this.syncUrlAndStorage();
       this.render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -678,6 +789,7 @@ class App {
       this.searchQuery = query;
       if (this.activeTab === 'about' && query && query.trim().length > 0) {
         this.activeTab = 'marketplace';
+        this.syncUrlAndStorage();
       }
       this.render();
     };
@@ -685,6 +797,7 @@ class App {
     w.executeAboutSearch = (query: string) => {
       this.searchQuery = query || '';
       this.activeTab = 'marketplace';
+      this.syncUrlAndStorage();
       this.render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -692,6 +805,7 @@ class App {
     w.setBuyerAccountTab = (tab: BuyerAccountTab) => {
       this.activeBuyerAccountTab = tab;
       this.activeTab = 'account';
+      this.syncUrlAndStorage();
       api.fetchAccountData().then(() => this.render()).catch((error: any) => showToast(error.message || 'Could not load account data.', 'fa-circle-xmark', 'border-rose-500'));
       this.render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -700,6 +814,7 @@ class App {
     w.setFarmerAccountTab = (tab: FarmerAccountTab) => {
       this.activeFarmerAccountTab = tab;
       this.activeTab = 'farmer-account';
+      this.syncUrlAndStorage();
       this.render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -860,16 +975,19 @@ class App {
     // Sub-Tab Switchers
     w.setBuyerSubTab = (tab: 'marketplace' | 'orders' | 'standing_orders') => {
       this.activeBuyerSubTab = tab;
+      this.syncUrlAndStorage();
       this.render();
     };
 
     w.toggleFarmerTab = (tab: 'listings' | 'wallet' | 'sms') => {
       this.activeFarmerTab = tab;
+      this.syncUrlAndStorage();
       this.render();
     };
 
     w.setAdminTab = (tab: 'disputes' | 'anomalies' | 'kyc' | 'tax_compliance' | 'analytics' | 'sms') => {
       this.activeAdminTab = tab;
+      this.syncUrlAndStorage();
       this.render();
     };
 
@@ -1336,6 +1454,7 @@ class App {
         else if (user.role === 'admin') this.activeTab = 'admin';
         else this.activeTab = 'marketplace';
 
+        this.syncUrlAndStorage();
         this.cart = this.loadCartFromStorage();
 
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -1410,6 +1529,7 @@ class App {
     w.handleLogout = () => {
       api.logout();
       this.activeTab = 'about';
+      this.syncUrlAndStorage();
       // Cart is preserved in localStorage across sessions
       showToast('Logged out successfully', 'fa-arrow-right-from-bracket');
       this.render();
@@ -1422,11 +1542,13 @@ class App {
         const res = await api.requestOtp(phone);
         if (res.demoCode) {
           const user = await api.verifyOtp(phone, res.demoCode);
-          if (user.role === 'farmer') this.activeTab = 'farmer';
+          if (user.role === 'superadmin') this.activeTab = 'superadmin';
+          else if (user.role === 'farmer') this.activeTab = 'farmer';
           else if (user.role === 'driver') this.activeTab = 'driver';
           else if (user.role === 'admin') this.activeTab = 'admin';
           else this.activeTab = 'marketplace';
 
+          this.syncUrlAndStorage();
           this.cart = this.loadCartFromStorage();
 
           confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
@@ -1579,7 +1701,7 @@ class App {
     w.confirmDelivery = async (orderId: string) => {
       await api.confirmDeliveryByBuyer(orderId);
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-      showToast('Delivery Confirmed! 90% released to Farmer, 5% to Driver.', 'fa-hand-holding-dollar', 'border-emerald-500');
+      showToast(`Delivery Confirmed! ${api.getPlatformConfig().farmerSharePercent}% released to Farmer, ${api.getPlatformConfig().driverSharePercent}% to Driver.`, 'fa-hand-holding-dollar', 'border-emerald-500');
 
       // Immediately open Rate & Review modal for real rating and feedback
       const order = api.getOrders().find(o => o.id === orderId);
@@ -1779,6 +1901,7 @@ class App {
 
     w.switchAgentTab = (tab: 'register' | 'roster' | 'ussd_sim') => {
       this.agentView.switchTab(tab);
+      this.syncUrlAndStorage();
       this.render();
     };
 
@@ -1824,6 +1947,7 @@ class App {
         confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
         showToast(this.lang === 'am' ? `${name} ተመዝግቧል! የማረጋገጫ ኤስኤምኤስ ተልኳል።` : `Farmer ${name} registered! Welcome SMS dispatched.`, 'fa-user-check', 'border-emerald-500');
         this.agentView.switchTab('roster');
+        this.syncUrlAndStorage();
         this.render();
       } catch (err: any) {
         showToast('Registration failed: ' + err.message, 'fa-circle-xmark', 'border-red-500');
@@ -1864,6 +1988,7 @@ class App {
     // ==================== SUPER ADMIN WINDOW HANDLERS ====================
     w.setSuperAdminTab = (tab: SuperAdminTab) => {
       this.activeSuperAdminTab = tab;
+      this.syncUrlAndStorage();
       if (tab === 'db_ops') {
         api.fetchDatabaseHealth().then(() => this.render()).catch(err => console.warn('Failed to refresh db health:', err));
       } else {
@@ -2343,52 +2468,85 @@ class App {
       const platformEl = document.getElementById('platformShareInput') as HTMLInputElement;
       if (!farmerEl || !driverEl || !platformEl) return;
 
-      let farmerVal = Number(farmerEl.value);
-      let driverVal = Number(driverEl.value);
-      let platformVal = Number(platformEl.value);
+      let farmerVal = Math.round(Number(farmerEl.value));
+      let driverVal = Math.round(Number(driverEl.value));
+      let platformVal = Math.round(Number(platformEl.value));
 
       if (source === 'farmer') {
         const remaining = 100 - farmerVal;
-        driverVal = Math.round(remaining / 2);
+        driverVal = Math.floor(remaining / 2);
         platformVal = remaining - driverVal;
         driverEl.value = driverVal.toString();
         platformEl.value = platformVal.toString();
+      } else if (source === 'driver') {
+        const remaining = 100 - driverVal;
+        if (platformVal >= remaining) {
+          platformVal = Math.max(1, Math.min(15, remaining - 70));
+          platformEl.value = platformVal.toString();
+        }
+        farmerVal = remaining - platformVal;
+        farmerEl.value = farmerVal.toString();
+      } else if (source === 'platform') {
+        const remaining = 100 - platformVal;
+        if (driverVal >= remaining) {
+          driverVal = Math.max(1, Math.min(15, remaining - 70));
+          driverEl.value = driverVal.toString();
+        }
+        farmerVal = remaining - driverVal;
+        farmerEl.value = farmerVal.toString();
       }
 
-      document.getElementById('farmerShareDisplay')!.innerText = `${farmerEl.value}%`;
-      document.getElementById('driverShareDisplay')!.innerText = `${driverEl.value}%`;
-      document.getElementById('platformShareDisplay')!.innerText = `${platformEl.value}%`;
+      const farmerDisplay = document.getElementById('farmerShareDisplay');
+      const driverDisplay = document.getElementById('driverShareDisplay');
+      const platformDisplay = document.getElementById('platformShareDisplay');
+      if (farmerDisplay) farmerDisplay.innerText = `${farmerEl.value}%`;
+      if (driverDisplay) driverDisplay.innerText = `${driverEl.value}%`;
+      if (platformDisplay) platformDisplay.innerText = `${platformEl.value}%`;
+
+      const farmerSub = document.getElementById('farmerShareSubText');
+      const driverSub = document.getElementById('driverShareSubText');
+      const platformSub = document.getElementById('platformShareSubText');
+      if (farmerSub) farmerSub.innerText = `Smallholder receives ${farmerEl.value}% direct payout into Telebirr upon buyer inspection.`;
+      if (driverSub) driverSub.innerText = `Freight carrier receives ${driverEl.value}% transit cut + rural route bonuses.`;
+      if (platformSub) platformSub.innerText = `Platform maintenance, dispute arbitration, and 15% MOR VAT collection.`;
     };
 
-    w.handleSaveSuperAdminConfig = (e: Event) => {
+    w.handleSaveSuperAdminConfig = async (e: Event) => {
       e.preventDefault();
       const farmerSharePercent = Number((document.getElementById('farmerShareInput') as HTMLInputElement)?.value) || 90;
       const driverSharePercent = Number((document.getElementById('driverShareInput') as HTMLInputElement)?.value) || 5;
       const platformFeePercent = Number((document.getElementById('platformShareInput') as HTMLInputElement)?.value) || 5;
       const withholdingTaxPercent = Number((document.getElementById('cfgWithholdingTax') as HTMLInputElement)?.value) || 2;
       const highValuePayoutThresholdEtb = Number((document.getElementById('cfgHighValueThreshold') as HTMLInputElement)?.value) || 50000;
-      const telebirrAppId = (document.getElementById('cfgTelebirrAppId') as HTMLInputElement)?.value || '';
-      const telebirrShortCode = (document.getElementById('cfgTelebirrShortCode') as HTMLInputElement)?.value || '';
-      const telebirrApiKey = (document.getElementById('cfgTelebirrApiKey') as HTMLInputElement)?.value || '';
-      const twilioAccountSid = (document.getElementById('cfgTwilioSid') as HTMLInputElement)?.value || '';
-      const twilioAuthToken = (document.getElementById('cfgTwilioToken') as HTMLInputElement)?.value || '';
-      const twilioFromNumber = (document.getElementById('cfgTwilioFrom') as HTMLInputElement)?.value || '';
 
-      api.updatePlatformConfig({
+      if (farmerSharePercent + driverSharePercent + platformFeePercent !== 100) {
+        showToast('Escrow splits (Farmer + Driver + Platform) must sum to 100%.', 'fa-triangle-exclamation', 'border-amber-500');
+        return;
+      }
+
+      const currentConfig = api.getPlatformConfig();
+      const telebirrAppIdEl = document.getElementById('cfgTelebirrAppId') as HTMLInputElement | null;
+      const telebirrShortCodeEl = document.getElementById('cfgTelebirrShortCode') as HTMLInputElement | null;
+      const telebirrApiKeyEl = document.getElementById('cfgTelebirrApiKey') as HTMLInputElement | null;
+      const twilioSidEl = document.getElementById('cfgTwilioSid') as HTMLInputElement | null;
+      const twilioTokenEl = document.getElementById('cfgTwilioToken') as HTMLInputElement | null;
+      const twilioFromEl = document.getElementById('cfgTwilioFrom') as HTMLInputElement | null;
+
+      await api.updatePlatformConfig({
         farmerSharePercent,
         driverSharePercent,
         platformFeePercent,
         withholdingTaxPercent,
         highValuePayoutThresholdEtb,
-        telebirrAppId,
-        telebirrShortCode,
-        telebirrApiKey,
-        twilioAccountSid,
-        twilioAuthToken,
-        twilioFromNumber
+        telebirrAppId: telebirrAppIdEl ? telebirrAppIdEl.value : currentConfig.telebirrAppId,
+        telebirrShortCode: telebirrShortCodeEl ? telebirrShortCodeEl.value : currentConfig.telebirrShortCode,
+        telebirrApiKey: telebirrApiKeyEl ? telebirrApiKeyEl.value : currentConfig.telebirrApiKey,
+        twilioAccountSid: twilioSidEl ? twilioSidEl.value : currentConfig.twilioAccountSid,
+        twilioAuthToken: twilioTokenEl ? twilioTokenEl.value : currentConfig.twilioAuthToken,
+        twilioFromNumber: twilioFromEl ? twilioFromEl.value : currentConfig.twilioFromNumber
       });
 
-      showToast('Platform configuration and escrow splits saved!', 'fa-floppy-disk', 'border-emerald-500');
+      showToast('Platform configuration & escrow splits successfully saved and synchronized!', 'fa-floppy-disk', 'border-emerald-500');
       this.render();
     };
 

@@ -40,11 +40,11 @@ export function renderAboutDashboardView(lang: Language): string {
       icon: 'fa-shield-halved',
       color: 'from-purple-600 to-pink-700',
       textColor: 'text-purple-400',
-      value: '90 / 5 / 5 %',
+      value: `${api.getPlatformConfig().farmerSharePercent} / ${api.getPlatformConfig().driverSharePercent} / ${api.getPlatformConfig().platformFeePercent} %`,
       labelEn: 'Startup Unit Economics & Fair Split',
       labelAm: 'ፍትሃዊ የገቢ ሞዴል (Unit Economics)',
-      subEn: '90% Farmer Direct · 5% Driver Telemetry · 5% Startup Platform Fee',
-      subAm: '90% ለአርሶ አደር · 5% ለሹፌር · 5% ለስታርት-አፕ ፕላትፎርም'
+      subEn: `${api.getPlatformConfig().farmerSharePercent}% Farmer Direct · ${api.getPlatformConfig().driverSharePercent}% Driver Telemetry · ${api.getPlatformConfig().platformFeePercent}% Startup Platform Fee`,
+      subAm: `${api.getPlatformConfig().farmerSharePercent}% ለአርሶ አደር · ${api.getPlatformConfig().driverSharePercent}% ለሹፌር · ${api.getPlatformConfig().platformFeePercent}% ለስታርት-አፕ ፕላትፎርም`
     }
   ];
 
@@ -81,8 +81,8 @@ export function renderAboutDashboardView(lang: Language): string {
       icon: 'fa-file-signature',
       titleEn: 'e-VAT Invoices & Digital Waybills',
       titleAm: 'ዲጂታል e-VAT ደረሰኝ እና የመንገድ ማረጋገጫ',
-      descEn: 'Automated Ministry of Revenues (MOR) compliant 15% VAT on service fee, 2% withholding tax slips, and legal EABC freight waybills generated per order.',
-      descAm: 'የገቢዎች ሚኒስቴር የ15% VAT፣ የ2% ቅድመ ግብር ተቀናሽ እና ህጋዊ የትራንስፖርት ሰነዶችን በራስ-ሰር ያመነጫል።',
+      descEn: `Automated Ministry of Revenues (MOR) compliant ${api.getPlatformConfig().vatOnCommissionPercent}% VAT on service fee, ${api.getPlatformConfig().withholdingTaxPercent}% withholding tax slips, and legal EABC freight waybills generated per order.`,
+      descAm: `የገቢዎች ሚኒስቴር የ${api.getPlatformConfig().vatOnCommissionPercent}% VAT፣ የ${api.getPlatformConfig().withholdingTaxPercent}% ቅድመ ግብር ተቀናሽ እና ህጋዊ የትራንስፖርት ሰነዶችን በራስ-ሰር ያመነጫል።`,
       badge: 'MOR Compliant'
     }
   ];
@@ -92,7 +92,7 @@ export function renderAboutDashboardView(lang: Language): string {
       role: 'farmer',
       titleEn: 'For Farmers & Cooperatives',
       titleAm: 'ለአርሶ አደሮች እና ማህበራት',
-      taglineEn: 'Sell direct at 90% farmgate price and eliminate predatory broker markups.',
+      taglineEn: `Sell direct at ${api.getPlatformConfig().farmerSharePercent}% farmgate price and eliminate predatory broker markups.`,
       taglineAm: 'ያለ ደላላ ጣልቃ ገብነት ምርትዎን በሙሉ ዋጋ ይሽጡ፣ ክፍያዎን በቴሌብር ወዲያውኑ ይቀበሉ።',
       featuresEn: [
         'Instant Telebirr digital wallet disbursements',
@@ -209,7 +209,7 @@ export function renderAboutDashboardView(lang: Language): string {
 
           <p class="text-emerald-100 text-sm sm:text-lg leading-relaxed max-w-3xl font-normal ${isAm ? 'lang-am' : ''}">
             ${isAm
-      ? 'Farmer-to-Market የኢትዮጵያን የግብርና ንግድ በዘመናዊ ቴክኖሎጂ የሚቀይር ፈጣን ስታርት-አፕ ነው። የደላላ ጣልቃ ገብነትን በማስቀረት አርሶ አደሮች 90% የምርት ዋጋቸውን በቴሌብር እንዲያገኙ፣ የጅምላ ገዢዎች በዋስትና የተጠበቀ ግዢ እንዲፈጽሙ እና ህጋዊ የe-VAT ደረሰኝ እንዲያገኙ ያደርጋል።'
+      ? `Farmer-to-Market የኢትዮጵያን የግብርና ንግድ በዘመናዊ ቴክኖሎጂ የሚቀይር ፈጣን ስታርት-አፕ ነው። የደላላ ጣልቃ ገብነትን በማስቀረት አርሶ አደሮች ${api.getPlatformConfig().farmerSharePercent}% የምርት ዋጋቸውን በቴሌብር እንዲያገኙ፣ የጅምላ ገዢዎች በዋስትና የተጠበቀ ግዢ እንዲፈጽሙ እና ህጋዊ የe-VAT ደረሰኝ እንዲያገኙ ያደርጋል።`
       : 'Farmer-to-Market is Ethiopia\'s high-growth AgTech startup revolutionizing direct agricultural commerce. We eliminate predatory middlemen, provide live ECX market price discovery, guarantee 100% Telebirr escrow protection, and issue automated Ministry of Revenues (MOR) e-VAT tax invoices.'}
           </p>
 

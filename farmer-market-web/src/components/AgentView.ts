@@ -385,6 +385,10 @@ export class AgentView {
     this.activeTab = tab;
   }
 
+  public getActiveTab(): 'register' | 'roster' | 'ussd_sim' {
+    return this.activeTab;
+  }
+
   public setUssdInput(code: string) {
     this.ussdInput = code;
     const inputEl = document.getElementById('ussdCodeInput') as HTMLInputElement;

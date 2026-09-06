@@ -15,3 +15,18 @@ node_modules/
 ## OS generated files
 .DS_Store
 Thumbs.db
+
+## Secrets & Local Environment Files (NEVER commit live secrets)
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+*.local
+secrets.json
+appsettings.*.local.json
+
+# Allow safe example templates
+!.env.example
+!.env.production.example
+!secrets.example.json

@@ -106,7 +106,7 @@ public class EnterpriseSecurityTests
             SecretKey = "CHASECK_TEST_KEY_FOR_UNIT_TEST",
             WebhookSecret = "MY_WEBHOOK_SECRET_123"
         });
-        var escrowOpts = Options.Create(new FarmerMarket.Infrastructure.Options.EscrowOptions());
+        var escrowOpts = Options.Create(new FarmerMarket.Application.Common.Models.EscrowOptions());
         var service = new ChapaService(chapaOpts, escrowOpts, NullLogger<ChapaService>.Instance);
 
         var payload = "{\"event\":\"charge.success\",\"data\":{\"amount\":\"500.00\"}}";
@@ -126,7 +126,7 @@ public class EnterpriseSecurityTests
         {
             WebhookSecret = secret
         });
-        var escrowOpts = Options.Create(new FarmerMarket.Infrastructure.Options.EscrowOptions());
+        var escrowOpts = Options.Create(new FarmerMarket.Application.Common.Models.EscrowOptions());
         var service = new ChapaService(chapaOpts, escrowOpts, NullLogger<ChapaService>.Instance);
 
         var payload = "{\"event\":\"charge.success\",\"data\":{\"amount\":\"500.00\"}}";

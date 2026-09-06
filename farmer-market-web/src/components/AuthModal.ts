@@ -1,4 +1,5 @@
 import { Language, translations } from '../i18n/translations';
+import { api } from '../services/api';
 
 export function renderAuthModal(
   lang: Language,
@@ -231,7 +232,7 @@ export function renderAuthModal(
                     <input type="radio" name="regRole" value="farmer" checked class="mt-1" />
                     <div>
                       <span class="font-extrabold text-slate-900 block text-xs">Smallholder Farmer / Co-op 🌾</span>
-                      <span class="text-[11px] text-slate-500 font-normal block leading-tight mt-0.5">Sell harvest directly to buyers with 90% payout.</span>
+                      <span class="text-[11px] text-slate-500 font-normal block leading-tight mt-0.5">Sell harvest directly to buyers with ${api.getPlatformConfig().farmerSharePercent}% payout.</span>
                     </div>
                   </label>
 

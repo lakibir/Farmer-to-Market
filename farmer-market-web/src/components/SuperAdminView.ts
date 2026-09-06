@@ -637,7 +637,7 @@ function renderConfigTab(lang: Language, config: PlatformConfig): string {
               </div>
               <input type="range" id="farmerShareInput" min="70" max="95" value="${config.farmerSharePercent}"
                 oninput="window.updateEscrowSliders('farmer')" class="w-full accent-emerald-600 cursor-pointer" />
-              <p class="text-[10px] text-emerald-800 font-medium">Smallholder receives 90% direct payout into Telebirr upon buyer inspection.</p>
+              <p id="farmerShareSubText" class="text-[10px] text-emerald-800 font-medium">Smallholder receives ${config.farmerSharePercent}% direct payout into Telebirr upon buyer inspection.</p>
             </div>
 
             <div class="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
@@ -647,7 +647,7 @@ function renderConfigTab(lang: Language, config: PlatformConfig): string {
               </div>
               <input type="range" id="driverShareInput" min="2" max="15" value="${config.driverSharePercent}"
                 oninput="window.updateEscrowSliders('driver')" class="w-full accent-amber-600 cursor-pointer" />
-              <p class="text-[10px] text-amber-800 font-medium">Freight carrier receives 5% transit cut + rural route bonuses.</p>
+              <p id="driverShareSubText" class="text-[10px] text-amber-800 font-medium">Freight carrier receives ${config.driverSharePercent}% transit cut + rural route bonuses.</p>
             </div>
 
             <div class="p-4 rounded-2xl bg-purple-50 border border-purple-200 space-y-2">
@@ -657,7 +657,7 @@ function renderConfigTab(lang: Language, config: PlatformConfig): string {
               </div>
               <input type="range" id="platformShareInput" min="2" max="15" value="${config.platformFeePercent}"
                 oninput="window.updateEscrowSliders('platform')" class="w-full accent-purple-600 cursor-pointer" />
-              <p class="text-[10px] text-purple-800 font-medium">Platform maintenance, dispute arbitration, and 15% MOR VAT collection.</p>
+              <p id="platformShareSubText" class="text-[10px] text-purple-800 font-medium">Platform maintenance, dispute arbitration, and ${config.vatOnCommissionPercent}% MOR VAT collection.</p>
             </div>
 
           </div>
@@ -666,12 +666,12 @@ function renderConfigTab(lang: Language, config: PlatformConfig): string {
             <div>
               <label class="block text-xs font-bold text-slate-800 mb-1">MOR Withholding Tax on Produce Goods (%)</label>
               <input type="number" id="cfgWithholdingTax" value="${config.withholdingTaxPercent}" min="0" max="10" step="0.5" class="input-field text-xs font-bold" />
-              <p class="text-[10px] text-slate-400 mt-1">Standard 2% commercial withholding declared to Ministry of Revenues.</p>
+              <p class="text-[10px] text-slate-400 mt-1">Standard ${config.withholdingTaxPercent}% commercial withholding declared to Ministry of Revenues.</p>
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-800 mb-1">High-Value Payout Approval Threshold (ETB)</label>
               <input type="number" id="cfgHighValueThreshold" value="${config.highValuePayoutThresholdEtb}" min="10000" max="500000" step="5000" class="input-field text-xs font-bold" />
-              <p class="text-[10px] text-slate-400 mt-1">Payouts exceeding this value require Super Admin dual authorization.</p>
+              <p class="text-[10px] text-slate-400 mt-1">Payouts exceeding ${config.highValuePayoutThresholdEtb.toLocaleString()} ETB require Super Admin dual authorization.</p>
             </div>
           </div>
         </div>
@@ -857,7 +857,7 @@ function renderFinancialsTab(
 
         <div class="glass-card p-4 border-l-4 border-emerald-600 space-y-1">
           <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
-            <span>${lang === 'am' ? 'ለአርሶ አደር (90%)' : 'Farmer Share (90%)'}</span>
+            <span>${lang === 'am' ? `ለአርሶ አደር (${config.farmerSharePercent}%)` : `Farmer Share (${config.farmerSharePercent}%)`}</span>
             <i class="fa-solid fa-wheat-awn text-emerald-600"></i>
           </div>
           <div class="text-base sm:text-lg font-black text-emerald-700 font-mono">
@@ -868,7 +868,7 @@ function renderFinancialsTab(
 
         <div class="glass-card p-4 border-l-4 border-teal-600 space-y-1">
           <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
-            <span>${lang === 'am' ? 'ለትራንስፖርት (5%)' : 'Logistics (5%)'}</span>
+            <span>${lang === 'am' ? `ለትራንስፖርት (${config.driverSharePercent}%)` : `Logistics (${config.driverSharePercent}%)`}</span>
             <i class="fa-solid fa-truck-fast text-teal-600"></i>
           </div>
           <div class="text-base sm:text-lg font-black text-teal-700 font-mono">
@@ -879,7 +879,7 @@ function renderFinancialsTab(
 
         <div class="glass-card p-4 border-l-4 border-purple-600 space-y-1">
           <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
-            <span>${lang === 'am' ? 'የፕላትፎርም ኮሚሽን (5%)' : 'Platform Fee (5%)'}</span>
+            <span>${lang === 'am' ? `የፕላትፎርም ኮሚሽን (${config.platformFeePercent}%)` : `Platform Fee (${config.platformFeePercent}%)`}</span>
             <i class="fa-solid fa-coins text-purple-600"></i>
           </div>
           <div class="text-base sm:text-lg font-black text-purple-700 font-mono">
@@ -890,7 +890,7 @@ function renderFinancialsTab(
 
         <div class="glass-card p-4 border-l-4 border-amber-600 space-y-1">
           <div class="flex items-center justify-between text-slate-500 text-[11px] font-bold">
-            <span>${lang === 'am' ? 'የገቢዎች ግብር (2%)' : 'MOR Tax (2%)'}</span>
+            <span>${lang === 'am' ? `የገቢዎች ግብር (${config.withholdingTaxPercent}%)` : `MOR Tax (${config.withholdingTaxPercent}%)`}</span>
             <i class="fa-solid fa-landmark text-amber-600"></i>
           </div>
           <div class="text-base sm:text-lg font-black text-amber-700 font-mono">
@@ -1125,7 +1125,7 @@ function renderFinancialsTab(
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 class="text-sm font-black text-slate-900">Order Escrow Reconciliation & Split Ledger</h3>
-              <p class="text-xs text-slate-500">Live 90% Farmer / 5% Transporter / 5% Platform split verification per marketplace order.</p>
+              <p class="text-xs text-slate-500">Live ${config.farmerSharePercent}% Farmer / ${config.driverSharePercent}% Transporter / ${config.platformFeePercent}% Platform split verification per marketplace order.</p>
             </div>
             <button onclick="window.exportFinancialStatement('csv')" class="btn-secondary py-1.5 px-3 text-xs font-bold cursor-pointer flex items-center gap-1.5">
               <i class="fa-solid fa-file-arrow-down text-emerald-700"></i> Export Ledger CSV
@@ -1140,10 +1140,10 @@ function renderFinancialsTab(
                     <th class="p-3.5">Order ID & Crop</th>
                     <th class="p-3.5">Buyer</th>
                     <th class="p-3.5">Total Value (ETB)</th>
-                    <th class="p-3.5 text-emerald-700">Farmer Cut (90%)</th>
-                    <th class="p-3.5 text-teal-700">Logistics (5%)</th>
-                    <th class="p-3.5 text-purple-700">Platform (5%)</th>
-                    <th class="p-3.5 text-amber-700">MOR Tax (2%)</th>
+                    <th class="p-3.5 text-emerald-700">Farmer Cut (${config.farmerSharePercent}%)</th>
+                    <th class="p-3.5 text-teal-700">Logistics (${config.driverSharePercent}%)</th>
+                    <th class="p-3.5 text-purple-700">Platform (${config.platformFeePercent}%)</th>
+                    <th class="p-3.5 text-amber-700">MOR Tax (${config.withholdingTaxPercent}%)</th>
                     <th class="p-3.5">Escrow Status</th>
                     <th class="p-3.5 text-right">Actions</th>
                   </tr>
@@ -1151,10 +1151,10 @@ function renderFinancialsTab(
                 <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
                   ${orders.map(o => {
                     const gross = o.totalEtb;
-                    const farmer = o.farmerCut || Math.round(gross * 0.9);
-                    const driver = o.driverCut || Math.round(gross * 0.05);
-                    const platform = o.platformCut || Math.round(gross * 0.05);
-                    const tax = Math.round(gross * 0.02);
+                    const farmer = o.farmerCut || Math.round(gross * (config.farmerSharePercent / 100));
+                    const driver = o.driverCut || Math.round(gross * (config.driverSharePercent / 100));
+                    const platform = o.platformCut || Math.round(gross * (config.platformFeePercent / 100));
+                    const tax = Math.round(farmer * (config.withholdingTaxPercent / 100));
 
                     return `
                       <tr class="hover:bg-slate-50/80 transition-colors">
@@ -1220,7 +1220,7 @@ function renderFinancialsTab(
         <div class="space-y-4">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="glass-card p-4 border-l-4 border-amber-600 space-y-1">
-              <span class="text-xs text-slate-500 font-bold block">Total Withholding Tax Accrued (2%)</span>
+              <span class="text-xs text-slate-500 font-bold block">Total Withholding Tax Accrued (${config.withholdingTaxPercent}%)</span>
               <span class="text-xl font-black text-amber-800 font-mono">${totalWithholdingTax.toLocaleString()} ETB</span>
               <p class="text-[10px] text-slate-500 font-medium">Declared to Ethiopian Ministry of Revenues</p>
             </div>
@@ -1230,8 +1230,8 @@ function renderFinancialsTab(
               <p class="text-[10px] text-slate-500 font-medium">Compliance rate with tax identification numbers</p>
             </div>
             <div class="glass-card p-4 border-l-4 border-purple-600 space-y-1">
-              <span class="text-xs text-slate-500 font-bold block">15% VAT on Platform Service Fees</span>
-              <span class="text-xl font-black text-purple-800 font-mono">${Math.round(totalPlatformCut * 0.15).toLocaleString()} ETB</span>
+              <span class="text-xs text-slate-500 font-bold block">${config.vatOnCommissionPercent}% VAT on Platform Service Fees</span>
+              <span class="text-xl font-black text-purple-800 font-mono">${Math.round(totalPlatformCut * (config.vatOnCommissionPercent / 100)).toLocaleString()} ETB</span>
               <p class="text-[10px] text-slate-500 font-medium">Standard Value Added Tax on tech commission</p>
             </div>
           </div>
@@ -1252,7 +1252,7 @@ function renderFinancialsTab(
               </p>
               <p class="text-[11px] leading-relaxed">
                 Farmer Market operates as an authorized digital withholding agent under Ministry of Revenues regulations. 
-                A 2% withholding tax is computed on gross produce settlements exceeding 10,000 ETB and automatically itemized on commercial waybills and Telebirr disbursement vouchers.
+                A ${config.withholdingTaxPercent}% withholding tax is computed on gross produce settlements exceeding 10,000 ETB and automatically itemized on commercial waybills and Telebirr disbursement vouchers.
               </p>
             </div>
           </div>
@@ -1281,7 +1281,7 @@ function renderFinancialsTab(
                 </div>
                 <input type="range" id="farmerShareInput" min="70" max="95" value="${config.farmerSharePercent}"
                   oninput="window.updateEscrowSliders('farmer')" class="w-full accent-emerald-600 cursor-pointer" />
-                <p class="text-[10px] text-emerald-800 font-medium">Direct harvest payout credited to farmer upon buyer receipt confirmation.</p>
+                <p class="text-[10px] text-emerald-800 font-medium">Direct harvest payout (${config.farmerSharePercent}%) credited to farmer upon buyer receipt confirmation.</p>
               </div>
 
               <div class="p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-2">
@@ -1291,7 +1291,7 @@ function renderFinancialsTab(
                 </div>
                 <input type="range" id="driverShareInput" min="2" max="15" value="${config.driverSharePercent}"
                   oninput="window.updateEscrowSliders('driver')" class="w-full accent-teal-600 cursor-pointer" />
-                <p class="text-[10px] text-teal-800 font-medium">Freight logistics and driver mileage compensation.</p>
+                <p class="text-[10px] text-teal-800 font-medium">Freight logistics (${config.driverSharePercent}%) and driver mileage compensation.</p>
               </div>
 
               <div class="p-4 rounded-2xl bg-purple-50/70 border border-purple-200 space-y-2">
@@ -1301,7 +1301,7 @@ function renderFinancialsTab(
                 </div>
                 <input type="range" id="platformShareInput" min="2" max="15" value="${config.platformFeePercent}"
                   oninput="window.updateEscrowSliders('platform')" class="w-full accent-purple-600 cursor-pointer" />
-                <p class="text-[10px] text-purple-800 font-medium">Platform maintenance, dispute arbitration, and tech operations.</p>
+                <p class="text-[10px] text-purple-800 font-medium">Platform maintenance (${config.platformFeePercent}%), dispute arbitration, and ${config.vatOnCommissionPercent}% MOR VAT collection.</p>
               </div>
 
             </div>
@@ -1310,12 +1310,12 @@ function renderFinancialsTab(
               <div>
                 <label class="block text-xs font-bold text-slate-800 mb-1">MOR Withholding Tax on Produce Goods (%)</label>
                 <input type="number" id="cfgWithholdingTax" value="${config.withholdingTaxPercent}" min="0" max="10" step="0.5" class="input-field text-xs font-bold" />
-                <p class="text-[10px] text-slate-400 mt-1">Standard 2% commercial withholding declared to Ministry of Revenues.</p>
+                <p class="text-[10px] text-slate-400 mt-1">Standard ${config.withholdingTaxPercent}% commercial withholding declared to Ministry of Revenues.</p>
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-800 mb-1">High-Value Payout Approval Threshold (ETB)</label>
                 <input type="number" id="cfgHighValueThreshold" value="${config.highValuePayoutThresholdEtb}" min="10000" max="500000" step="5000" class="input-field text-xs font-bold" />
-                <p class="text-[10px] text-slate-400 mt-1">Payouts exceeding this value require Super Admin multi-sig authorization.</p>
+                <p class="text-[10px] text-slate-400 mt-1">Payouts exceeding ${config.highValuePayoutThresholdEtb.toLocaleString()} ETB require Super Admin multi-sig authorization.</p>
               </div>
             </div>
 

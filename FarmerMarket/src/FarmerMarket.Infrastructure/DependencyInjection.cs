@@ -1,4 +1,5 @@
 using FarmerMarket.Application.Common.Interfaces;
+using FarmerMarket.Application.Common.Models;
 using FarmerMarket.Infrastructure.Data;
 using FarmerMarket.Infrastructure.Options;
 using FarmerMarket.Infrastructure.Services;
@@ -13,43 +14,63 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // ─── Typed Options (IOptions<T>) ─────────────────────────────────────
+        // ─── Typed Options (IOptions<T>) with Fail-Fast Validation ─────────────
         services.AddOptions<JwtOptions>()
             .Bind(configuration.GetSection(JwtOptions.SectionName))
             .ValidateDataAnnotations()
-            .ValidateOnStart();      // Fail fast at startup if Jwt:Key is missing/short
-
-        services.AddOptions<TelebirrOptions>()
-            .Bind(configuration.GetSection(TelebirrOptions.SectionName));
-
-        services.AddOptions<ChapaOptions>()
-            .Bind(configuration.GetSection(ChapaOptions.SectionName));
-
-        services.AddOptions<SmsOptions>()
-            .Bind(configuration.GetSection(SmsOptions.SectionName));
+            .ValidateOnStart();
 
         services.AddOptions<EscrowOptions>()
-            .Bind(configuration.GetSection(EscrowOptions.SectionName));
+            .Bind(configuration.GetSection(EscrowOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<TelebirrOptions>()
+            .Bind(configuration.GetSection(TelebirrOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<ChapaOptions>()
+            .Bind(configuration.GetSection(ChapaOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<SmsOptions>()
+            .Bind(configuration.GetSection(SmsOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddOptions<EmailOptions>()
-            .Bind(configuration.GetSection(EmailOptions.SectionName));
+            .Bind(configuration.GetSection(EmailOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
-        // ─── Database ─────────────────────────────────────────────────────────
+        // ─── Database Configuration ───────────────────────────────────────────
         var connectionString = configuration.GetConnectionString("Default")
             ?? configuration.GetConnectionString("TmsDatabase")
             ?? configuration["DATABASE_URL"];
 
-        if (!string.IsNullOrWhiteSpace(connectionString) && !connectionString.Contains("Host=db"))
+        var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
+        var isProduction = environment.Equals("Production", StringComparison.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(connectionString) && !connectionString.Equals("InMemory", StringComparison.OrdinalIgnoreCase))
         {
             services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(connectionString, npgsqlOptions =>
                 {
-                    npgsqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(2), null);
+                    npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(2), errorCodesToAdd: null);
                 }));
         }
         else
         {
-            // In-memory database for local development / CI without a running Postgres
+            if (isProduction)
+            {
+                throw new InvalidOperationException(
+                    "FATAL: Production database connection string 'ConnectionStrings:Default' or 'DATABASE_URL' is missing. " +
+                    "Silent fallback to an in-memory database is strictly prohibited in Production mode.");
+            }
+
+            // In-memory database for unit tests or explicitly disconnected dev runs
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase("FarmerMarketDb"));
         }
@@ -87,7 +108,7 @@ public static class DependencyInjection
             {
                 SmsProviderType.AfroMessage => (ISmsService)sp.GetRequiredService<AfroMessageSmsService>(),
                 SmsProviderType.Twilio => sp.GetRequiredService<TwilioSmsService>(),
-                _ => sp.GetRequiredService<TwilioSmsService>() // Log mode: TwilioSmsService logs without credentials
+                _ => sp.GetRequiredService<TwilioSmsService>() // Log mode: safe local development logging
             };
         });
 

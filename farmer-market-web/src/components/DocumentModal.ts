@@ -1,5 +1,6 @@
 import { TaxInvoice, TransportWaybill, LegalContract, DisputeMediationRecord } from '../types';
 import { translations, Language } from '../i18n/translations';
+import { api } from '../services/api';
 
 export class DocumentModal {
   private currentLang: Language = 'en';
@@ -10,6 +11,13 @@ export class DocumentModal {
 
   public renderInvoice(inv: TaxInvoice): string {
     const isAm = this.currentLang === 'am';
+    const cfg = api.getPlatformConfig();
+    const farmerPercent = cfg?.farmerSharePercent || 90;
+    const driverPercent = cfg?.driverSharePercent || 5;
+    const platformPercent = cfg?.platformFeePercent || 5;
+    const vatPercent = cfg?.vatOnCommissionPercent || 15;
+    const withholdingTaxPercent = cfg?.withholdingTaxPercent || 2;
+    const subtotal = inv.grossAmountEtb || inv.goodsGrossTotalEtb || (inv.qtyKg * inv.unitPriceEtb);
     return `
       <div class="legal-doc-container print-area">
         <div class="doc-header">
@@ -39,7 +47,7 @@ export class DocumentModal {
             <label>REGULATORY STATUS / የግብር ሁኔታ</label>
             <p><span class="badge-green">TAX-EXEMPT PRIMARY PRODUCE (Art. 979/2016)</span></p>
             <label>ORDER ID / የትዕዛዝ ቁጥር</label>
-            <p><code>${inv.orderId.slice(0, 13)}...</code></p>
+            <p><code>${inv.orderId ? inv.orderId.slice(0, 13) : 'AGR-ORD'}...</code></p>
           </div>
         </div>
 
@@ -82,33 +90,33 @@ export class DocumentModal {
               <td><span class="badge-grade">${inv.grade || 'Grade 1'}</span></td>
               <td><strong>${inv.qtyKg.toLocaleString()} kg</strong></td>
               <td>${inv.unitPriceEtb.toFixed(2)} ETB</td>
-              <td style="text-align: right;"><strong>${(inv.grossAmountEtb || inv.goodsGrossTotalEtb || (inv.qtyKg * inv.unitPriceEtb)).toLocaleString()} ETB</strong></td>
+              <td style="text-align: right;"><strong>${subtotal.toLocaleString()} ETB</strong></td>
             </tr>
           </tbody>
         </table>
 
         <div class="doc-settlement-breakdown">
           <div class="escrow-payout-box">
-            <h6>ESCROW DISBURSEMENT APPORTIONMENT (90 / 5 / 5)</h6>
+            <h6>ESCROW DISBURSEMENT APPORTIONMENT (${farmerPercent} / ${driverPercent} / ${platformPercent})</h6>
             <div class="breakdown-row">
-              <span>Farmer Net Payout (90%):</span>
-              <strong>${(inv.farmerPayoutEtb || inv.netPayableToFarmerEtb || (inv.qtyKg * inv.unitPriceEtb * 0.9)).toLocaleString()} ETB</strong>
+              <span>Farmer Net Payout (${farmerPercent}%):</span>
+              <strong>${(inv.farmerPayoutEtb || inv.netPayableToFarmerEtb || (subtotal * (farmerPercent / 100))).toLocaleString()} ETB</strong>
             </div>
             <div class="breakdown-row">
-              <span>Driver Transport Fee (5%):</span>
-              <strong>${(inv.driverFreightEtb || inv.freightFeeEtb || (inv.qtyKg * inv.unitPriceEtb * 0.05)).toLocaleString()} ETB</strong>
+              <span>Driver Transport Fee (${driverPercent}%):</span>
+              <strong>${(inv.driverFreightEtb || inv.freightFeeEtb || (subtotal * (driverPercent / 100))).toLocaleString()} ETB</strong>
             </div>
             <div class="breakdown-row">
-              <span>Platform Service Commission (5%):</span>
-              <strong>${(inv.platformServiceFeeEtb || (inv.qtyKg * inv.unitPriceEtb * 0.05)).toLocaleString()} ETB</strong>
+              <span>Platform Service Commission (${platformPercent}%):</span>
+              <strong>${(inv.platformServiceFeeEtb || (subtotal * (platformPercent / 100))).toLocaleString()} ETB</strong>
             </div>
             <div class="breakdown-row vat-row">
-              <span>15% VAT on Platform Service Fee:</span>
-              <span>${(inv.platformVatEtb || (inv.qtyKg * inv.unitPriceEtb * 0.05 * 0.15)).toFixed(2)} ETB (Remitted to MOR)</span>
+              <span>${vatPercent}% VAT on Platform Service Fee:</span>
+              <span>${(inv.platformVatEtb || (subtotal * (platformPercent / 100) * (vatPercent / 100))).toFixed(2)} ETB (Remitted to MOR)</span>
             </div>
             <div class="breakdown-row withholding-row">
-              <span>Withholding Tax on Goods (2% Declared):</span>
-              <span>${(inv.withholdingTaxEtb || (inv.qtyKg * inv.unitPriceEtb * 0.02)).toFixed(2)} ETB</span>
+              <span>Withholding Tax on Goods (${withholdingTaxPercent}% Declared):</span>
+              <span>${(inv.withholdingTaxEtb || (subtotal * (withholdingTaxPercent / 100))).toFixed(2)} ETB</span>
             </div>
           </div>
 
@@ -425,7 +433,7 @@ export class DocumentModal {
             <h5>RESPONDENT (ተጠሪ አርሶ አደር)</h5>
             <p class="party-name"><strong>${a.respondentFarmer || a.respondentName || 'Chala Gemechu'}</strong></p>
             <p><span class="label">Freight Carrier:</span> ${a.freightCarrier || 'Dawit Kebede (Isuzu 5-Ton)'}</p>
-            <p><span class="label">Original Farm Payout:</span> 90% Contract Standard</p>
+            <p><span class="label">Original Farm Payout:</span> ${api.getPlatformConfig().farmerSharePercent}% Contract Standard</p>
           </div>
         </div>
 

@@ -152,7 +152,7 @@ export function renderFarmerView(
         </div>
       </section>
 
-      <!-- Earnings Dashboard (90% Net Cut) -->
+      <!-- Earnings Dashboard (${api.getPlatformConfig().farmerSharePercent}% Net Cut) -->
       <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         <div class="glass-card p-5 border-l-4 border-emerald-600 space-y-1">
@@ -190,7 +190,7 @@ export function renderFarmerView(
             ${summary.releasedEtb.toLocaleString()} <span class="text-sm font-bold text-slate-500">ETB</span>
           </div>
           <p class="text-[11px] text-blue-700 font-semibold">
-            <i class="fa-solid fa-hand-holding-dollar"></i> 90% direct produce value
+            <i class="fa-solid fa-hand-holding-dollar"></i> ${api.getPlatformConfig().farmerSharePercent}% direct produce value
           </p>
         </div>
 
@@ -226,7 +226,7 @@ export function renderFarmerView(
                   </div>
 
                   <p class="text-xs text-slate-600">
-                    Buyer: <strong class="text-slate-800">${o.buyerName}</strong> · Telebirr Escrow: <strong class="text-emerald-700">${o.totalEtb.toLocaleString()} ETB</strong> (Your Net 90%: <strong class="text-emerald-800 font-bold">${o.farmerCut.toLocaleString()} ETB</strong>)
+                    Buyer: <strong class="text-slate-800">${o.buyerName}</strong> · Telebirr Escrow: <strong class="text-emerald-700">${o.totalEtb.toLocaleString()} ETB</strong> (Your Net Share: <strong class="text-emerald-800 font-bold">${o.farmerCut.toLocaleString()} ETB</strong>)
                   </p>
                 </div>
 
@@ -437,7 +437,7 @@ function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orde
             ${(user?.walletBalanceEtb || 48200).toLocaleString()} <span class="text-lg font-bold text-sky-200">ETB</span>
           </h2>
           <p class="text-xs text-sky-100 max-w-md">
-            Linked Telebirr Account: <strong class="text-white">${user?.phone || '+251 911 223 344'}</strong> · 90% direct produce value deposited immediately after buyer delivery approval.
+            Linked Telebirr Account: <strong class="text-white">${user?.phone || '+251 911 223 344'}</strong> · ${api.getPlatformConfig().farmerSharePercent}% direct produce value deposited immediately after buyer delivery approval.
           </p>
         </div>
 
@@ -456,7 +456,7 @@ function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orde
           </div>
           <div>
             <h4 class="font-extrabold text-sm text-emerald-950">Ethiopian Tax Exemption Compliance (Proclamation No. 979/2016)</h4>
-            <p class="text-xs text-emerald-800">Primary agricultural produce sales are VAT-exempt. 2% withholding tax reported directly to MOR.</p>
+            <p class="text-xs text-emerald-800">Primary agricultural produce sales are VAT-exempt. ${api.getPlatformConfig().withholdingTaxPercent}% withholding tax reported directly to MOR.</p>
           </div>
         </div>
         <div class="text-right shrink-0">
@@ -483,7 +483,7 @@ function renderFarmerWalletSection(lang: Language, summary: PaymentSummary, orde
                 <th class="py-2.5">Order & Produce</th>
                 <th class="py-2.5">Quantity</th>
                 <th class="py-2.5">Gross Order</th>
-                <th class="py-2.5 text-emerald-800">Net Farmer Payout (90%)</th>
+                <th class="py-2.5 text-emerald-800">Net Farmer Payout (${api.getPlatformConfig().farmerSharePercent}%)</th>
                 <th class="py-2.5">Telebirr Ref</th>
                 <th class="py-2.5">Documents</th>
                 <th class="py-2.5">Status</th>

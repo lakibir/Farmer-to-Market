@@ -7,7 +7,7 @@ namespace FarmerMarket.Infrastructure.Data;
 
 public static class DbInitializer
 {
-    public static async Task SeedAsync(AppDbContext context, ILogger logger, bool isDevelopment = true)
+    public static async Task SeedAsync(AppDbContext context, ILogger logger, bool isDevelopment = true, bool seedDemoData = false)
     {
         try
         {
@@ -20,27 +20,47 @@ public static class DbInitializer
                 await context.Database.EnsureCreatedAsync();
             }
 
-            if (!isDevelopment)
+            if (!isDevelopment || !seedDemoData)
             {
-                logger.LogInformation("Production environment detected. Skipping demo and mock test data seeding.");
+                logger.LogInformation("Production mode active or SeedDemoData is disabled. Ensuring baseline admin bootstrap...");
+                
+                // Ensure baseline superadmin exists without polluting database with mock personas
+                var hasAdmin = await context.Users.AnyAsync(u => u.Role == UserRole.SuperAdmin);
+                if (!hasAdmin)
+                {
+                    var superAdminDawit = new User
+                    {
+                        Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                        Phone = "+251900000001",
+                        Name = "Dr. Dawit Haile (Super Admin)",
+                        NameAm = "ዶ/ር ዳዊት ኃይሌ",
+                        Role = UserRole.SuperAdmin,
+                        Region = "Addis Ababa (Headquarters)",
+                        Verified = true,
+                        VerificationStatus = VerificationStatus.Approved,
+                        CreatedAt = DateTimeOffset.UtcNow
+                    };
+                    context.Users.Add(superAdminDawit);
+                    await context.SaveChangesAsync();
+                    logger.LogInformation("Bootstrap SuperAdmin initialized ({Phone}).", superAdminDawit.Phone);
+                }
                 return;
             }
 
             var hasUsers = await context.Users.AnyAsync();
             if (!hasUsers)
             {
-                logger.LogInformation("Development environment: Seeding Ethiopian FarmerMarket initial data with advanced features...");
+                logger.LogInformation("Development environment: Seeding Ethiopian FarmerMarket demo dataset...");
                 await SeedInitialDataAsync(context, logger);
             }
             else
             {
-                // Ensure new advance harvest listings and sample disputed orders exist if they were added after initial seed
                 await EnsureEnrichedSeedDataAsync(context, logger);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "An error occurred while initializing and seeding the database.");
+            logger.LogError(ex, "An error occurred while initializing the database.");
         }
     }
 

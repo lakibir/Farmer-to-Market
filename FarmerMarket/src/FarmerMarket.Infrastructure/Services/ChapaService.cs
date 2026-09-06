@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FarmerMarket.Application.Common.Interfaces;
+using FarmerMarket.Application.Common.Models;
 using FarmerMarket.Infrastructure.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

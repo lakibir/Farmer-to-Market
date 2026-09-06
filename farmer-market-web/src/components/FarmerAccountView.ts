@@ -2,6 +2,7 @@ import { Language } from '../i18n/translations';
 import { Listing, Order, User } from '../types';
 import { PriceBenchmark } from '../types';
 import { renderCreateListingModal } from './FarmerView';
+import { api } from '../services/api';
 
 export type FarmerAccountTab = 'overview' | 'profile' | 'orders' | 'coupons' | 'addresses' | 'payments' | 'disputes' | 'settings' | 'security';
 
@@ -32,7 +33,7 @@ function renderFarmerModule(tab: FarmerAccountTab, user: User, orders: Order[]):
     orders: { kicker: 'FULFILLMENT', title: 'Orders & tracking', description: 'Orders appear here after buyers pay. Confirm them so available drivers can pick them up.', icon: 'fa-box-open', rows: orders.length ? orders.map(order => `${order.productName} · ${order.qtyKg} kg · ${order.status.replace('_', ' ')}`) : ['No buyer orders yet'] },
     coupons: { kicker: 'SELLER SAVINGS', title: 'My coupons', description: 'Farmer-issued coupon management will use your payout share.', icon: 'fa-ticket', rows: ['No farmer-issued coupons yet · Coupon creation API is ready for the next seller release'] },
     addresses: { kicker: 'FARM LOCATION', title: 'Saved addresses', description: 'Manage farm pickup locations and operating regions.', icon: 'fa-location-dot', rows: [`${user.region} · Farm pickup region`, 'Additional pickup-address management is pending the farm-location API'] },
-    payments: { kicker: 'PAYOUTS', title: 'Payment methods', description: 'Manage the Telebirr payout destination for your 90% settlement.', icon: 'fa-wallet', rows: [`Telebirr payout · ${user.phone} · 90% farmer share`, 'Bank fallback · Not configured'] },
+    payments: { kicker: 'PAYOUTS', title: 'Payment methods', description: `Manage the Telebirr payout destination for your ${api.getPlatformConfig().farmerSharePercent}% settlement.`, icon: 'fa-wallet', rows: [`Telebirr payout · ${user.phone} · ${api.getPlatformConfig().farmerSharePercent}% farmer share`, 'Bank fallback · Not configured'] },
     disputes: { kicker: 'RESOLUTION CENTER', title: 'Refunds & disputes', description: 'Respond to buyer claims and track payout impact.', icon: 'fa-rotate-left', rows: openDisputes.length ? openDisputes.map(order => `${order.productName} · Order #${order.id.slice(0, 8).toUpperCase()} · ${order.disputeStatus === 'ResolvedRefundBuyer' ? 'Refunded to buyer' : order.disputeStatus || 'Under review'}`) : ['No buyer disputes'] },
     settings: { kicker: 'PREFERENCES', title: 'Account settings', description: 'Configure seller notifications and auto-accept preferences.', icon: 'fa-sliders', rows: ['Order updates · In-app notifications on', 'Dispute updates · SMS on', 'Auto-accept orders · Configure quantity threshold'] },
     security: { kicker: 'PROTECTION', title: 'Security', description: 'Protect your farmer account with password and session controls.', icon: 'fa-shield-halved', rows: ['Password · Change it through the security form', 'Two-factor authentication · SMS recommended', 'Active sessions · Manage from the security API'] }

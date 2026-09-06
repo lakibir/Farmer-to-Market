@@ -363,9 +363,46 @@ class ApiService {
     }
   }
 
+  public apiUrl(path: string): string {
+    const base = ((import.meta as any).env?.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    if (!base) return path;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${cleanPath}`;
+  }
+
+  public async fetchPublicPlatformConfig(): Promise<void> {
+    try {
+      const res = await fetch(this.apiUrl('/api/config/public'));
+      if (res.ok) {
+        const data = await res.json();
+        this.platformConfig = {
+          ...this.platformConfig,
+          farmerSharePercent: Number(data.farmerSharePercent) || 90,
+          driverSharePercent: Number(data.driverSharePercent) || 5,
+          platformFeePercent: Number(data.platformFeePercent) || 5,
+          withholdingTaxPercent: Number(data.withholdingTaxPercent) || 2,
+          vatOnCommissionPercent: Number(data.vatOnCommissionPercent) || 15,
+          highValuePayoutThresholdEtb: Number(data.highValuePayoutThresholdEtb) || 50000
+        };
+        this.globalBusinessRules = {
+          ...this.globalBusinessRules,
+          minOrderKg: Number(data.minOrderKg) || 10,
+          maxOrderKg: Number(data.maxOrderKg) || 50000,
+          maxDistanceKm: Number(data.maxDistanceKm) || 450,
+          requireFaydaForOrdersAboveKg: Number(data.requireFaydaForOrdersAboveKg) || 500,
+          autoArbitrateAfterHours: Number(data.autoArbitrateAfterHours) || 48
+        };
+        this.savePlatformConfigToStorage();
+        this.saveBusinessRulesToStorage();
+      }
+    } catch (e) {
+      console.warn('Public platform config fetch fallback:', e);
+    }
+  }
+
   private async requestSuperAdmin(path: string, options: RequestInit = {}): Promise<any> {
     try {
-      const res = await fetch(path, {
+      const res = await fetch(this.apiUrl(path), {
         headers: {
           'Content-Type': 'application/json',
           ...this.getAuthHeaders(),
@@ -459,7 +496,7 @@ class ApiService {
   public async fetchMe(): Promise<User | null> {
     if (!this.token) return null;
     try {
-      const res = await fetch('/api/auth/me', { headers: this.getAuthHeaders() });
+      const res = await fetch(this.apiUrl('/api/auth/me'), { headers: this.getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         const vStatus: VerificationStatus = data.verificationStatus || (data.verified ? 'Approved' : 'PendingSubmission');
@@ -520,7 +557,7 @@ class ApiService {
     defaultDeliveryLng?: number;
   }): Promise<User> {
     if (!this.token) throw new Error('You must be signed in to update your profile.');
-    const res = await fetch('/api/auth/profile', {
+    const res = await fetch(this.apiUrl('/api/auth/profile'), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -542,7 +579,7 @@ class ApiService {
 
   public async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     if (!this.token) throw new Error('You must be signed in to change your password.');
-    const res = await fetch('/api/auth/change-password', {
+    const res = await fetch(this.apiUrl('/api/auth/change-password'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ currentPassword, newPassword })
@@ -552,7 +589,7 @@ class ApiService {
   }
 
   private async accountRequest(path: string, init?: RequestInit): Promise<any> {
-    const res = await fetch(`/api/account/${path}`, { ...init, headers: { ...this.getAuthHeaders(), ...(init?.headers || {}) } });
+    const res = await fetch(this.apiUrl(`/api/account/${path}`), { ...init, headers: { ...this.getAuthHeaders(), ...(init?.headers || {}) } });
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || 'Account request failed.');
     return data;
@@ -582,7 +619,7 @@ class ApiService {
   public async requestOtp(phone: string): Promise<{ demoCode?: string; message: string; phone: string; userName?: string; role?: string; email?: string }> {
     const cleanPhone = phone.startsWith('+251') ? phone.replace(/\s+/g, '') : '+251' + phone.replace(/^0+/, '').replace(/\s+/g, '');
     try {
-      const res = await fetch('/api/auth/request-otp', {
+      const res = await fetch(this.apiUrl('/api/auth/request-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: cleanPhone })
@@ -599,7 +636,7 @@ class ApiService {
       if (localUser) {
         // Attempt automatic on-the-fly registration to PostgreSQL database so future calls work smoothly
         try {
-          await fetch('/api/auth/register', {
+          await fetch(this.apiUrl('/api/auth/register'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -613,7 +650,7 @@ class ApiService {
           });
 
           // Retry request-otp now that user is in DB
-          const retryRes = await fetch('/api/auth/request-otp', {
+          const retryRes = await fetch(this.apiUrl('/api/auth/request-otp'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: cleanPhone })
@@ -656,7 +693,7 @@ class ApiService {
   public async verifyOtp(phone: string, code: string): Promise<User> {
     const cleanPhone = phone.startsWith('+251') ? phone.replace(/\s+/g, '') : '+251' + phone.replace(/^0+/, '').replace(/\s+/g, '');
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const res = await fetch(this.apiUrl('/api/auth/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: cleanPhone, code: code.trim() })
@@ -754,7 +791,7 @@ class ApiService {
     let message: string | undefined = undefined;
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(this.apiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -864,7 +901,7 @@ class ApiService {
 
   public async fetchListings(): Promise<Listing[]> {
     try {
-      const res = await fetch('/api/listings');
+      const res = await fetch(this.apiUrl('/api/listings'));
       if (res.ok) {
         const data = await res.json();
         const rawItems = Array.isArray(data) ? data : (data.items || []);
@@ -970,7 +1007,7 @@ class ApiService {
     let createdItem: Listing | null = null;
 
     try {
-      const res = await fetch('/api/listings', {
+      const res = await fetch(this.apiUrl('/api/listings'), {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(payload)
@@ -1060,7 +1097,7 @@ class ApiService {
   }
 
   public async deleteListing(id: string): Promise<void> {
-    const res = await fetch(`/api/listings/${id}`, { method: 'DELETE', headers: this.getAuthHeaders() });
+    const res = await fetch(this.apiUrl(`/api/listings/${id}`), { method: 'DELETE', headers: this.getAuthHeaders() });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Could not delete the listing.');
     await this.fetchListings();
@@ -1074,16 +1111,17 @@ class ApiService {
       return [];
     }
     try {
-      const res = await fetch('/api/orders', { headers: this.getAuthHeaders() });
+      const res = await fetch(this.apiUrl('/api/orders'), { headers: this.getAuthHeaders() });
       if (res.ok) {
         const items = await res.json();
         this.orders = items.map((o: any) => {
-          const totalEtb = Number(o.totalEtb);
-          const farmerCut = Number(o.farmerCut || (totalEtb * 0.90));
-          const driverCut = Number(o.driverCut || (totalEtb * 0.05));
-          const platformCut = Number(o.platformCut || (totalEtb * 0.05));
-          const withholdingTax = Math.round(totalEtb * 0.02); // 2% Withholding
-          const platformVat = Math.round(platformCut * 0.15); // 15% VAT on service fee
+          const cfg = this.platformConfig;
+          const totalEtb = Number(o.totalEtb || 0);
+          const farmerCut = Number(o.farmerCut || (totalEtb * ((cfg.farmerSharePercent || 90) / 100)));
+          const driverCut = Number(o.driverCut || (totalEtb * ((cfg.driverSharePercent || 5) / 100)));
+          const platformCut = Number(o.platformCut || (totalEtb - farmerCut - driverCut));
+          const withholdingTax = Math.round(totalEtb * ((cfg.withholdingTaxPercent || 2) / 100));
+          const platformVat = Math.round(platformCut * ((cfg.vatOnCommissionPercent || 15) / 100));
 
           return {
             id: o.id,
@@ -1166,7 +1204,7 @@ class ApiService {
     const isGuid = (val?: string) => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
     const validPaymentMethodId = isGuid(paymentMethodId) ? paymentMethodId : null;
 
-    const res = await fetch('/api/orders', {
+    const res = await fetch(this.apiUrl('/api/orders'), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -1255,7 +1293,7 @@ class ApiService {
 
   public async verifyChapaPayment(txRef: string): Promise<any> {
     try {
-      const res = await fetch(`/api/payments/chapa/verify/${encodeURIComponent(txRef)}`);
+      const res = await fetch(this.apiUrl(`/api/payments/chapa/verify/${encodeURIComponent(txRef)}`));
       if (res.ok) {
         const data = await res.json();
         await this.fetchOrders();
@@ -1270,7 +1308,7 @@ class ApiService {
 
   public async confirmOrderByFarmer(orderId: string) {
     const order = this.orders.find(o => o.id === orderId);
-    await fetch(`/api/orders/${orderId}/confirm`, {
+    await fetch(this.apiUrl(`/api/orders/${orderId}/confirm`), {
       method: 'PUT',
       headers: this.getAuthHeaders()
     });
@@ -1323,7 +1361,7 @@ class ApiService {
       return;
     }
 
-    await fetch(`/api/orders/${orderId}/pickup`, {
+    await fetch(this.apiUrl(`/api/orders/${orderId}/pickup`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({ pickupPhoto: photo || 'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=600&auto=format&fit=crop&q=80' })
@@ -1359,7 +1397,7 @@ class ApiService {
 
   public async confirmDeliveryByBuyer(orderId: string, proofPhoto?: string, lat?: number, lng?: number) {
     const order = this.orders.find(o => o.id === orderId);
-    await fetch(`/api/orders/${orderId}/deliver`, {
+    await fetch(this.apiUrl(`/api/orders/${orderId}/deliver`), {
       method: 'PUT',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -1371,8 +1409,9 @@ class ApiService {
     await this.fetchOrders();
 
     if (order) {
-      const farmerCut = order.farmerCut || Math.round(order.totalEtb * 0.90);
-      const driverCut = order.driverCut || Math.round(order.totalEtb * 0.05);
+      const cfg = this.platformConfig;
+      const farmerCut = order.farmerCut || Math.round(order.totalEtb * ((cfg.farmerSharePercent || 90) / 100));
+      const driverCut = order.driverCut || Math.round(order.totalEtb * ((cfg.driverSharePercent || 5) / 100));
 
       // 1. Notify Farmer: Payout released
       this.addNotification({
@@ -1380,8 +1419,8 @@ class ApiService {
         userId: order.farmerId,
         type: 'payout',
         channel: 'sms',
-        messageEn: `💰 [Telebirr Payout Released] Buyer confirmed delivery for order #${order.id.slice(0, 8).toUpperCase()}. 90% produce share (${farmerCut.toLocaleString()} ETB) credited to your Telebirr wallet!`,
-        messageAm: `💰 [የቴሌብር ክፍያ ተለቋል] ደንበኛው የትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} ርክክብ አረጋግጠዋል። 90% የምርት ዋጋ (${farmerCut.toLocaleString()} ብር) ወደ ቴሌብር ሂሳብዎ ገብቷል!`,
+        messageEn: `💰 [Telebirr Payout Released] Buyer confirmed delivery for order #${order.id.slice(0, 8).toUpperCase()}. ${cfg.farmerSharePercent}% produce share (${farmerCut.toLocaleString()} ETB) credited to your Telebirr wallet!`,
+        messageAm: `💰 [የቴሌብር ክፍያ ተለቋል] ደንበኛው የትዕዛዝ #${order.id.slice(0, 8).toUpperCase()} ርክክብ አረጋግጠዋል። ${cfg.farmerSharePercent}% የምርት ዋጋ (${farmerCut.toLocaleString()} ብር) ወደ ቴሌብር ሂሳብዎ ገብቷል!`,
         read: false,
         createdAt: new Date().toISOString()
       });
@@ -1414,7 +1453,7 @@ class ApiService {
 
   public async disputeOrder(orderId: string, reason: string, photo?: string, refundPercent = 50) {
     const order = this.orders.find(o => o.id === orderId);
-    const res = await fetch(`/api/orders/${orderId}/dispute`, {
+    const res = await fetch(this.apiUrl(`/api/orders/${orderId}/dispute`), {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: JSON.stringify({
@@ -1458,7 +1497,7 @@ class ApiService {
     const order = this.orders.find(o => o.id === orderId);
 
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/resolve-dispute`, {
+      const res = await fetch(this.apiUrl(`/api/admin/orders/${orderId}/resolve-dispute`), {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({
@@ -1667,7 +1706,7 @@ class ApiService {
 
   public async fetchReviewsForUser(userId: string): Promise<Review[]> {
     try {
-      const res = await fetch(`/api/reviews/user/${userId}`);
+      const res = await fetch(this.apiUrl(`/api/reviews/user/${userId}`));
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -1702,7 +1741,7 @@ class ApiService {
 
   public async fetchReviews(): Promise<Review[]> {
     try {
-      const res = await fetch('/api/reviews');
+      const res = await fetch(this.apiUrl('/api/reviews'));
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -1769,7 +1808,7 @@ class ApiService {
     const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (this.token && isGuid.test(orderId) && isGuid.test(revieweeId)) {
       try {
-        const res = await fetch('/api/reviews', {
+        const res = await fetch(this.apiUrl('/api/reviews'), {
           method: 'POST',
           headers: this.getAuthHeaders(),
           body: JSON.stringify({
@@ -1947,7 +1986,7 @@ class ApiService {
       totalContractValueEtb: o?.totalEtb || 9000,
       qualityStandardClause: 'Produce shall conform to Grade 1 Ethiopian Commodity Quality Standards (Maximum defect tolerance 2.5%, moisture within physiological thresholds).',
       deliveryTimeline: 'Direct farm-to-depot transit guaranteed within 12 hours of farmer harvest confirmation.',
-      escrowClauseText: 'Purchase consideration is locked in Telebirr C2B Escrow and shall be automatically disbursed (90% Farmer / 5% Driver / 5% Platform) upon buyer delivery verification.',
+      escrowClauseText: `Purchase consideration is locked in Telebirr C2B Escrow and shall be automatically disbursed (${this.platformConfig.farmerSharePercent}% Farmer / ${this.platformConfig.driverSharePercent}% Driver / ${this.platformConfig.platformFeePercent}% Platform) upon buyer delivery verification.`,
       forceMajeureClauseText: 'Neither party shall be liable for delivery failure caused by natural agricultural catastrophes, unseasonal frost, or national logistical force majeure.',
       disputeJurisdiction: 'Federal Democratic Republic of Ethiopia Commercial Code and Ethiopian Agricultural Authority Arbitration Rules.',
       eSignatures: {
@@ -2033,7 +2072,7 @@ class ApiService {
     if (item) {
       item.status = approve ? 'Verified' : 'Rejected';
       try {
-        await fetch(`/api/admin/users/${userId}/verify?verified=${approve}&kycStatus=${item.status}`, {
+        await fetch(this.apiUrl(`/api/admin/users/${userId}/verify?verified=${approve}&kycStatus=${item.status}`), {
           method: 'PUT',
           headers: this.getAuthHeaders()
         });
@@ -2154,7 +2193,7 @@ class ApiService {
 
   public async sendInboundSms(from: string, body: string): Promise<string> {
     try {
-      const res = await fetch('/api/sms/inbound', {
+      const res = await fetch(this.apiUrl('/api/sms/inbound'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from, body })
@@ -2227,7 +2266,7 @@ class ApiService {
     if (!this.currentUser) return;
     try {
       if (this.currentUser.role === 'farmer') {
-        const res = await fetch('/api/payments/farmer-summary', { headers: this.getAuthHeaders() });
+        const res = await fetch(this.apiUrl('/api/payments/farmer-summary'), { headers: this.getAuthHeaders() });
         if (res.ok) {
           const data = await res.json();
           this.farmerSummary = {
@@ -2240,7 +2279,7 @@ class ApiService {
           };
         }
       } else if (this.currentUser.role === 'driver') {
-        const res = await fetch('/api/payments/driver-summary', { headers: this.getAuthHeaders() });
+        const res = await fetch(this.apiUrl('/api/payments/driver-summary'), { headers: this.getAuthHeaders() });
         if (res.ok) {
           const data = await res.json();
           this.driverSummary = {
@@ -2251,7 +2290,7 @@ class ApiService {
           };
         }
       } else if (this.currentUser.role === 'admin') {
-        const res = await fetch('/api/admin/stats', { headers: this.getAuthHeaders() });
+        const res = await fetch(this.apiUrl('/api/admin/stats'), { headers: this.getAuthHeaders() });
         if (res.ok) {
           const data = await res.json();
           this.platformStats = {
@@ -2373,7 +2412,7 @@ class ApiService {
 
   public async broadcastSms(msgEn: string, msgAm: string, targetRole: string) {
     try {
-      await fetch('/api/admin/broadcast-sms', {
+      await fetch(this.apiUrl('/api/admin/broadcast-sms'), {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ messageEn: msgEn, messageAm: msgAm, targetRole })
@@ -2446,7 +2485,7 @@ class ApiService {
     }
 
     try {
-      await fetch('/api/verification/submit', {
+      await fetch(this.apiUrl('/api/verification/submit'), {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ tinNumber, documents: docs })
@@ -2560,7 +2599,7 @@ class ApiService {
     });
 
     try {
-      await fetch('/api/verification/agent-register', {
+      await fetch(this.apiUrl('/api/verification/agent-register'), {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(payload)
@@ -2605,7 +2644,7 @@ class ApiService {
     }
 
     try {
-      await fetch(`/api/verification/${userId}/review`, {
+      await fetch(this.apiUrl(`/api/verification/${userId}/review`), {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ action, notes, rejectionReason })
@@ -2631,7 +2670,7 @@ class ApiService {
   public async fetchVerificationQueue(): Promise<VerificationQueueItem[]> {
     if (!this.isAuthenticated()) return this.verificationQueue;
     try {
-      const res = await fetch('/api/verification/queue', { headers: this.getAuthHeaders() });
+      const res = await fetch(this.apiUrl('/api/verification/queue'), { headers: this.getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
@@ -2686,7 +2725,7 @@ class ApiService {
 
   public async fetchUsers(): Promise<User[]> {
     try {
-      const res = await fetch('/api/auth/demo-users');
+      const res = await fetch(this.apiUrl('/api/auth/demo-users'));
       if (res.ok) {
         const dbUsers: any[] = await res.json();
         if (Array.isArray(dbUsers)) {
@@ -2727,6 +2766,7 @@ class ApiService {
 
   public async refreshAllData() {
     await Promise.allSettled([
+      this.fetchPublicPlatformConfig(),
       this.fetchListings(),
       this.fetchOrders(),
       this.fetchReviews(),
@@ -2897,8 +2937,8 @@ class ApiService {
       const headers = this.getAuthHeaders();
       const isSuperAdmin = this.currentUser?.role === 'superadmin';
       const endpoint = isSuperAdmin
-        ? (dto.role === 'admin' ? '/api/superadmin/admins' : '/api/superadmin/users')
-        : '/api/auth/register';
+        ? (dto.role === 'admin' ? this.apiUrl('/api/superadmin/admins') : this.apiUrl('/api/superadmin/users'))
+        : this.apiUrl('/api/auth/register');
 
       const bodyPayload = isSuperAdmin && dto.role !== 'admin'
         ? {
@@ -3043,7 +3083,7 @@ class ApiService {
     // Call backend API asynchronously if valid GUID
     const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
     if (isGuid && this.token) {
-      fetch(`/api/superadmin/users/${cleanId}`, {
+      fetch(this.apiUrl(`/api/superadmin/users/${cleanId}`), {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
       }).catch(e => console.warn('Backend user delete sync skipped/failed:', e));
@@ -3100,8 +3140,8 @@ class ApiService {
     const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
     if (isGuid && this.token) {
       const endpoint = user.role === 'admin'
-        ? `/api/superadmin/admins/${user.id}/status`
-        : `/api/admin/users/${user.id}/status`;
+        ? this.apiUrl(`/api/superadmin/admins/${user.id}/status`)
+        : this.apiUrl(`/api/admin/users/${user.id}/status`);
 
       fetch(endpoint, {
         method: 'PUT',
@@ -3195,7 +3235,7 @@ class ApiService {
 
     if (this.token && (this.currentUser?.role === 'superadmin' || this.currentUser?.role === 'admin')) {
       try {
-        const res = await fetch('/api/superadmin/db/health', {
+        const res = await fetch(this.apiUrl('/api/superadmin/db/health'), {
           headers: this.getAuthHeaders()
         });
         if (res.ok) {
@@ -3253,14 +3293,14 @@ class ApiService {
         configRes, payoutsRes, auditLogsRes, zonesRes,
         flagsRes, blacklistRes, rulesRes, dbUsersRes
       ] = await Promise.allSettled([
-        fetch('/api/superadmin/platform-config', { headers }),
-        fetch('/api/superadmin/payouts', { headers }),
-        fetch('/api/superadmin/audit-logs', { headers }),
-        fetch('/api/superadmin/zones', { headers }),
-        fetch('/api/superadmin/feature-flags', { headers }),
-        fetch('/api/superadmin/blacklist', { headers }),
-        fetch('/api/superadmin/business-rules', { headers }),
-        fetch('/api/admin/all-users', { headers })
+        fetch(this.apiUrl('/api/superadmin/platform-config'), { headers }),
+        fetch(this.apiUrl('/api/superadmin/payouts'), { headers }),
+        fetch(this.apiUrl('/api/superadmin/audit-logs'), { headers }),
+        fetch(this.apiUrl('/api/superadmin/zones'), { headers }),
+        fetch(this.apiUrl('/api/superadmin/feature-flags'), { headers }),
+        fetch(this.apiUrl('/api/superadmin/blacklist'), { headers }),
+        fetch(this.apiUrl('/api/superadmin/business-rules'), { headers }),
+        fetch(this.apiUrl('/api/admin/all-users'), { headers })
       ]);
 
       if (configRes.status === 'fulfilled' && configRes.value.ok) {
@@ -3459,7 +3499,7 @@ class ApiService {
     return this.platformConfig;
   }
 
-  public updatePlatformConfig(config: Partial<PlatformConfig>): PlatformConfig {
+  public async updatePlatformConfig(config: Partial<PlatformConfig>): Promise<PlatformConfig> {
     const preState = { ...this.platformConfig };
     this.platformConfig = { ...this.platformConfig, ...config };
 
@@ -3476,10 +3516,45 @@ class ApiService {
     this.notify();
 
     // Async sync with ASP.NET backend
-    this.requestSuperAdmin('/api/superadmin/platform-config', {
-      method: 'PUT',
-      body: JSON.stringify(this.platformConfig)
-    });
+    try {
+      const serverRes = await this.requestSuperAdmin('/api/superadmin/platform-config', {
+        method: 'PUT',
+        body: JSON.stringify({
+          farmerSharePercent: this.platformConfig.farmerSharePercent,
+          driverSharePercent: this.platformConfig.driverSharePercent,
+          platformFeePercent: this.platformConfig.platformFeePercent,
+          withholdingTaxPercent: this.platformConfig.withholdingTaxPercent,
+          vatOnCommissionPercent: this.platformConfig.vatOnCommissionPercent,
+          highValuePayoutThresholdEtb: this.platformConfig.highValuePayoutThresholdEtb,
+          emergencyEscrowFrozen: this.platformConfig.emergencyEscrowFrozen,
+          telebirrAppId: this.platformConfig.telebirrAppId || '',
+          telebirrShortCode: this.platformConfig.telebirrShortCode || '',
+          telebirrApiKey: this.platformConfig.telebirrApiKey || '',
+          telebirrEscrowVaultKey: this.platformConfig.telebirrEscrowVaultKey || '',
+          twilioAccountSid: this.platformConfig.twilioAccountSid || '',
+          twilioAuthToken: this.platformConfig.twilioAuthToken || '',
+          twilioFromNumber: this.platformConfig.twilioFromNumber || '',
+          mapsGeocodingApiKey: this.platformConfig.mapsGeocodingApiKey || '',
+          postgisSpatialIndexEnabled: this.platformConfig.postgisSpatialIndexEnabled ?? true
+        })
+      });
+      if (serverRes && typeof serverRes === 'object' && serverRes.farmerSharePercent !== undefined) {
+        this.platformConfig = {
+          ...this.platformConfig,
+          farmerSharePercent: Number(serverRes.farmerSharePercent) || this.platformConfig.farmerSharePercent,
+          driverSharePercent: Number(serverRes.driverSharePercent) || this.platformConfig.driverSharePercent,
+          platformFeePercent: Number(serverRes.platformFeePercent) || this.platformConfig.platformFeePercent,
+          withholdingTaxPercent: Number(serverRes.withholdingTaxPercent) || this.platformConfig.withholdingTaxPercent,
+          vatOnCommissionPercent: Number(serverRes.vatOnCommissionPercent) || this.platformConfig.vatOnCommissionPercent,
+          highValuePayoutThresholdEtb: Number(serverRes.highValuePayoutThresholdEtb) || this.platformConfig.highValuePayoutThresholdEtb,
+          emergencyEscrowFrozen: serverRes.emergencyEscrowFrozen !== undefined ? !!serverRes.emergencyEscrowFrozen : this.platformConfig.emergencyEscrowFrozen
+        };
+        this.savePlatformConfigToStorage();
+        this.notify();
+      }
+    } catch (err) {
+      console.warn('Backend update platform config sync fallback:', err);
+    }
 
     return this.platformConfig;
   }
@@ -4312,7 +4387,7 @@ class ApiService {
     // Call backend API if valid GUID
     const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     if (isGuid && this.token) {
-      fetch(`/api/listings/${id}`, {
+      fetch(this.apiUrl(`/api/listings/${id}`), {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
       }).catch(e => console.warn('Backend listing delete failed/skipped:', e));
@@ -4345,7 +4420,7 @@ class ApiService {
     // Call backend API if valid GUID
     const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     if (isGuid && this.token) {
-      fetch(`/api/listings/${id}`, {
+      fetch(this.apiUrl(`/api/listings/${id}`), {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(dto)
@@ -4774,7 +4849,7 @@ class ApiService {
       const params = new URLSearchParams();
       if (category && category !== 'All') params.append('category', category);
       if (region && region !== 'All') params.append('region', region);
-      const res = await fetch(`/api/market-intelligence/indices?${params.toString()}`);
+      const res = await fetch(this.apiUrl(`/api/market-intelligence/indices?${params.toString()}`));
       if (res.ok) {
         return await res.json();
       }
@@ -4791,7 +4866,7 @@ class ApiService {
 
   public async getFairPriceRecommendation(request: FairPriceRecommendationRequest): Promise<FairPriceRecommendationResult> {
     try {
-      const res = await fetch('/api/market-intelligence/advisor', {
+      const res = await fetch(this.apiUrl('/api/market-intelligence/advisor'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request)
@@ -4826,7 +4901,7 @@ class ApiService {
   // USSD Simulation
   public async simulateUssd(request: UssdRequest): Promise<UssdResponse> {
     try {
-      const res = await fetch('/api/ussd/simulate', {
+      const res = await fetch(this.apiUrl('/api/ussd/simulate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request)

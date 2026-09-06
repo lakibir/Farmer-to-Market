@@ -17,12 +17,18 @@ public class PlaceOrderHandler(
     IPaymentGateway payment,
     ISmsService sms,
     ISignalRNotifier signalR,
-    IOptions<EscrowOptions>? escrowOptions = null) : IRequestHandler<PlaceOrderCommand, Result<PlaceOrderResultDto>>
+    IOptions<EscrowOptions>? escrowOptions = null,
+    ISuperAdminGovernanceStore? governanceStore = null) : IRequestHandler<PlaceOrderCommand, Result<PlaceOrderResultDto>>
 {
     private readonly EscrowOptions _escrow = escrowOptions?.Value ?? new EscrowOptions();
+    private readonly ISuperAdminGovernanceStore? _store = governanceStore;
 
     public async Task<Result<PlaceOrderResultDto>> Handle(PlaceOrderCommand req, CancellationToken ct)
     {
+        var config = _store?.GetPlatformConfig();
+        if (config?.EmergencyEscrowFrozen == true)
+            return Result<PlaceOrderResultDto>.Failure("Platform marketplace transactions and escrow disbursements are temporarily frozen by administration.");
+
         var buyer = await db.Users.FirstOrDefaultAsync(u => u.Id == req.BuyerId, ct);
         if (buyer == null)
             return Result<PlaceOrderResultDto>.Failure("Buyer account not found.");
@@ -43,10 +49,13 @@ public class PlaceOrderHandler(
         if (req.Dto.QtyKg > listing.QtyKg)
             return Result<PlaceOrderResultDto>.Failure($"Only {listing.QtyKg} kg available in stock.");
 
-        // Calculate amount and dynamic escrow split from configuration
+        // Calculate amount and dynamic escrow split from active configuration
+        var farmerPercent = config?.FarmerSharePercent ?? _escrow.FarmerPercent;
+        var driverPercent = config?.DriverSharePercent ?? _escrow.DriverPercent;
+
         var totalEtb = Math.Round(req.Dto.QtyKg * listing.PricePerKg, 2);
-        var farmerCut = Math.Round(totalEtb * (_escrow.FarmerPercent / 100m), 2);
-        var driverCut = Math.Round(totalEtb * (_escrow.DriverPercent / 100m), 2);
+        var farmerCut = Math.Round(totalEtb * (farmerPercent / 100m), 2);
+        var driverCut = Math.Round(totalEtb * (driverPercent / 100m), 2);
         var platformCut = totalEtb - farmerCut - driverCut;
 
         // Reduce inventory
@@ -358,12 +367,18 @@ public class DeliverOrderHandler(
     IPaymentGateway payment,
     ISignalRNotifier signalR,
     ISmsService sms,
-    IOptions<EscrowOptions>? escrowOptions = null) : IRequestHandler<DeliverOrderCommand, Result>
+    IOptions<EscrowOptions>? escrowOptions = null,
+    ISuperAdminGovernanceStore? governanceStore = null) : IRequestHandler<DeliverOrderCommand, Result>
 {
     private readonly EscrowOptions _escrow = escrowOptions?.Value ?? new EscrowOptions();
+    private readonly ISuperAdminGovernanceStore? _store = governanceStore;
 
     public async Task<Result> Handle(DeliverOrderCommand req, CancellationToken ct)
     {
+        var config = _store?.GetPlatformConfig();
+        if (config?.EmergencyEscrowFrozen == true)
+            return Result.Failure("Escrow disbursements are temporarily frozen platform-wide by administration.");
+
         var order = await db.Orders
             .Include(o => o.Listing)
             .Include(o => o.Listing.Farmer)

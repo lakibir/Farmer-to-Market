@@ -32,9 +32,14 @@ export function renderBuyerView(
     { key: 'Coffee', label: t.catCoffee, icon: 'fa-mug-hot' }
   ];
 
+  const config = api.getPlatformConfig();
+  const farmerPercent = config?.farmerSharePercent || 90;
+  const driverPercent = config?.driverSharePercent || 5;
+  const platformPercent = config?.platformFeePercent || 5;
+
   const cartTotal = cart.reduce((sum, item) => sum + (item.qtyKg * item.listing.pricePerKg), 0);
-  const farmerShare = Math.round(cartTotal * 0.90);
-  const driverShare = Math.round(cartTotal * 0.05);
+  const farmerShare = Math.round(cartTotal * (farmerPercent / 100));
+  const driverShare = Math.round(cartTotal * (driverPercent / 100));
   const platformShare = cartTotal - farmerShare - driverShare;
 
   // Group cart items by Farmer
@@ -101,7 +106,7 @@ export function renderBuyerView(
                   <span><i class="fa-solid fa-bolt text-amber-400"></i> PostGIS Geo-Proximity</span>
                   <span class="telebirr-badge text-[10px]">Telebirr C2B</span>
                 </div>
-                <div class="text-2xl font-black text-white">90% Direct to Farmer</div>
+                <div class="text-2xl font-black text-white">${farmerPercent}% Direct to Farmer</div>
                 <p class="text-xs text-emerald-100/90 leading-relaxed">
                   Source directly from farms within 10-100 km. Consolidate orders from multiple farmers with official e-VAT tax receipts.
                 </p>
@@ -404,18 +409,18 @@ export function renderBuyerView(
                 `).join('')}
               </div>
 
-              <!-- Price Breakdown (90% Farmer / 5% Driver / 5% Platform) -->
+              <!-- Price Breakdown (Dynamic Farmer / Driver / Platform split) -->
               <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2 text-xs">
                 <div class="flex justify-between text-slate-600">
-                  <span>${t.farmerShare}:</span>
+                  <span>${t.farmerShare} (${farmerPercent}%):</span>
                   <strong class="text-emerald-900">${farmerShare.toLocaleString()} ETB</strong>
                 </div>
                 <div class="flex justify-between text-slate-600">
-                  <span>${t.deliveryEstimate}:</span>
+                  <span>${t.deliveryEstimate} (${driverPercent}%):</span>
                   <strong class="text-slate-800">${driverShare.toLocaleString()} ETB</strong>
                 </div>
                 <div class="flex justify-between text-slate-600">
-                  <span>${t.platformFee}:</span>
+                  <span>${t.platformFee} (${platformPercent}%):</span>
                   <strong class="text-slate-800">${platformShare.toLocaleString()} ETB</strong>
                 </div>
                 <div class="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-emerald-200">
@@ -644,7 +649,7 @@ export function renderBuyerView(
                 </div>
                 <div>
                   <h5 class="text-sm font-bold text-slate-900">${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? 'Refund Completed & Order Closed' : 'Delivery Confirmation & Escrow Release'}</h5>
-                  <p class="text-xs text-slate-500">${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? 'Refund returned through the original payment method.' : activeOrderModal.status === 'delivered' ? '90% released to farmer, 5% to driver' : 'Confirm on receipt to release funds'}</p>
+                  <p class="text-xs text-slate-500">${activeOrderModal.disputeStatus === 'ResolvedRefundBuyer' ? 'Refund returned through the original payment method.' : activeOrderModal.status === 'delivered' ? `${farmerPercent}% released to farmer, ${driverPercent}% to driver` : 'Confirm on receipt to release funds'}</p>
                 </div>
               </div>
             </div>
@@ -720,6 +725,10 @@ export function renderBuyerView(
 
 function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
   const t = translations[lang];
+  const cfg = api.getPlatformConfig();
+  const farmerPercent = cfg.farmerSharePercent;
+  const driverPercent = cfg.driverSharePercent;
+  const platformPercent = cfg.platformFeePercent;
 
   const statusSteps = [
     { key: 'pending', label: 'Order Placed', icon: 'fa-lock', active: ['pending', 'confirmed', 'PickedUp', 'picked_up', 'delivered'] },
@@ -809,7 +818,7 @@ function renderBuyerOrdersSection(lang: Language, orders: Order[]): string {
               <div class="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-sm space-y-1">
                 <span class="w-6 h-6 rounded-full bg-purple-100 text-purple-800 text-[11px] font-black flex items-center justify-center">4</span>
                 <h4 class="text-xs font-bold text-slate-900">${lang === 'am' ? 'ደረሰኝና ክፍያ' : 'e-VAT & Release'}</h4>
-                <p class="text-[10px] text-slate-500">${lang === 'am' ? '90/5/5% አውቶማቲክ የክፍያ ክፍፍል' : '90% Farmer / 5% Transporter payout'}</p>
+                <p class="text-[10px] text-slate-500">${lang === 'am' ? `${farmerPercent}/${driverPercent}/${platformPercent}% አውቶማቲክ የክፍያ ክፍፍል` : `${farmerPercent}% Farmer / ${driverPercent}% Transporter payout`}</p>
               </div>
             </div>
 

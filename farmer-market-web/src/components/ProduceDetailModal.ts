@@ -37,12 +37,18 @@ export class ProduceDetailModal {
     const safePhotoIndex = Math.min(this.activePhotoIndex, photos.length - 1);
     const activePhoto = photos[safePhotoIndex];
 
+    // Dynamic Platform Config & Escrow Split
+    const config = api.getPlatformConfig();
+    const farmerPercent = config?.farmerSharePercent || 90;
+    const driverPercent = config?.driverSharePercent || 5;
+    const platformPercent = config?.platformFeePercent || 5;
+
     // Qty & Price calculation
     const qty = Math.max(listing.minOrderKg || 10, this.selectedQtyKg || listing.minOrderKg || 50);
     const subtotal = qty * listing.pricePerKg;
-    const farmerShare = Math.round(subtotal * 0.90);
-    const driverCut = Math.round(subtotal * 0.05);
-    const escrowProtectionFee = Math.round(subtotal * 0.05);
+    const farmerShare = Math.round(subtotal * (farmerPercent / 100));
+    const driverCut = Math.round(subtotal * (driverPercent / 100));
+    const escrowProtectionFee = Math.round(subtotal * (platformPercent / 100));
 
     // Benchmark comparison calculation
     const benchmark = listing.marketBenchmarkPrice || (listing.pricePerKg * 1.15);
@@ -50,8 +56,8 @@ export class ProduceDetailModal {
     const savingsPercent = benchmark > 0 ? Math.round((savingsPerKg / benchmark) * 100) : 0;
 
     // Rich description fallback if none provided
-    const descEn = listing.description || `Freshly harvested Grade 1 ${listing.productName} cultivated directly by smallholder farmer ${listing.farmerName} in ${listing.region}. Verified under Ethiopian agricultural commodity standards with 90% direct farmer escrow payout.`;
-    const descAm = listing.descriptionAm || `በ${listing.region} በአርሶ አደር ${listing.farmerNameAm || listing.farmerName} የተመረተ ምርጥ ደረጃ ${listing.nameAm || listing.productName}። በቴሌብር ዋስትና 90% ቀጥታ ለአርሶ አደሩ የሚከፈልበት ተመራጭ ምርት።`;
+    const descEn = listing.description || `Freshly harvested Grade 1 ${listing.productName} cultivated directly by smallholder farmer ${listing.farmerName} in ${listing.region}. Verified under Ethiopian agricultural commodity standards with ${farmerPercent}% direct farmer escrow payout.`;
+    const descAm = listing.descriptionAm || `በ${listing.region} በአርሶ አደር ${listing.farmerNameAm || listing.farmerName} የተመረተ ምርጥ ደረጃ ${listing.nameAm || listing.productName}። በቴሌብር ዋስትና ${farmerPercent}% ቀጥታ ለአርሶ አደሩ የሚከፈልበት ተመራጭ ምርት።`;
 
     return `
       <div class="modal-backdrop" onclick="if(event.target === this) window.closeProduceDetail()">
@@ -270,7 +276,7 @@ export class ProduceDetailModal {
 
                   <div class="text-[11px] text-slate-600 bg-white/80 p-2 rounded-xl border border-amber-200/50 leading-tight">
                     <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>
-                    Eliminates 3 intermediary middleman margins. You save <strong class="text-emerald-800 font-bold">${savingsPerKg.toFixed(1)} ETB/kg</strong> while smallholder receives full 90% value.
+                    Eliminates 3 intermediary middleman margins. You save <strong class="text-emerald-800 font-bold">${savingsPerKg.toFixed(1)} ETB/kg</strong> while smallholder receives full ${farmerPercent}% value.
                   </div>
                 </div>
 
@@ -559,8 +565,8 @@ export class ProduceDetailModal {
                   </div>
 
                   <div class="text-right text-[11px] text-slate-300 space-y-0.5 border-l border-white/10 pl-4">
-                    <div>Farmer Payout (90%): <strong class="text-emerald-300 font-bold">${farmerShare.toLocaleString()} ETB</strong></div>
-                    <div>Driver & Escrow (10%): <strong class="text-slate-200">${(driverCut + escrowProtectionFee).toLocaleString()} ETB</strong></div>
+                    <div>Farmer Payout (${farmerPercent}%): <strong class="text-emerald-300 font-bold">${farmerShare.toLocaleString()} ETB</strong></div>
+                    <div>Driver & Escrow (${driverPercent + platformPercent}%): <strong class="text-slate-200">${(driverCut + escrowProtectionFee).toLocaleString()} ETB</strong></div>
                     <div class="text-[10px] text-amber-300 font-bold"><i class="fa-solid fa-stamp mr-1"></i> Tax-Exempt Produce (Art. 979)</div>
                   </div>
                 </div>
