@@ -364,7 +364,8 @@ class ApiService {
   }
 
   public apiUrl(path: string): string {
-    const base = ((import.meta as any).env?.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    const rawBase = (import.meta as any).env?.VITE_API_BASE_URL;
+    const base = (rawBase || ((import.meta as any).env?.PROD ? 'https://farmer-to-market-2.onrender.com' : '')).replace(/\/$/, '');
     if (!base) return path;
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
     return `${base}${cleanPath}`;

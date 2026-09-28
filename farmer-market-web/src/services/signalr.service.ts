@@ -33,7 +33,8 @@ export class SignalRService {
     if (this.hubConnection) return;
 
     try {
-      const base = ((import.meta as any).env?.VITE_API_BASE_URL || '').replace(/\/$/, '');
+      const rawBase = (import.meta as any).env?.VITE_API_BASE_URL;
+      const base = (rawBase || ((import.meta as any).env?.PROD ? 'https://farmer-to-market-2.onrender.com' : '')).replace(/\/$/, '');
       const hubUrl = base ? `${base}/hubs/orders` : '/hubs/orders';
       this.hubConnection = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl, {
