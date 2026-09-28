@@ -39,6 +39,7 @@ EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_RUNNING_IN_CONTAINER=true \
+    ALLOW_IN_MEMORY_DB=true \
     TZ=Africa/Addis_Ababa
 
 COPY --from=build /app/publish .

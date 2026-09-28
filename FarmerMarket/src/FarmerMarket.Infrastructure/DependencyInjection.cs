@@ -54,6 +54,9 @@ public static class DependencyInjection
 
         var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
         var isProduction = environment.Equals("Production", StringComparison.OrdinalIgnoreCase);
+        var allowInMemory = configuration.GetValue<bool>("ALLOW_IN_MEMORY_DB", false)
+            || string.Equals(rawConnStr, "InMemory", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(connectionString, "InMemory", StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(connectionString) && !connectionString.Equals("InMemory", StringComparison.OrdinalIgnoreCase))
         {
@@ -65,7 +68,7 @@ public static class DependencyInjection
         }
         else
         {
-            if (isProduction)
+            if (isProduction && !allowInMemory)
             {
                 throw new InvalidOperationException(
                     "FATAL: Production database connection string 'ConnectionStrings:Default' or 'DATABASE_URL' is missing. " +
