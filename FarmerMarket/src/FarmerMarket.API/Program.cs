@@ -20,6 +20,13 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cloud platform dynamic port support (Render/Fly.io/Heroku pass $PORT)
+var envPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(envPort) && int.TryParse(envPort, out _))
+{
+    builder.WebHost.UseUrls($"http://*:{envPort}");
+}
+
 // ── 1. Clean Architecture Layers ─────────────────────────────────────────────
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
@@ -119,7 +126,7 @@ builder.Services.AddAuthentication(options =>
 // ── 8. Authorization Policies (RBAC) ─────────────────────────────────────────
 builder.Services.AddAuthorization(AuthorizationPolicies.ConfigurePolicies);
 
-// ── 9. CORS (Allow-list with explicit credentials) ───────────────────────────
+// ── 9. CORS (Allow-list with explicit credentials & Vercel auto-support) ─────
 var defaultDevOrigins = new[] { "http://localhost:5173", "http://localhost:4200", "http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:4200", "http://127.0.0.1:5173" };
 var configuredOrigins = builder.Configuration["CORS_ALLOWED_ORIGINS"]?
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -129,18 +136,27 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowConfiguredOrigins", policy =>
     {
-        if (configuredOrigins.Length > 0)
+        policy.SetIsOriginAllowed(origin =>
         {
-            policy.WithOrigins(configuredOrigins)
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
-        }
-        else
-        {
-            // Disallow all cross-origin requests by default if no allow-list is defined
-            policy.SetIsOriginAllowed(_ => false);
-        }
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+            // Allow wildcard if configured
+            if (configuredOrigins.Contains("*")) return true;
+            // Allow explicit configured origins
+            if (configuredOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)) return true;
+            // Automatically allow all Vercel deployment and preview URLs (*.vercel.app)
+            try
+            {
+                var uri = new Uri(origin);
+                return uri.Host.EndsWith("vercel.app", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        })
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials();
     });
 });
 

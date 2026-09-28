@@ -46,9 +46,11 @@ public static class DependencyInjection
             .ValidateOnStart();
 
         // ─── Database Configuration ───────────────────────────────────────────
-        var connectionString = configuration.GetConnectionString("Default")
+        var rawConnStr = configuration.GetConnectionString("Default")
             ?? configuration.GetConnectionString("TmsDatabase")
             ?? configuration["DATABASE_URL"];
+
+        var connectionString = NormalizePostgresConnectionString(rawConnStr);
 
         var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
         var isProduction = environment.Equals("Production", StringComparison.OrdinalIgnoreCase);
@@ -113,5 +115,29 @@ public static class DependencyInjection
         });
 
         return services;
+    }
+
+    private static string? NormalizePostgresConnectionString(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return raw;
+        if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+            raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var uri = new Uri(raw);
+                var userInfo = uri.UserInfo.Split(':');
+                var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
+                var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+                var database = uri.AbsolutePath.TrimStart('/');
+                var port = uri.Port > 0 ? uri.Port : 5432;
+                return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+            }
+            catch
+            {
+                return raw;
+            }
+        }
+        return raw;
     }
 }

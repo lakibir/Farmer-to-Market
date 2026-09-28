@@ -5,7 +5,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-preview-alpine AS build
 WORKDIR /src
 
 # Copy solution and project files for layer caching
-COPY FarmerMarket.sln ./
+COPY FarmerMarket.slnx ./
 COPY src/FarmerMarket.Domain/FarmerMarket.Domain.csproj src/FarmerMarket.Domain/
 COPY src/FarmerMarket.Application/FarmerMarket.Application.csproj src/FarmerMarket.Application/
 COPY src/FarmerMarket.Infrastructure/FarmerMarket.Infrastructure.csproj src/FarmerMarket.Infrastructure/
@@ -13,7 +13,7 @@ COPY src/FarmerMarket.API/FarmerMarket.API.csproj src/FarmerMarket.API/
 COPY tests/FarmerMarket.Tests/FarmerMarket.Tests.csproj tests/FarmerMarket.Tests/
 
 # Restore dependencies
-RUN dotnet restore FarmerMarket.sln
+RUN dotnet restore FarmerMarket.slnx
 
 # Copy all source code
 COPY src/ src/
