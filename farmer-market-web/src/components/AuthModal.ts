@@ -106,62 +106,72 @@ export function renderAuthModal(
                   <i class="fa-solid fa-paper-plane mr-1.5"></i> ${lang === 'am' ? 'የኤስኤምኤስ እና የኢሜይል ማረጋገጫ ኮድ ላክ' : 'Verify & Send SMS/Email Code'}
                 </button>
 
-                ${import.meta.env.DEV ? `
-                <!-- Quick Test Accounts for Local Development Only (Stripped from Production) -->
+                <!-- Quick Test Numbers & Demo Accounts (Always visible on Vercel and local) -->
                 <div class="pt-3 border-t border-slate-100 space-y-2">
                   <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      <i class="fa-solid fa-flask-vial text-emerald-600 mr-1"></i> Quick Test Accounts (Development Only)
+                    <span class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <i class="fa-solid fa-key text-emerald-600"></i> Demo Credentials &amp; Test Numbers
                     </span>
+                    <span class="text-[9px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Click to Auto-fill</span>
                   </div>
-                  <div class="grid grid-cols-2 gap-2 text-left">
-                    <button type="button" onclick="window.quickFillPhone('911 223 344')" 
-                      class="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200 transition-all text-left cursor-pointer group">
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                    <!-- SUPER ADMIN -->
+                    <button type="button" onclick="window.quickFillPhone('900 000 001')" 
+                      class="p-2.5 rounded-xl bg-gradient-to-r from-rose-50 to-rose-100/70 hover:from-rose-100 hover:to-rose-200/80 border border-rose-300 transition-all text-left cursor-pointer group sm:col-span-2 shadow-xs">
                       <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold text-emerald-950">🌾 Abebe Bekele</span>
-                        <span class="text-[9px] font-black bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded">FARMER</span>
+                        <span class="text-xs font-black text-rose-950 flex items-center gap-1.5">
+                          <span>👑</span> Dr. Dawit Haile
+                        </span>
+                        <span class="text-[9px] font-black bg-rose-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">SUPER ADMIN</span>
                       </div>
-                      <span class="text-[10px] text-emerald-800 font-mono block mt-0.5">+251 911 223 344</span>
+                      <div class="flex items-center justify-between mt-1">
+                        <span class="text-[11px] text-rose-800 font-mono font-black tracking-wide">+251 900 000 001</span>
+                        <span class="text-[10px] text-rose-700 font-bold group-hover:underline">Click to Fill &rarr;</span>
+                      </div>
                     </button>
 
-                    <button type="button" onclick="window.quickFillPhone('955 667 788')" 
-                      class="p-2 rounded-xl bg-blue-50/70 hover:bg-blue-100/80 border border-blue-200 transition-all text-left cursor-pointer group">
-                      <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold text-blue-950">🛒 Bethlehem (FreshMart)</span>
-                        <span class="text-[9px] font-black bg-blue-200/80 text-blue-900 px-1.5 py-0.5 rounded">BUYER</span>
-                      </div>
-                      <span class="text-[10px] text-blue-800 font-mono block mt-0.5">+251 955 667 788</span>
-                    </button>
-
-                    <button type="button" onclick="window.quickFillPhone('977 889 900')" 
-                      class="p-2 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 border border-amber-200 transition-all text-left cursor-pointer group">
-                      <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold text-amber-950">🚚 Dawit (Isuzu 5-Ton)</span>
-                        <span class="text-[9px] font-black bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded">DRIVER</span>
-                      </div>
-                      <span class="text-[10px] text-amber-800 font-mono block mt-0.5">+251 977 889 900</span>
-                    </button>
-
+                    <!-- MARKET ADMIN -->
                     <button type="button" onclick="window.quickFillPhone('900 112 233')" 
-                      class="p-2 rounded-xl bg-purple-50/70 hover:bg-purple-100/80 border border-purple-200 transition-all text-left cursor-pointer group">
+                      class="p-2 rounded-xl bg-purple-50/80 hover:bg-purple-100/90 border border-purple-200 transition-all text-left cursor-pointer group">
                       <div class="flex items-center justify-between">
                         <span class="text-[11px] font-extrabold text-purple-950">🛡️ Sara Mengistu</span>
-                        <span class="text-[9px] font-black bg-purple-200/80 text-purple-900 px-1.5 py-0.5 rounded">ADMIN</span>
+                        <span class="text-[9px] font-black bg-purple-600 text-white px-1.5 py-0.5 rounded">ADMIN</span>
                       </div>
-                      <span class="text-[10px] text-purple-800 font-mono block mt-0.5">+251 900 112 233</span>
+                      <span class="text-[10px] text-purple-800 font-mono font-bold block mt-0.5">+251 900 112 233</span>
                     </button>
 
-                    <button type="button" onclick="window.quickFillPhone('900 000 001')" 
-                      class="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200 transition-all text-left cursor-pointer group col-span-1 sm:col-span-2">
+                    <!-- WHOLESALE BUYER -->
+                    <button type="button" onclick="window.quickFillPhone('955 667 788')" 
+                      class="p-2 rounded-xl bg-blue-50/80 hover:bg-blue-100/90 border border-blue-200 transition-all text-left cursor-pointer group">
                       <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-extrabold text-rose-950">👑 Dr. Dawit Haile (Super Admin)</span>
-                        <span class="text-[9px] font-black bg-rose-200 text-rose-900 px-1.5 py-0.5 rounded">SUPER ADMIN</span>
+                        <span class="text-[11px] font-extrabold text-blue-950">🛒 Bethlehem (FreshMart)</span>
+                        <span class="text-[9px] font-black bg-blue-600 text-white px-1.5 py-0.5 rounded">BUYER</span>
                       </div>
-                      <span class="text-[10px] text-rose-800 font-mono block mt-0.5">+251 900 000 001 · Root Impersonation</span>
+                      <span class="text-[10px] text-blue-800 font-mono font-bold block mt-0.5">+251 955 667 788</span>
+                    </button>
+
+                    <!-- PRODUCE FARMER -->
+                    <button type="button" onclick="window.quickFillPhone('911 223 344')" 
+                      class="p-2 rounded-xl bg-emerald-50/80 hover:bg-emerald-100/90 border border-emerald-200 transition-all text-left cursor-pointer group">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-emerald-950">🌾 Abebe Bekele</span>
+                        <span class="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded">FARMER</span>
+                      </div>
+                      <span class="text-[10px] text-emerald-800 font-mono font-bold block mt-0.5">+251 911 223 344</span>
+                    </button>
+
+                    <!-- COLD-CHAIN DRIVER -->
+                    <button type="button" onclick="window.quickFillPhone('977 889 900')" 
+                      class="p-2 rounded-xl bg-amber-50/80 hover:bg-amber-100/90 border border-amber-200 transition-all text-left cursor-pointer group">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-amber-950">🚚 Dawit (Isuzu 5-Ton)</span>
+                        <span class="text-[9px] font-black bg-amber-600 text-white px-1.5 py-0.5 rounded">DRIVER</span>
+                      </div>
+                      <span class="text-[10px] text-amber-800 font-mono font-bold block mt-0.5">+251 977 889 900</span>
                     </button>
                   </div>
                 </div>
-                ` : ''}
               </form>
             ` : `
               <!-- OTP Verification Step -->
